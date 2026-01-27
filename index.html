@@ -713,51 +713,73 @@
     </footer>
 
     <script>
-        // ========== SLIDER ==========
-        let currentSlide = 0;
-        const totalSlides = 8;
-        const slider = document.getElementById('slider');
-        const dotsContainer = document.getElementById('dots');
+        // ========== SLIDERS MÚLTIPLES ==========
+    const sliders = {
+        slider: { current: 0, total: 8 },   // Primer slider (Cenotes)
+        slider2: { current: 0, total: 5 }   // Segundo slider (Clear Boat)
+    };
 
-        // Crear dots
-        for (let i = 0; i < totalSlides; i++) {
+    // Crear dots para cada slider
+    Object.keys(sliders).forEach(sliderId => {
+        const dotsId = sliderId === 'slider' ? 'dots' : 'dots2';
+        const dotsContainer = document.getElementById(dotsId);
+        const { total } = sliders[sliderId];
+        
+        for (let i = 0; i < total; i++) {
             const dot = document.createElement('span');
             dot.classList.add('dot');
             if (i === 0) dot.classList.add('active');
-            dot.onclick = () => goToSlide(i);
+            dot.onclick = () => goToSlide(sliderId, i);
             dotsContainer.appendChild(dot);
         }
+    });
 
-        function updateDots() {
-            document.querySelectorAll('.dot').forEach((dot, index) => {
-                dot.classList.toggle('active', index === currentSlide);
-            });
-        }
-
-        function goToSlide(index) {
-            currentSlide = index;
-            slider.style.transform = `translateX(-${currentSlide * 100}%)`;
-            updateDots();
-        }
-
-        function moveSlide(direction) {
-            currentSlide += direction;
-            if (currentSlide < 0) currentSlide = totalSlides - 1;
-            if (currentSlide >= totalSlides) currentSlide = 0;
-            goToSlide(currentSlide);
-        }
-
-        // Auto-slide cada 5 segundos
-        setInterval(() => moveSlide(1), 5000);
-
-        // Ocultar placeholder cuando hay imagen
-        document.querySelectorAll('.slide').forEach(slide => {
-            const img = new Image();
-            img.onload = function() {
-                slide.querySelector('.placeholder').style.display = 'none';
-            };
-            img.src = slide.style.backgroundImage.slice(5, -2);
+    function updateDots(sliderId) {
+        const dotsId = sliderId === 'slider' ? 'dots' : 'dots2';
+        const dotsContainer = document.getElementById(dotsId);
+        const currentSlide = sliders[sliderId].current;
+        dotsContainer.querySelectorAll('.dot').forEach((dot, index) => {
+            dot.classList.toggle('active', index === currentSlide);
         });
+    }
+
+    function goToSlide(sliderId, index) {
+        const slider = document.getElementById(sliderId);
+        sliders[sliderId].current = index;
+        slider.style.transform = `translateX(-${index * 100}%)`;
+        updateDots(sliderId);
+    }
+
+    function moveSlide(sliderId, direction) {
+        // Si solo se pasa un argumento (para compatibilidad con slider 1)
+        if (direction === undefined) {
+            direction = sliderId;
+            sliderId = 'slider';
+        }
+        
+        const { current, total } = sliders[sliderId];
+        let newSlide = current + direction;
+        if (newSlide < 0) newSlide = total - 1;
+        if (newSlide >= total) newSlide = 0;
+        goToSlide(sliderId, newSlide);
+    }
+
+    // Auto-slide cada 5 segundos para cada slider
+    setInterval(() => moveSlide('slider', 1), 5000);
+    setInterval(() => moveSlide('slider2', 1), 5500); // Ligeramente diferente para que no sean sincronizados
+
+    // Ocultar placeholder cuando hay imagen
+    document.querySelectorAll('.slide').forEach(slide => {
+        const img = new Image();
+        img.onload = function() {
+            const placeholder = slide.querySelector('.placeholder');
+            if (placeholder) placeholder.style.display = 'none';
+        };
+        const bgImage = slide.style.backgroundImage;
+        if (bgImage) {
+            img.src = bgImage.slice(5, -2);
+        }
+    });
 
         // ========== IDIOMA ==========
         const langSelector = document.getElementById('language-selector');
