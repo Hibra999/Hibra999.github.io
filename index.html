@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tours México - Descubre la Magia de México</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Navegación */
+        nav {
+            background: #1a5c37;
+            padding: 15px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .logo span {
+            color: #f4d03f;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 30px;
+        }
+
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+
+        nav ul li a:hover {
+            color: #f4d03f;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+                        url('https://images.unsplash.com/photo-1518638150340-f706e86654de?w=1600') center/cover;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+        }
+
+        .hero-content h1 {
+            font-size: 60px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .hero-content p {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: #ce1126;
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #a30d1e;
+        }
+
+        /* Secciones */
+        section {
+            padding: 80px 50px;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 40px;
+            color: #1a5c37;
+            margin-bottom: 50px;
+        }
+
+        .section-title span {
+            color: #ce1126;
+        }
+
+        /* Tours */
+        .tours-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .tour-card {
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            transition: transform 0.3s;
+        }
+
+        .tour-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .tour-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .tour-info {
+            padding: 25px;
+        }
+
+        .tour-info h3 {
+            color: #1a5c37;
+            margin-bottom: 10px;
+            font-size: 22px;
+        }
+
+        .tour-info p {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .tour-price {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .price {
+            font-size: 24px;
+            color: #ce1126;
+            font-weight: bold;
+        }
+
+        .btn-small {
+            background: #1a5c37;
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn-small:hover {
+            background: #145230;
+        }
+
+        /* Por qué elegirnos */
+        .features {
+            background: #f9f9f9;
+        }
+
+        .features-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .feature-item {
+            padding: 30px;
+        }
+
+        .feature-icon {
+            font-size: 50px;
+            margin-bottom: 20px;
+        }
+
+        .feature-item h3 {
+            color: #1a5c37;
+            margin-bottom: 15px;
+        }
+
+        .feature-item p {
+            color: #666;
+        }
+
+        /* Contacto */
+        .contact {
+            background: #1a5c37;
+            color: white;
+        }
+
+        .contact .section-title {
+            color: white;
+        }
+
+        .contact .section-title span {
+            color: #f4d03f;
+        }
+
+        .contact-form {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .contact-form input,
+        .contact-form textarea {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .contact-form textarea {
+            height: 150px;
+            resize: vertical;
+        }
+
+        .contact-form button {
+            width: 100%;
+            background: #f4d03f;
+            color: #1a5c37;
+            font-weight: bold;
+        }
+
+        .contact-form button:hover {
+            background: #d4b82f;
+        }
+
+        /* Footer */
+        footer {
+            background: #0f3d24;
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+
+        footer p {
+            margin-bottom: 10px;
+        }
+
+        .social-links a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 24px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            nav ul {
+                gap: 15px;
+            }
+
+            .hero-content h1 {
+                font-size: 36px;
+            }
+
+            section {
+                padding: 50px 20px;
+            }
+
+            .section-title {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navegación -->
+    <nav>
+        <div class="logo">Tours<span>Mex</span> 🇲🇽</div>
+        <ul>
+            <li><a href="#inicio">Inicio</a></li>
+            <li><a href="#tours">Tours</a></li>
+            <li><a href="#nosotros">Nosotros</a></li>
+            <li><a href="#contacto">Contacto</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero" id="inicio">
+        <div class="hero-content">
+            <h1>🌮 Descubre la Magia de México 🎭</h1>
+            <p>Vive experiencias únicas en los destinos más increíbles</p>
+            <a href="#tours" class="btn">Ver Tours Disponibles</a>
+        </div>
+    </section>
+
+    <!-- Tours -->
+    <section id="tours">
+        <h2 class="section-title">Nuestros <span>Tours</span></h2>
+        <div class="tours-container">
+            
+            <div class="tour-card">
+                <img src="https://images.unsplash.com/photo-1512813195386-6cf811ad3542?w=600" alt="Cancún">
+                <div class="tour-info">
+                    <h3>🏖️ Cancún Paradisiaco</h3>
+                    <p>5 días y 4 noches en el caribe mexicano. Incluye hotel, tours a Xcaret e Isla Mujeres.</p>
+                    <div class="tour-price">
+                        <span class="price">$8,500 MXN</span>
+                        <button class="btn-small">Reservar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tour-card">
+                <img src="https://images.unsplash.com/photo-1547995886-6dc09384c6e6?w=600" alt="CDMX">
+                <div class="tour-info">
+                    <h3>🏛️ CDMX Cultural</h3>
+                    <p>3 días recorriendo museos, Teotihuacán, Xochimilco y la mejor gastronomía.</p>
+                    <div class="tour-price">
+                        <span class="price">$4,200 MXN</span>
+                        <button class="btn-small">Reservar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tour-card">
+                <img src="https://images.unsplash.com/photo-1605216663980-b7ca6e9f7a64?w=600" alt="Oaxaca">
+                <div class="tour-info">
+                    <h3>🎨 Oaxaca Mágico</h3>
+                    <p>4 días descubriendo Monte Albán, Hierve el Agua y el mezcal artesanal.</p>
+                    <div class="tour-price">
+                        <span class="price">$5,800 MXN</span>
+                        <button class="btn-small">Reservar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tour-card">
+                <img src="https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=600" alt="Guanajuato">
+                <div class="tour-info">
+                    <h3>🎭 Guanajuato Colonial</h3>
+                    <p>3 días por callejones coloridos, momias, minas y leyendas del callejón del beso.</p>
+                    <div class="tour-price">
+                        <span class="price">$3,900 MXN</span>
+                        <button class="btn-small">Reservar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tour-card">
+                <img src="https://images.unsplash.com/photo-1552074284-5e88ef1aef18?w=600" alt="Chichen Itza">
+                <div class="tour-info">
+                    <h3>🏺 Mundo Maya</h3>
+                    <p>6 días explorando Chichén Itzá, Uxmal, cenotes sagrados y la cultura maya.</p>
+                    <div class="tour-price">
+                        <span class="price">$9,500 MXN</span>
+                        <button class="btn-small">Reservar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tour-card">
+                <img src="https://images.unsplash.com/photo-1590559899731-a382839e5549?w=600" alt="Los Cabos">
+                <div class="tour-info">
+                    <h3>🐋 Los Cabos Aventura</h3>
+                    <p>5 días de playa, avistamiento de ballenas, snorkel y atardeceres mágicos.</p>
+                    <div class="tour-price">
+                        <span class="price">$10,200 MXN</span>
+                        <button class="btn-small">Reservar</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Por qué elegirnos -->
+    <section class="features" id="nosotros">
+        <h2 class="section-title">¿Por qué <span>Elegirnos</span>?</h2>
+        <div class="features-container">
+            <div class="feature-item">
+                <div class="feature-icon">💰</div>
+                <h3>Mejores Precios</h3>
+                <p>Garantizamos los precios más competitivos del mercado.</p>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🛡️</div>
+                <h3>Viaje Seguro</h3>
+                <p>Todos nuestros tours incluyen seguro de viajero.</p>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">👨‍💼</div>
+                <h3>Guías Expertos</h3>
+                <p>Guías certificados con amplio conocimiento local.</p>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">⭐</div>
+                <h3>+10 Años</h3>
+                <p>Experiencia creando viajes inolvidables.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contacto -->
+    <section class="contact" id="contacto">
+        <h2 class="section-title">¡<span>Contáctanos</span>!</h2>
+        <form class="contact-form">
+            <input type="text" placeholder="Tu nombre" required>
+            <input type="email" placeholder="Tu correo electrónico" required>
+            <input type="tel" placeholder="Tu teléfono">
+            <textarea placeholder="¿Qué tour te interesa?"></textarea>
+            <button type="submit" class="btn">Enviar Mensaje 📩</button>
+        </form>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>📍 Av. Reforma 123, CDMX | 📞 55 1234 5678 | ✉️ info@toursmex.com</p>
+        <div class="social-links">
+            <a href="#">📘</a>
+            <a href="#">📸</a>
+            <a href="#">🐦</a>
+            <a href="#">▶️</a>
+        </div>
+        <p style="margin-top: 20px;">© 2024 ToursMex - Todos los derechos reservados 🇲🇽</p>
+    </footer>
+
+</body>
+</html>
