@@ -200,6 +200,19 @@
             animation: pulse 2s infinite;
         }
 
+        /* BADGE NUEVO */
+        .new-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #00b4db, #0083b0);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -294,6 +307,26 @@
             gap: 10px;
         }
 
+        /* CAJA DE ADVERTENCIA */
+        .warning-box {
+            background: linear-gradient(135deg, #fff3cd, #ffeeba);
+            border: 2px solid #ffc107;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .warning-box h5 {
+            color: #856404;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .warning-box p {
+            color: #856404;
+            line-height: 1.6;
+        }
+
         /* PRECIO */
         .price-section {
             display: flex;
@@ -306,8 +339,26 @@
             gap: 20px;
         }
 
+        /* PRECIO ESTILO OCEAN (azul) */
+        .price-section.ocean {
+            background: linear-gradient(135deg, #00b4db, #0083b0);
+        }
+
         .price {
             color: white;
+        }
+
+        /* FILAS DE PRECIO */
+        .price-row {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .price-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
         }
 
         .price-amount {
@@ -315,9 +366,17 @@
             font-weight: 700;
         }
 
+        .price-amount.small {
+            font-size: 2rem;
+        }
+
         .price-currency {
             font-size: 1.5rem;
             opacity: 0.9;
+        }
+
+        .price-currency.small {
+            font-size: 1rem;
         }
 
         .price-person {
@@ -341,6 +400,10 @@
         .book-btn:hover {
             transform: scale(1.05);
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .book-btn.ocean {
+            color: #0083b0;
         }
         
         .section-divider {
@@ -388,6 +451,10 @@
                 font-size: 2rem;
             }
 
+            .price-amount.small {
+                font-size: 1.5rem;
+            }
+
             .book-btn {
                 width: 100%;
             }
@@ -396,6 +463,13 @@
                 width: 40px;
                 height: 40px;
                 font-size: 1.2rem;
+            }
+
+            .promo-badge, .new-badge {
+                display: block;
+                margin-left: 0;
+                margin-bottom: 10px;
+                text-align: center;
             }
         }
     </style>
@@ -433,7 +507,7 @@
         <p data-es="Experiencias únicas que recordarás para siempre" data-en="Unique experiences you'll remember forever">Experiencias únicas que recordarás para siempre</p>
     </section>
 
-    <!-- SERVICIO -->
+    <!-- SERVICIO 1: CENOTES -->
     <div class="container">
         <article class="service-card">
             <!-- SLIDER DE IMÁGENES -->
@@ -464,8 +538,8 @@
                         <span class="placeholder">Imagen 8</span>
                     </div>
                 </div>
-                <button class="slider-btn prev" onclick="moveSlide(-1)">❮</button>
-                <button class="slider-btn next" onclick="moveSlide(1)">❯</button>
+                <button class="slider-btn prev" onclick="moveSlide('slider', -1)">❮</button>
+                <button class="slider-btn next" onclick="moveSlide('slider', 1)">❯</button>
                 <div class="slider-dots" id="dots"></div>
             </div>
 
@@ -542,13 +616,13 @@
                         <span class="price-currency" id="currency-code">USD</span>
                         <p class="price-person" data-es="por persona" data-en="per person">por persona</p>
                     </div>
-                    <button class="book-btn" data-es="¡Reservar Ahora!" data-en="Book Now!">¡Reservar Ahora!</button>
+                    <button class="book-btn" data-tour="cenotes" data-es="¡Reservar Ahora!" data-en="Book Now!">¡Reservar Ahora!</button>
                 </div>
             </div>
         </article>
     </div>
 
-        <!-- SEPARADOR -->
+    <!-- SEPARADOR -->
     <div class="section-divider">
         <h3>⛵ <span data-es="Más Experiencias Increíbles" data-en="More Amazing Experiences">Más Experiencias Increíbles</span> ⛵</h3>
     </div>
@@ -700,7 +774,7 @@
                         </div>
                         <p class="price-person" data-es="por persona" data-en="per person">por persona</p>
                     </div>
-                    <button class="book-btn ocean" data-es="¡Reservar Ahora!" data-en="Book Now!" data-tour="clearboat">¡Reservar Ahora!</button>
+                    <button class="book-btn ocean" data-tour="clearboat" data-es="¡Reservar Ahora!" data-en="Book Now!">¡Reservar Ahora!</button>
                 </div>
             </div>
         </article>
@@ -708,78 +782,77 @@
 
     <!-- FOOTER -->
     <footer>
-        <p>© 2026 Lindo Tours. <span data-es="Todos los derechos reservados." data-en="All rights reserved.">Todos los derechos reservados.</span></p>
+        <p>© 2025 Lindo Tours. <span data-es="Todos los derechos reservados." data-en="All rights reserved.">Todos los derechos reservados.</span></p>
         <p>📧 contacto@lindotours.com | 📱 +52 1 998 144 0320</p>
     </footer>
 
     <script>
         // ========== SLIDERS MÚLTIPLES ==========
-    const sliders = {
-        slider: { current: 0, total: 8 },   // Primer slider (Cenotes)
-        slider2: { current: 0, total: 5 }   // Segundo slider (Clear Boat)
-    };
-
-    // Crear dots para cada slider
-    Object.keys(sliders).forEach(sliderId => {
-        const dotsId = sliderId === 'slider' ? 'dots' : 'dots2';
-        const dotsContainer = document.getElementById(dotsId);
-        const { total } = sliders[sliderId];
-        
-        for (let i = 0; i < total; i++) {
-            const dot = document.createElement('span');
-            dot.classList.add('dot');
-            if (i === 0) dot.classList.add('active');
-            dot.onclick = () => goToSlide(sliderId, i);
-            dotsContainer.appendChild(dot);
-        }
-    });
-
-    function updateDots(sliderId) {
-        const dotsId = sliderId === 'slider' ? 'dots' : 'dots2';
-        const dotsContainer = document.getElementById(dotsId);
-        const currentSlide = sliders[sliderId].current;
-        dotsContainer.querySelectorAll('.dot').forEach((dot, index) => {
-            dot.classList.toggle('active', index === currentSlide);
-        });
-    }
-
-    function goToSlide(sliderId, index) {
-        const slider = document.getElementById(sliderId);
-        sliders[sliderId].current = index;
-        slider.style.transform = `translateX(-${index * 100}%)`;
-        updateDots(sliderId);
-    }
-
-    function moveSlide(sliderId, direction) {
-        // Si solo se pasa un argumento (para compatibilidad con slider 1)
-        if (direction === undefined) {
-            direction = sliderId;
-            sliderId = 'slider';
-        }
-        
-        const { current, total } = sliders[sliderId];
-        let newSlide = current + direction;
-        if (newSlide < 0) newSlide = total - 1;
-        if (newSlide >= total) newSlide = 0;
-        goToSlide(sliderId, newSlide);
-    }
-
-    // Auto-slide cada 5 segundos para cada slider
-    setInterval(() => moveSlide('slider', 1), 5000);
-    setInterval(() => moveSlide('slider2', 1), 5500); // Ligeramente diferente para que no sean sincronizados
-
-    // Ocultar placeholder cuando hay imagen
-    document.querySelectorAll('.slide').forEach(slide => {
-        const img = new Image();
-        img.onload = function() {
-            const placeholder = slide.querySelector('.placeholder');
-            if (placeholder) placeholder.style.display = 'none';
+        const sliders = {
+            slider: { current: 0, total: 8 },
+            slider2: { current: 0, total: 5 }
         };
-        const bgImage = slide.style.backgroundImage;
-        if (bgImage) {
-            img.src = bgImage.slice(5, -2);
+
+        // Crear dots para cada slider
+        Object.keys(sliders).forEach(sliderId => {
+            const dotsId = sliderId === 'slider' ? 'dots' : 'dots2';
+            const dotsContainer = document.getElementById(dotsId);
+            const { total } = sliders[sliderId];
+            
+            for (let i = 0; i < total; i++) {
+                const dot = document.createElement('span');
+                dot.classList.add('dot');
+                if (i === 0) dot.classList.add('active');
+                dot.onclick = () => goToSlide(sliderId, i);
+                dotsContainer.appendChild(dot);
+            }
+        });
+
+        function updateDots(sliderId) {
+            const dotsId = sliderId === 'slider' ? 'dots' : 'dots2';
+            const dotsContainer = document.getElementById(dotsId);
+            const currentSlide = sliders[sliderId].current;
+            dotsContainer.querySelectorAll('.dot').forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSlide);
+            });
         }
-    });
+
+        function goToSlide(sliderId, index) {
+            const slider = document.getElementById(sliderId);
+            sliders[sliderId].current = index;
+            slider.style.transform = `translateX(-${index * 100}%)`;
+            updateDots(sliderId);
+        }
+
+        function moveSlide(sliderId, direction) {
+            if (direction === undefined) {
+                direction = sliderId;
+                sliderId = 'slider';
+            }
+            
+            const { current, total } = sliders[sliderId];
+            let newSlide = current + direction;
+            if (newSlide < 0) newSlide = total - 1;
+            if (newSlide >= total) newSlide = 0;
+            goToSlide(sliderId, newSlide);
+        }
+
+        // Auto-slide
+        setInterval(() => moveSlide('slider', 1), 5000);
+        setInterval(() => moveSlide('slider2', 1), 5500);
+
+        // Ocultar placeholder cuando hay imagen
+        document.querySelectorAll('.slide').forEach(slide => {
+            const img = new Image();
+            img.onload = function() {
+                const placeholder = slide.querySelector('.placeholder');
+                if (placeholder) placeholder.style.display = 'none';
+            };
+            const bgImage = slide.style.backgroundImage;
+            if (bgImage) {
+                img.src = bgImage.slice(5, -2);
+            }
+        });
 
         // ========== IDIOMA ==========
         const langSelector = document.getElementById('language-selector');
@@ -794,49 +867,79 @@
 
         langSelector.addEventListener('change', (e) => changeLanguage(e.target.value));
 
-        // Cargar idioma guardado
         const savedLang = localStorage.getItem('language') || 'es';
         langSelector.value = savedLang;
         changeLanguage(savedLang);
 
         // ========== DIVISA ==========
         const currencySelector = document.getElementById('currency-selector');
-        const priceValue = document.getElementById('price-value');
-        const currencyCode = document.getElementById('currency-code');
-        const currencySymbol = document.getElementById('currency-symbol');
 
-        const basePrice = 50; // USD base
+        // PRECIOS BASE EN USD PARA TODOS LOS SERVICIOS
+        const prices = {
+            'price-value': 50,       // Cenotes
+            'price-value-2a': 126,   // Clear Boat Adulto
+            'price-value-2b': 120    // Clear Boat Menor
+        };
+
         const exchangeRates = {
             USD: { rate: 1, symbol: '$' },
-            MXN: { rate: 17.5, symbol: '$' },
-            EUR: { rate: 0.92, symbol: '€' }
+            MXN: { rate: 17.47, symbol: '$' },
+            EUR: { rate: 0.84, symbol: '€' }
         };
 
         function changeCurrency(currency) {
             const { rate, symbol } = exchangeRates[currency];
-            const newPrice = Math.round(basePrice * rate);
-            priceValue.textContent = newPrice;
-            currencyCode.textContent = currency;
-            currencySymbol.textContent = symbol;
+            
+            // Actualizar todos los precios
+            Object.keys(prices).forEach(priceId => {
+                const priceElement = document.getElementById(priceId);
+                if (priceElement) {
+                    const basePrice = prices[priceId];
+                    priceElement.textContent = Math.round(basePrice * rate);
+                }
+            });
+            
+            // Actualizar todos los símbolos de moneda
+            document.querySelectorAll('[id^="currency-symbol"]').forEach(el => {
+                el.textContent = symbol;
+            });
+            
+            // Actualizar todos los códigos de moneda
+            document.querySelectorAll('[id^="currency-code"]').forEach(el => {
+                el.textContent = currency;
+            });
+            
             localStorage.setItem('currency', currency);
         }
 
         currencySelector.addEventListener('change', (e) => changeCurrency(e.target.value));
 
-        // Cargar divisa guardada
         const savedCurrency = localStorage.getItem('currency') || 'USD';
         currencySelector.value = savedCurrency;
         changeCurrency(savedCurrency);
 
-        // ========== BOTÓN RESERVAR ==========
-        document.querySelector('.book-btn').addEventListener('click', function() {
-            const lang = langSelector.value;
-            const message = lang === 'es' 
-                ? '¡Gracias por tu interés! Contáctanos por WhatsApp para reservar.'
-                : 'Thank you for your interest! Contact us via WhatsApp to book.';
-            alert(message);
-            // Aquí puedes agregar redirección a WhatsApp:
-            // window.open('https://wa.me/521234567890?text=Hola, quiero reservar el tour de Cenotes');
+        // ========== BOTONES RESERVAR (WhatsApp) ==========
+        document.querySelectorAll('.book-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const lang = langSelector.value;
+                const tour = this.getAttribute('data-tour');
+                
+                // Determinar nombre del tour
+                let tourName = '';
+                if (tour === 'clearboat') {
+                    tourName = 'Clear Boat Cozumel';
+                } else {
+                    tourName = lang === 'es' ? 'Cenotes y Playa del Carmen' : 'Cenotes and Playa del Carmen';
+                }
+                
+                const message = lang === 'es' 
+                    ? `¡Hola! Me interesa reservar el tour: ${tourName}. ¿Me pueden dar más información?`
+                    : `Hi! I'm interested in booking: ${tourName}. Can you give me more information?`;
+                
+                // Abrir WhatsApp
+                const encodedMessage = encodeURIComponent(message);
+                window.open(`https://wa.me/5219981440320?text=${encodedMessage}`, '_blank');
+            });
         });
     </script>
 
