@@ -3,467 +3,648 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tours México - Descubre la Magia de México</title>
+    <title>Lindo Tours - Experiencias Únicas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* Navegación */
-        nav {
-            background: #1a5c37;
-            padding: 15px 50px;
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* HEADER */
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 5%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: fixed;
-            width: 100%;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 1000;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .logo {
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        .logo span {
-            color: #f4d03f;
-        }
-
-        nav ul {
             display: flex;
-            list-style: none;
-            gap: 30px;
+            align-items: center;
+            gap: 10px;
         }
 
-        nav ul li a {
-            color: white;
-            text-decoration: none;
-            font-size: 16px;
-            transition: color 0.3s;
+        .logo-icon {
+            font-size: 2.5rem;
         }
 
-        nav ul li a:hover {
-            color: #f4d03f;
+        .logo h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        /* Hero Section */
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f0f0f0;
+            padding: 8px 15px;
+            border-radius: 25px;
+        }
+
+        .selector select {
+            border: none;
+            background: transparent;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* HERO */
         .hero {
-            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
-                        url('https://images.unsplash.com/photo-1518638150340-f706e86654de?w=1600') center/cover;
-            height: 100vh;
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+        }
+
+        .hero h2 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* CARD SERVICIO */
+        .container {
+            max-width: 900px;
+            margin: 0 auto 50px;
+            padding: 0 20px;
+        }
+
+        .service-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        /* SLIDER */
+        .slider-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            overflow: hidden;
+        }
+
+        .slider {
+            display: flex;
+            transition: transform 0.5s ease;
+            height: 100%;
+        }
+
+        .slide {
+            min-width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-color: #ddd;
             display: flex;
             align-items: center;
             justify-content: center;
-            text-align: center;
-            color: white;
+            color: #999;
+            font-size: 1.2rem;
         }
 
-        .hero-content h1 {
-            font-size: 60px;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-
-        .hero-content p {
-            font-size: 24px;
-            margin-bottom: 30px;
-        }
-
-        .btn {
-            background: #ce1126;
-            color: white;
-            padding: 15px 40px;
+        .slider-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.9);
             border: none;
-            font-size: 18px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5rem;
             cursor: pointer;
-            border-radius: 5px;
-            text-decoration: none;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            z-index: 10;
         }
 
-        .btn:hover {
-            background: #a30d1e;
+        .slider-btn:hover {
+            background: white;
+            transform: translateY(-50%) scale(1.1);
         }
 
-        /* Secciones */
-        section {
-            padding: 80px 50px;
+        .slider-btn.prev { left: 15px; }
+        .slider-btn.next { right: 15px; }
+
+        .slider-dots {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
         }
 
-        .section-title {
-            text-align: center;
-            font-size: 40px;
-            color: #1a5c37;
-            margin-bottom: 50px;
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            cursor: pointer;
+            transition: all 0.3s;
         }
 
-        .section-title span {
-            color: #ce1126;
+        .dot.active {
+            background: white;
+            transform: scale(1.2);
         }
 
-        /* Tours */
-        .tours-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            max-width: 1200px;
-            margin: 0 auto;
+        /* CONTENIDO */
+        .service-content {
+            padding: 30px;
         }
 
-        .tour-card {
+        .promo-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .service-title {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .service-subtitle {
+            font-size: 1.3rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .service-description {
+            color: #666;
+            line-height: 1.8;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
             border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            border-left: 4px solid #667eea;
+        }
+
+        .includes-section {
+            margin-bottom: 25px;
+        }
+
+        .includes-title {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .food-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .includes-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .include-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+            border-radius: 10px;
             transition: transform 0.3s;
         }
 
-        .tour-card:hover {
-            transform: translateY(-10px);
+        .include-item:hover {
+            transform: translateX(5px);
         }
 
-        .tour-card img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
+        .main-includes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
         }
 
-        .tour-info {
-            padding: 25px;
+        .main-include {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 30px;
+            font-weight: 500;
         }
 
-        .tour-info h3 {
-            color: #1a5c37;
-            margin-bottom: 10px;
-            font-size: 22px;
+        .not-included {
+            color: #e74c3c;
+            font-weight: 500;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .tour-info p {
-            color: #666;
-            margin-bottom: 15px;
-            line-height: 1.6;
-        }
-
-        .tour-price {
+        /* PRECIO */
+        .price-section {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 25px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin: 0 -30px -30px;
+            flex-wrap: wrap;
+            gap: 20px;
         }
 
         .price {
-            font-size: 24px;
-            color: #ce1126;
-            font-weight: bold;
+            color: white;
         }
 
-        .btn-small {
-            background: #1a5c37;
-            color: white;
-            padding: 10px 25px;
+        .price-amount {
+            font-size: 3rem;
+            font-weight: 700;
+        }
+
+        .price-currency {
+            font-size: 1.5rem;
+            opacity: 0.9;
+        }
+
+        .price-person {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .book-btn {
+            background: white;
+            color: #667eea;
             border: none;
-            border-radius: 5px;
+            padding: 18px 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 30px;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            font-family: 'Poppins', sans-serif;
         }
 
-        .btn-small:hover {
-            background: #145230;
+        .book-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
-        /* Por qué elegirnos */
-        .features {
-            background: #f9f9f9;
-        }
-
-        .features-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 40px;
-            max-width: 1000px;
-            margin: 0 auto;
-            text-align: center;
-        }
-
-        .feature-item {
-            padding: 30px;
-        }
-
-        .feature-icon {
-            font-size: 50px;
-            margin-bottom: 20px;
-        }
-
-        .feature-item h3 {
-            color: #1a5c37;
-            margin-bottom: 15px;
-        }
-
-        .feature-item p {
-            color: #666;
-        }
-
-        /* Contacto */
-        .contact {
-            background: #1a5c37;
-            color: white;
-        }
-
-        .contact .section-title {
-            color: white;
-        }
-
-        .contact .section-title span {
-            color: #f4d03f;
-        }
-
-        .contact-form {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .contact-form input,
-        .contact-form textarea {
-            width: 100%;
-            padding: 15px;
-            margin-bottom: 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-
-        .contact-form textarea {
-            height: 150px;
-            resize: vertical;
-        }
-
-        .contact-form button {
-            width: 100%;
-            background: #f4d03f;
-            color: #1a5c37;
-            font-weight: bold;
-        }
-
-        .contact-form button:hover {
-            background: #d4b82f;
-        }
-
-        /* Footer */
+        /* FOOTER */
         footer {
-            background: #0f3d24;
-            color: white;
             text-align: center;
             padding: 30px;
-        }
-
-        footer p {
-            margin-bottom: 10px;
-        }
-
-        .social-links a {
             color: white;
-            text-decoration: none;
-            margin: 0 15px;
-            font-size: 24px;
+            opacity: 0.8;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            nav {
-                padding: 15px 20px;
-                flex-direction: column;
-                gap: 15px;
+        footer a {
+            color: white;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 600px) {
+            .logo h1 {
+                font-size: 1.4rem;
             }
 
-            nav ul {
-                gap: 15px;
+            .hero h2 {
+                font-size: 1.8rem;
             }
 
-            .hero-content h1 {
-                font-size: 36px;
+            .slider-container {
+                height: 250px;
             }
 
-            section {
-                padding: 50px 20px;
+            .service-title {
+                font-size: 1.5rem;
             }
 
-            .section-title {
-                font-size: 28px;
+            .price-amount {
+                font-size: 2rem;
+            }
+
+            .book-btn {
+                width: 100%;
+            }
+
+            .slider-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- Navegación -->
-    <nav>
-        <div class="logo">Tours<span>Mex</span> 🇲🇽</div>
-        <ul>
-            <li><a href="#inicio">Inicio</a></li>
-            <li><a href="#tours">Tours</a></li>
-            <li><a href="#nosotros">Nosotros</a></li>
-            <li><a href="#contacto">Contacto</a></li>
-        </ul>
-    </nav>
-
-    <!-- Hero -->
-    <section class="hero" id="inicio">
-        <div class="hero-content">
-            <h1>🌮 Descubre la Magia de México 🎭</h1>
-            <p>Vive experiencias únicas en los destinos más increíbles</p>
-            <a href="#tours" class="btn">Ver Tours Disponibles</a>
+    <!-- HEADER -->
+    <header>
+        <div class="logo">
+            <span class="logo-icon">🌴</span>
+            <h1>Lindo Tours</h1>
         </div>
-    </section>
-<!-- modify this form HTML and place wherever you want your form -->
-<form
-  action="https://formspree.io/f/xgoklbqe"
-  method="POST"
->
-  <label>
-    Your email:
-    <input type="email" name="email">
-  </label>
-  <label>
-    Your message:
-    <textarea name="message"></textarea>
-  </label>
-  <!-- your other form fields go here -->
-  <button type="submit">Send</button>
-</form>
-    <!-- Tours -->
-    <section id="tours">
-        <h2 class="section-title">Nuestros <span>Tours</span></h2>
-        <div class="tours-container">
-            
-            <div class="tour-card">
-                <img src="https://images.unsplash.com/photo-1512813195386-6cf811ad3542?w=600" alt="Cancún">
-                <div class="tour-info">
-                    <h3>🏖️ Cancún Paradisiaco</h3>
-                    <p>5 días y 4 noches en el caribe mexicano. Incluye hotel, tours a Xcaret e Isla Mujeres.</p>
-                    <div class="tour-price">
-                        <span class="price">$8,500 MXN</span>
-                        <button class="btn-small">Reservar</button>
-                    </div>
-                </div>
+        <div class="controls">
+            <div class="selector">
+                <span>🌐</span>
+                <select id="language-selector">
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                </select>
             </div>
-
-            <div class="tour-card">
-                <img src="https://images.unsplash.com/photo-1547995886-6dc09384c6e6?w=600" alt="CDMX">
-                <div class="tour-info">
-                    <h3>🏛️ CDMX Cultural</h3>
-                    <p>3 días recorriendo museos, Teotihuacán, Xochimilco y la mejor gastronomía.</p>
-                    <div class="tour-price">
-                        <span class="price">$4,200 MXN</span>
-                        <button class="btn-small">Reservar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tour-card">
-                <img src="https://images.unsplash.com/photo-1605216663980-b7ca6e9f7a64?w=600" alt="Oaxaca">
-                <div class="tour-info">
-                    <h3>🎨 Oaxaca Mágico</h3>
-                    <p>4 días descubriendo Monte Albán, Hierve el Agua y el mezcal artesanal.</p>
-                    <div class="tour-price">
-                        <span class="price">$5,800 MXN</span>
-                        <button class="btn-small">Reservar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tour-card">
-                <img src="https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=600" alt="Guanajuato">
-                <div class="tour-info">
-                    <h3>🎭 Guanajuato Colonial</h3>
-                    <p>3 días por callejones coloridos, momias, minas y leyendas del callejón del beso.</p>
-                    <div class="tour-price">
-                        <span class="price">$3,900 MXN</span>
-                        <button class="btn-small">Reservar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tour-card">
-                <img src="https://images.unsplash.com/photo-1552074284-5e88ef1aef18?w=600" alt="Chichen Itza">
-                <div class="tour-info">
-                    <h3>🏺 Mundo Maya</h3>
-                    <p>6 días explorando Chichén Itzá, Uxmal, cenotes sagrados y la cultura maya.</p>
-                    <div class="tour-price">
-                        <span class="price">$9,500 MXN</span>
-                        <button class="btn-small">Reservar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tour-card">
-                <img src="https://images.unsplash.com/photo-1590559899731-a382839e5549?w=600" alt="Los Cabos">
-                <div class="tour-info">
-                    <h3>🐋 Los Cabos Aventura</h3>
-                    <p>5 días de playa, avistamiento de ballenas, snorkel y atardeceres mágicos.</p>
-                    <div class="tour-price">
-                        <span class="price">$10,200 MXN</span>
-                        <button class="btn-small">Reservar</button>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    <!-- Por qué elegirnos -->
-    <section class="features" id="nosotros">
-        <h2 class="section-title">¿Por qué <span>Elegirnos</span>?</h2>
-        <div class="features-container">
-            <div class="feature-item">
-                <div class="feature-icon">💰</div>
-                <h3>Mejores Precios</h3>
-                <p>Garantizamos los precios más competitivos del mercado.</p>
-            </div>
-            <div class="feature-item">
-                <div class="feature-icon">🛡️</div>
-                <h3>Viaje Seguro</h3>
-                <p>Todos nuestros tours incluyen seguro de viajero.</p>
-            </div>
-            <div class="feature-item">
-                <div class="feature-icon">👨‍💼</div>
-                <h3>Guías Expertos</h3>
-                <p>Guías certificados con amplio conocimiento local.</p>
-            </div>
-            <div class="feature-item">
-                <div class="feature-icon">⭐</div>
-                <h3>+10 Años</h3>
-                <p>Experiencia creando viajes inolvidables.</p>
+            <div class="selector">
+                <span>💵</span>
+                <select id="currency-selector">
+                    <option value="USD">USD ($)</option>
+                    <option value="MXN">MXN ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                </select>
             </div>
         </div>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero">
+        <h2 data-es="Descubre la Magia de México" data-en="Discover the Magic of Mexico">Descubre la Magia de México</h2>
+        <p data-es="Experiencias únicas que recordarás para siempre" data-en="Unique experiences you'll remember forever">Experiencias únicas que recordarás para siempre</p>
     </section>
 
-    <!-- Contacto -->
-    <section class="contact" id="contacto">
-        <h2 class="section-title">¡<span>Contáctanos</span>!</h2>
-        <form class="contact-form">
-            <input type="text" placeholder="Tu nombre" required>
-            <input type="email" placeholder="Tu correo electrónico" required>
-            <input type="tel" placeholder="Tu teléfono">
-            <textarea placeholder="¿Qué tour te interesa?"></textarea>
-            <button type="submit" class="btn">Enviar Mensaje 📩</button>
-        </form>
-    </section>
+    <!-- SERVICIO -->
+    <div class="container">
+        <article class="service-card">
+            <!-- SLIDER DE IMÁGENES -->
+            <div class="slider-container">
+                <div class="slider" id="slider">
+                    <div class="slide" style="background-image: url('imagenes/servicios/1/1.jpg');">
+                        <span class="placeholder">Imagen 1</span>
+                    </div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/1/2.jpg');">
+                        <span class="placeholder">Imagen 2</span>
+                    </div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/1/3.jpg');">
+                        <span class="placeholder">Imagen 3</span>
+                    </div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/1/4.jpg');">
+                        <span class="placeholder">Imagen 4</span>
+                    </div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/1/5.jpg');">
+                        <span class="placeholder">Imagen 5</span>
+                    </div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/1/6.jpg');">
+                        <span class="placeholder">Imagen 6</span>
+                    </div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/1/7.jpg');">
+                        <span class="placeholder">Imagen 7</span>
+                    </div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/1/8.jpg');">
+                        <span class="placeholder">Imagen 8</span>
+                    </div>
+                </div>
+                <button class="slider-btn prev" onclick="moveSlide(-1)">❮</button>
+                <button class="slider-btn next" onclick="moveSlide(1)">❯</button>
+                <div class="slider-dots" id="dots"></div>
+            </div>
 
-    <!-- Footer -->
+            <!-- CONTENIDO -->
+            <div class="service-content">
+                <span class="promo-badge">🔥 <span data-es="Super Promoción" data-en="Super Deal">Super Promoción</span></span>
+                
+                <h2 class="service-title" data-es="Cenotes y Playa del Carmen" data-en="Cenotes and Playa del Carmen">Cenotes y Playa del Carmen</h2>
+                
+                <h3 class="service-subtitle">😍 <span data-es="Tour de cenotes más visita a Multun Ha" data-en="Cenotes Tour plus visit to Multun Ha">Tour de cenotes más visita a Multun Ha</span> ✨</h3>
+
+                <p class="service-description" data-es="Tulum es misticismo, historia, naturaleza, aventura y arte. En este tour podrás disfrutar de una variedad de cenotes, visitarás Casa Tortuga y Multun Ha." data-en="Tulum is mysticism, history, nature, adventure and art. In this tour you will enjoy a variety of cenotes, visiting Casa Tortuga and Multun Ha.">
+                    Tulum es misticismo, historia, naturaleza, aventura y arte. En este tour podrás disfrutar de una variedad de cenotes, visitarás Casa Tortuga y Multun Ha.
+                </p>
+
+                <div class="includes-section">
+                    <h4 class="includes-title">✅ <span data-es="Incluye" data-en="Includes">Incluye</span></h4>
+                    
+                    <p class="food-title" data-es="🍽️ Comida Buffet:" data-en="🍽️ Buffet Meal:">🍽️ Comida Buffet:</p>
+                    
+                    <div class="includes-list">
+                        <div class="include-item">
+                            <span>✨</span>
+                            <span data-es="Cochinita Pibil" data-en="Cochinita Pibil">Cochinita Pibil</span>
+                        </div>
+                        <div class="include-item">
+                            <span>✨</span>
+                            <span data-es="Fajitas de Pollo" data-en="Chicken Fajitas">Fajitas de Pollo</span>
+                        </div>
+                        <div class="include-item">
+                            <span>✨</span>
+                            <span data-es="Poc Chuc" data-en="Poc Chuc">Poc Chuc</span>
+                        </div>
+                        <div class="include-item">
+                            <span>✨</span>
+                            <span data-es="Pollo Maya" data-en="Mayan Chicken">Pollo Maya</span>
+                        </div>
+                        <div class="include-item">
+                            <span>✨</span>
+                            <span data-es="Fruta" data-en="Fruit">Fruta</span>
+                        </div>
+                        <div class="include-item">
+                            <span>✨</span>
+                            <span data-es="Postre" data-en="Dessert">Postre</span>
+                        </div>
+                    </div>
+
+                    <div class="main-includes">
+                        <div class="main-include">
+                            <span>🚐</span>
+                            <span data-es="Transporte" data-en="Transportation">Transporte</span>
+                        </div>
+                        <div class="main-include">
+                            <span>🎟️</span>
+                            <span data-es="Entradas" data-en="Tickets">Entradas</span>
+                        </div>
+                        <div class="main-include">
+                            <span>👤</span>
+                            <span data-es="Guía" data-en="Guide">Guía</span>
+                        </div>
+                    </div>
+
+                    <p class="not-included">
+                        <span>🚫</span>
+                        <span data-es="No incluye bebidas" data-en="Drinks not included">No incluye bebidas</span>
+                    </p>
+                </div>
+
+                <!-- PRECIO -->
+                <div class="price-section">
+                    <div class="price">
+                        <span class="price-currency" id="currency-symbol">$</span>
+                        <span class="price-amount" id="price-value">50</span>
+                        <span class="price-currency" id="currency-code">USD</span>
+                        <p class="price-person" data-es="por persona" data-en="per person">por persona</p>
+                    </div>
+                    <button class="book-btn" data-es="¡Reservar Ahora!" data-en="Book Now!">¡Reservar Ahora!</button>
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <!-- FOOTER -->
     <footer>
-        <p>📍 Av. Reforma 123, CDMX | 📞 55 1234 5678 | ✉️ info@toursmex.com</p>
-        <div class="social-links">
-            <a href="#">📘</a>
-            <a href="#">📸</a>
-            <a href="#">🐦</a>
-            <a href="#">▶️</a>
-        </div>
-        <p style="margin-top: 20px;">© 2024 ToursMex - Todos los derechos reservados 🇲🇽</p>
+        <p>© 2024 Lindo Tours. <span data-es="Todos los derechos reservados." data-en="All rights reserved.">Todos los derechos reservados.</span></p>
+        <p>📧 contacto@lindotours.com | 📱 +52 123 456 7890</p>
     </footer>
+
+    <script>
+        // ========== SLIDER ==========
+        let currentSlide = 0;
+        const totalSlides = 8;
+        const slider = document.getElementById('slider');
+        const dotsContainer = document.getElementById('dots');
+
+        // Crear dots
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('span');
+            dot.classList.add('dot');
+            if (i === 0) dot.classList.add('active');
+            dot.onclick = () => goToSlide(i);
+            dotsContainer.appendChild(dot);
+        }
+
+        function updateDots() {
+            document.querySelectorAll('.dot').forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSlide);
+            });
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            slider.style.transform = `translateX(-${currentSlide * 100}%)`;
+            updateDots();
+        }
+
+        function moveSlide(direction) {
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = totalSlides - 1;
+            if (currentSlide >= totalSlides) currentSlide = 0;
+            goToSlide(currentSlide);
+        }
+
+        // Auto-slide cada 5 segundos
+        setInterval(() => moveSlide(1), 5000);
+
+        // Ocultar placeholder cuando hay imagen
+        document.querySelectorAll('.slide').forEach(slide => {
+            const img = new Image();
+            img.onload = function() {
+                slide.querySelector('.placeholder').style.display = 'none';
+            };
+            img.src = slide.style.backgroundImage.slice(5, -2);
+        });
+
+        // ========== IDIOMA ==========
+        const langSelector = document.getElementById('language-selector');
+        
+        function changeLanguage(lang) {
+            document.querySelectorAll('[data-es]').forEach(el => {
+                el.textContent = el.getAttribute(`data-${lang}`);
+            });
+            document.documentElement.lang = lang;
+            localStorage.setItem('language', lang);
+        }
+
+        langSelector.addEventListener('change', (e) => changeLanguage(e.target.value));
+
+        // Cargar idioma guardado
+        const savedLang = localStorage.getItem('language') || 'es';
+        langSelector.value = savedLang;
+        changeLanguage(savedLang);
+
+        // ========== DIVISA ==========
+        const currencySelector = document.getElementById('currency-selector');
+        const priceValue = document.getElementById('price-value');
+        const currencyCode = document.getElementById('currency-code');
+        const currencySymbol = document.getElementById('currency-symbol');
+
+        const basePrice = 50; // USD base
+        const exchangeRates = {
+            USD: { rate: 1, symbol: '$' },
+            MXN: { rate: 17.5, symbol: '$' },
+            EUR: { rate: 0.92, symbol: '€' }
+        };
+
+        function changeCurrency(currency) {
+            const { rate, symbol } = exchangeRates[currency];
+            const newPrice = Math.round(basePrice * rate);
+            priceValue.textContent = newPrice;
+            currencyCode.textContent = currency;
+            currencySymbol.textContent = symbol;
+            localStorage.setItem('currency', currency);
+        }
+
+        currencySelector.addEventListener('change', (e) => changeCurrency(e.target.value));
+
+        // Cargar divisa guardada
+        const savedCurrency = localStorage.getItem('currency') || 'USD';
+        currencySelector.value = savedCurrency;
+        changeCurrency(savedCurrency);
+
+        // ========== BOTÓN RESERVAR ==========
+        document.querySelector('.book-btn').addEventListener('click', function() {
+            const lang = langSelector.value;
+            const message = lang === 'es' 
+                ? '¡Gracias por tu interés! Contáctanos por WhatsApp para reservar.'
+                : 'Thank you for your interest! Contact us via WhatsApp to book.';
+            alert(message);
+            // Aquí puedes agregar redirección a WhatsApp:
+            // window.open('https://wa.me/521234567890?text=Hola, quiero reservar el tour de Cenotes');
+        });
+    </script>
 
 </body>
 </html>
