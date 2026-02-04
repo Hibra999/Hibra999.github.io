@@ -4,8 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lindo Tours - Experiencias Únicas</title>
+    
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+    
     <style>
+        /* ============================================
+           VARIABLES CSS & RESET
+        ============================================ */
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --ocean: #00b4db;
+            --ocean-dark: #0083b0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --white: #ffffff;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-800: #1f2937;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+            --shadow-xl: 0 20px 50px rgba(0,0,0,0.25);
+            --radius: 12px;
+            --radius-lg: 20px;
+            --transition: all 0.3s ease;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,18 +48,22 @@
 
         body {
             font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             min-height: 100vh;
+            position: relative;
         }
 
-        /* HEADER */
+        /* ============================================
+           HEADER MEJORADO
+        ============================================ */
         header {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px 5%;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            padding: 12px 5%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow-lg);
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -36,27 +74,29 @@
         .logo {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .logo-icon {
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             object-fit: contain;
-            border-radius: 8px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
         }
 
         .logo h1 {
-            font-size: 1.8rem;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        .controls {
+        .header-right {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
             flex-wrap: wrap;
         }
@@ -64,64 +104,152 @@
         .selector {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: #f0f0f0;
-            padding: 8px 15px;
+            gap: 6px;
+            background: var(--gray-100);
+            padding: 8px 14px;
             border-radius: 25px;
+            border: 1px solid var(--gray-200);
+            transition: var(--transition);
+        }
+
+        .selector:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .selector select {
             border: none;
             background: transparent;
             font-family: 'Poppins', sans-serif;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            font-weight: 500;
             cursor: pointer;
             outline: none;
+            color: var(--gray-800);
         }
 
-        /* HERO */
+        /* ============================================
+           BOTÓN CARRITO FLOTANTE
+        ============================================ */
+        .cart-btn {
+            position: relative;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+        }
+
+        .cart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--danger);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border: 2px solid white;
+            animation: bounce 0.3s ease;
+        }
+
+        .cart-count.empty {
+            display: none;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+
+        /* ============================================
+           HERO SECTION
+        ============================================ */
         .hero {
             text-align: center;
-            padding: 40px 20px;
+            padding: 50px 20px 40px;
             color: white;
         }
 
         .hero h2 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 2.8rem;
+            margin-bottom: 12px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            font-weight: 700;
         }
 
         .hero p {
             font-size: 1.2rem;
-            opacity: 0.9;
+            opacity: 0.95;
+            font-weight: 300;
         }
 
-        /* CARD SERVICIO */
-        .container {
-            max-width: 900px;
-            margin: 0 auto 50px;
-            padding: 0 20px;
+        /* ============================================
+           SERVICIOS CONTAINER
+        ============================================ */
+        .services-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px 50px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
         }
 
+        @media (max-width: 600px) {
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================
+           CARD SERVICIO MEJORADO
+        ============================================ */
         .service-card {
             background: white;
-            border-radius: 20px;
+            border-radius: var(--radius-lg);
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: var(--shadow-xl);
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.3);
         }
 
         /* SLIDER */
         .slider-container {
             position: relative;
             width: 100%;
-            height: 400px;
+            height: 300px;
             overflow: hidden;
         }
 
         .slider {
             display: flex;
-            transition: transform 0.5s ease;
+            transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             height: 100%;
         }
 
@@ -130,359 +258,928 @@
             height: 100%;
             background-size: cover;
             background-position: center;
-            background-color: #ddd;
+            background-color: var(--gray-200);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #999;
-            font-size: 1.2rem;
+            color: var(--gray-600);
+            font-size: 1rem;
         }
 
         .slider-btn {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.95);
             border: none;
-            width: 50px;
-            height: 50px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: var(--transition);
             z-index: 10;
+            box-shadow: var(--shadow);
         }
 
         .slider-btn:hover {
             background: white;
             transform: translateY(-50%) scale(1.1);
+            box-shadow: var(--shadow-lg);
         }
 
-        .slider-btn.prev { left: 15px; }
-        .slider-btn.next { right: 15px; }
+        .slider-btn.prev { left: 12px; }
+        .slider-btn.next { right: 12px; }
 
         .slider-dots {
             position: absolute;
-            bottom: 15px;
+            bottom: 12px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
 
         .dot {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: rgba(255,255,255,0.5);
             cursor: pointer;
-            transition: all 0.3s;
+            transition: var(--transition);
         }
 
         .dot.active {
             background: white;
-            transform: scale(1.2);
+            transform: scale(1.3);
         }
 
-        /* CONTENIDO */
+        /* CONTENIDO CARD */
         .service-content {
-            padding: 30px;
+            padding: 25px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
 
-        .promo-badge {
-            display: inline-block;
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        .badge.promo {
             background: linear-gradient(135deg, #ff6b6b, #ff8e53);
             color: white;
-            padding: 8px 20px;
-            border-radius: 25px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            animation: pulse 2s infinite;
         }
 
-        /* BADGE NUEVO */
-        .new-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #00b4db, #0083b0);
+        .badge.new {
+            background: linear-gradient(135deg, var(--ocean), var(--ocean-dark));
             color: white;
-            padding: 8px 20px;
-            border-radius: 25px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            margin-left: 10px;
-            animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.03); }
         }
 
         .service-title {
-            font-size: 2rem;
-            color: #333;
-            margin-bottom: 10px;
+            font-size: 1.5rem;
+            color: var(--gray-800);
+            margin-bottom: 8px;
+            font-weight: 700;
         }
 
         .service-subtitle {
-            font-size: 1.3rem;
-            color: #667eea;
-            margin-bottom: 20px;
+            font-size: 1rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 500;
         }
 
         .service-description {
-            color: #666;
-            line-height: 1.8;
-            margin-bottom: 25px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 15px;
-            border-left: 4px solid #667eea;
+            color: var(--gray-600);
+            line-height: 1.7;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--gray-50);
+            border-radius: var(--radius);
+            border-left: 4px solid var(--primary);
+            font-size: 0.9rem;
         }
 
+        /* INCLUDES SECTION */
         .includes-section {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .includes-title {
-            font-size: 1.3rem;
-            color: #333;
-            margin-bottom: 15px;
+            font-size: 1.1rem;
+            color: var(--gray-800);
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            font-weight: 600;
         }
 
         .food-title {
             font-weight: 600;
-            color: #667eea;
-            margin-bottom: 10px;
+            color: var(--primary);
+            margin: 15px 0 10px;
+            font-size: 0.95rem;
         }
 
         .includes-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
         }
 
         .include-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 15px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
-            border-radius: 10px;
-            transition: transform 0.3s;
+            gap: 8px;
+            padding: 10px 12px;
+            background: linear-gradient(135deg, var(--gray-50), var(--gray-100));
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            transition: var(--transition);
         }
 
         .include-item:hover {
             transform: translateX(5px);
+            background: linear-gradient(135deg, var(--gray-100), var(--gray-200));
         }
 
         .main-includes {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 20px;
+            gap: 10px;
+            margin-top: 15px;
         }
 
         .main-include {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 15px 25px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
-            border-radius: 30px;
+            border-radius: 25px;
             font-weight: 500;
+            font-size: 0.85rem;
         }
 
         .not-included {
-            color: #e74c3c;
+            color: var(--danger);
             font-weight: 500;
-            margin-top: 15px;
+            margin-top: 12px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            font-size: 0.85rem;
         }
 
-        /* CAJA DE ADVERTENCIA */
         .warning-box {
             background: linear-gradient(135deg, #fff3cd, #ffeeba);
             border: 2px solid #ffc107;
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 20px;
+            border-radius: var(--radius);
+            padding: 15px;
+            margin-top: 15px;
         }
 
         .warning-box h5 {
             color: #856404;
-            font-size: 1.1rem;
-            margin-bottom: 10px;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
         }
 
         .warning-box p {
             color: #856404;
-            line-height: 1.6;
+            line-height: 1.5;
+            font-size: 0.85rem;
         }
 
-        /* PRECIO */
+        /* ============================================
+           SECCIÓN PRECIO Y SELECTOR CANTIDAD
+        ============================================ */
         .price-section {
+            margin-top: auto;
+            padding: 25px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            margin: 0 -25px -25px;
+        }
+
+        .price-section.ocean {
+            background: linear-gradient(135deg, var(--ocean), var(--ocean-dark));
+        }
+
+        .price-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 25px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            margin: 0 -30px -30px;
+            margin-bottom: 12px;
             flex-wrap: wrap;
-            gap: 20px;
+            gap: 10px;
         }
 
-        /* PRECIO ESTILO OCEAN (azul) */
-        .price-section.ocean {
-            background: linear-gradient(135deg, #00b4db, #0083b0);
-        }
-
-        .price {
+        .price-info {
             color: white;
         }
 
-        /* FILAS DE PRECIO */
-        .price-row {
-            display: flex;
-            align-items: baseline;
-            gap: 10px;
-            margin-bottom: 5px;
-        }
-
         .price-label {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             opacity: 0.9;
+            display: block;
+            margin-bottom: 2px;
         }
 
         .price-amount {
-            font-size: 3rem;
+            font-size: 2rem;
             font-weight: 700;
         }
 
-        .price-amount.small {
-            font-size: 2rem;
-        }
-
         .price-currency {
-            font-size: 1.5rem;
+            font-size: 1rem;
             opacity: 0.9;
         }
 
-        .price-currency.small {
+        /* SELECTOR DE CANTIDAD */
+        .quantity-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 25px;
+        }
+
+        .qty-btn {
+            background: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .qty-btn:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow);
+        }
+
+        .qty-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .qty-value {
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        /* SUBTOTAL */
+        .subtotal-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            margin-top: 15px;
+        }
+
+        .subtotal-label {
+            color: white;
+            font-weight: 600;
             font-size: 1rem;
         }
 
-        .price-person {
-            opacity: 0.8;
+        .subtotal-amount {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        /* BOTÓN AGREGAR */
+        .add-to-cart-btn {
+            width: 100%;
+            margin-top: 15px;
+            background: white;
+            color: var(--primary);
+            border: none;
+            padding: 16px 30px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .add-to-cart-btn:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .add-to-cart-btn.ocean {
+            color: var(--ocean-dark);
+        }
+
+        .add-to-cart-btn.added {
+            background: var(--success);
+            color: white;
+        }
+
+        /* ============================================
+           MODAL CARRITO
+        ============================================ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: var(--radius-lg);
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+            animation: modalSlide 0.3s ease;
+        }
+
+        @keyframes modalSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .close-modal {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .close-modal:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        /* ITEMS DEL CARRITO */
+        .cart-items {
+            margin-bottom: 20px;
+        }
+
+        .cart-item {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: var(--gray-50);
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .cart-item-image {
+            width: 80px;
+            height: 60px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .cart-item-details {
+            flex: 1;
+        }
+
+        .cart-item-name {
+            font-weight: 600;
+            color: var(--gray-800);
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .cart-item-qty {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+        }
+
+        .cart-item-price {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .cart-item-remove {
+            background: var(--danger);
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 1rem;
+        }
+
+        .cart-item-remove:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow);
+        }
+
+        .cart-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray-600);
+        }
+
+        .cart-empty span {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        /* TOTAL */
+        .cart-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--gray-50), var(--gray-100));
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+        }
+
+        .cart-total-label {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--gray-800);
+        }
+
+        .cart-total-amount {
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: var(--primary);
+        }
+
+        /* ============================================
+           FORMULARIO CHECKOUT
+        ============================================ */
+        .checkout-form {
+            display: none;
+        }
+
+        .checkout-form.active {
+            display: block;
+        }
+
+        .form-section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            color: var(--gray-800);
+            margin-bottom: 6px;
             font-size: 0.9rem;
         }
 
-        .book-btn {
-            background: white;
-            color: #667eea;
-            border: none;
-            padding: 18px 50px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: all 0.3s;
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius);
             font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            transition: var(--transition);
         }
 
-        .book-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        .book-btn.ocean {
-            color: #0083b0;
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
         }
-        
-        .section-divider {
+
+        /* DATE PICKER CONTAINER */
+        .date-picker-container {
+            position: relative;
+        }
+
+        .date-picker-container input {
+            cursor: pointer;
+        }
+
+        .date-picker-container::after {
+            content: '📅';
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        /* BOTONES FORM */
+        .form-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 30px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-800);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        .btn-whatsapp {
+            background: #25D366;
+            color: white;
+        }
+
+        .btn-whatsapp:hover {
+            background: #128C7E;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* ============================================
+           TOAST NOTIFICATIONS
+        ============================================ */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: white;
+            padding: 15px 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: toastSlide 0.3s ease;
+            max-width: 350px;
+        }
+
+        @keyframes toastSlide {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--primary);
+        }
+
+        .toast-icon {
+            font-size: 1.5rem;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            color: var(--gray-800);
+            font-size: 0.9rem;
+        }
+
+        .toast-message {
+            color: var(--gray-600);
+            font-size: 0.85rem;
+        }
+
+        /* ============================================
+           FOOTER
+        ============================================ */
+        footer {
             text-align: center;
             padding: 40px 20px;
             color: white;
         }
 
-        .section-divider h3 {
-            font-size: 1.8rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        /* FOOTER */
-        footer {
-            text-align: center;
-            padding: 30px;
-            color: white;
-            opacity: 0.8;
+        footer p {
+            opacity: 0.9;
+            margin-bottom: 8px;
         }
 
         footer a {
             color: white;
         }
 
-        /* RESPONSIVE */
-        @media (max-width: 600px) {
+        /* ============================================
+           SECTION DIVIDER
+        ============================================ */
+        .section-divider {
+            text-align: center;
+            padding: 30px 20px;
+            color: white;
+        }
+
+        .section-divider h3 {
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-weight: 600;
+        }
+
+        /* ============================================
+           RESPONSIVE
+        ============================================ */
+        @media (max-width: 768px) {
+            header {
+                padding: 10px 15px;
+            }
+
             .logo h1 {
-                font-size: 1.4rem;
+                font-size: 1.3rem;
             }
 
             .hero h2 {
                 font-size: 1.8rem;
             }
 
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .services-grid {
+                padding: 0 15px 40px;
+            }
+
             .slider-container {
-                height: 250px;
+                height: 220px;
+            }
+
+            .service-content {
+                padding: 20px;
             }
 
             .service-title {
-                font-size: 1.5rem;
+                font-size: 1.3rem;
+            }
+
+            .includes-list {
+                grid-template-columns: 1fr;
+            }
+
+            .price-section {
+                padding: 20px;
+                margin: 0 -20px -20px;
+            }
+
+            .price-row {
+                flex-direction: column;
+                align-items: flex-start;
             }
 
             .price-amount {
-                font-size: 2rem;
+                font-size: 1.6rem;
             }
 
-            .price-amount.small {
-                font-size: 1.5rem;
+            .modal {
+                max-height: 95vh;
+                border-radius: var(--radius);
             }
 
-            .book-btn {
-                width: 100%;
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-buttons {
+                flex-direction: column;
+            }
+
+            .cart-btn {
+                padding: 10px 15px;
+                font-size: 0.85rem;
             }
 
             .slider-btn {
-                width: 40px;
-                height: 40px;
-                font-size: 1.2rem;
+                width: 38px;
+                height: 38px;
+                font-size: 1rem;
             }
 
-            .promo-badge, .new-badge {
-                display: block;
-                margin-left: 0;
-                margin-bottom: 10px;
-                text-align: center;
+            .toast-container {
+                left: 15px;
+                right: 15px;
+                bottom: 15px;
             }
+
+            .toast {
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-right {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .selector {
+                padding: 6px 12px;
+            }
+
+            .selector select {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* ============================================
+           LOADING STATE
+        ============================================ */
+        .loading {
+            position: relative;
+            pointer-events: none;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
+    <!-- ============================================
+         HEADER
+    ============================================ -->
     <header>
         <div class="logo">
             <img src="imagenes/Lindo_Tours.jpeg" alt="Lindo Tours Logo" class="logo-icon">
             <h1>Lindo Tours</h1>
         </div>
-        <div class="controls">
+        <div class="header-right">
             <div class="selector">
                 <span>🌐</span>
                 <select id="language-selector">
@@ -498,54 +1195,48 @@
                     <option value="EUR">EUR (€)</option>
                 </select>
             </div>
+            <button class="cart-btn" id="cart-btn" onclick="openCartModal()">
+                🛒 <span data-es="Carrito" data-en="Cart">Carrito</span>
+                <span class="cart-count empty" id="cart-count">0</span>
+            </button>
         </div>
     </header>
 
-    <!-- HERO -->
+    <!-- ============================================
+         HERO
+    ============================================ -->
     <section class="hero">
         <h2 data-es="Descubre la Magia de México" data-en="Discover the Magic of Mexico">Descubre la Magia de México</h2>
         <p data-es="Experiencias únicas que recordarás para siempre" data-en="Unique experiences you'll remember forever">Experiencias únicas que recordarás para siempre</p>
     </section>
 
-    <!-- SERVICIO 1: CENOTES -->
-    <div class="container">
-        <article class="service-card">
-            <!-- SLIDER DE IMÁGENES -->
+    <!-- ============================================
+         SERVICIOS GRID
+    ============================================ -->
+    <div class="services-grid">
+        
+        <!-- SERVICIO 1: CENOTES -->
+        <article class="service-card" data-service="cenotes">
             <div class="slider-container">
-                <div class="slider" id="slider">
-                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/1.jpg');">
-                        <span class="placeholder">Imagen 1</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/2.jpg');">
-                        <span class="placeholder">Imagen 2</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/3.jpg');">
-                        <span class="placeholder">Imagen 3</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/4.jpg');">
-                        <span class="placeholder">Imagen 4</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/5.jpg');">
-                        <span class="placeholder">Imagen 5</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/6.jpg');">
-                        <span class="placeholder">Imagen 6</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/7.jpg');">
-                        <span class="placeholder">Imagen 7</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/8.jpg');">
-                        <span class="placeholder">Imagen 8</span>
-                    </div>
+                <div class="slider" id="slider1">
+                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/1.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/2.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/3.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/4.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/5.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/6.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/7.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Cenotes_y_Playa_del_Carmen/8.jpg');"></div>
                 </div>
-                <button class="slider-btn prev" onclick="moveSlide('slider', -1)">❮</button>
-                <button class="slider-btn next" onclick="moveSlide('slider', 1)">❯</button>
-                <div class="slider-dots" id="dots"></div>
+                <button class="slider-btn prev" onclick="moveSlide('slider1', -1)">❮</button>
+                <button class="slider-btn next" onclick="moveSlide('slider1', 1)">❯</button>
+                <div class="slider-dots" id="dots1"></div>
             </div>
 
-            <!-- CONTENIDO -->
             <div class="service-content">
-                <span class="promo-badge">🔥 <span data-es="Super Promoción" data-en="Super Deal">Super Promoción</span></span>
+                <div class="badges">
+                    <span class="badge promo">🔥 <span data-es="Super Promoción" data-en="Super Deal">Super Promoción</span></span>
+                </div>
                 
                 <h2 class="service-title" data-es="Cenotes y Playa del Carmen" data-en="Cenotes and Playa del Carmen">Cenotes y Playa del Carmen</h2>
                 
@@ -561,275 +1252,412 @@
                     <p class="food-title" data-es="🍽️ Comida Buffet:" data-en="🍽️ Buffet Meal:">🍽️ Comida Buffet:</p>
                     
                     <div class="includes-list">
-                        <div class="include-item">
-                            <span>✨</span>
-                            <span data-es="Cochinita Pibil" data-en="Cochinita Pibil">Cochinita Pibil</span>
-                        </div>
-                        <div class="include-item">
-                            <span>✨</span>
-                            <span data-es="Fajitas de Pollo" data-en="Chicken Fajitas">Fajitas de Pollo</span>
-                        </div>
-                        <div class="include-item">
-                            <span>✨</span>
-                            <span data-es="Poc Chuc" data-en="Poc Chuc">Poc Chuc</span>
-                        </div>
-                        <div class="include-item">
-                            <span>✨</span>
-                            <span data-es="Pollo Maya" data-en="Mayan Chicken">Pollo Maya</span>
-                        </div>
-                        <div class="include-item">
-                            <span>✨</span>
-                            <span data-es="Fruta" data-en="Fruit">Fruta</span>
-                        </div>
-                        <div class="include-item">
-                            <span>✨</span>
-                            <span data-es="Postre" data-en="Dessert">Postre</span>
-                        </div>
+                        <div class="include-item"><span>✨</span><span data-es="Cochinita Pibil" data-en="Cochinita Pibil">Cochinita Pibil</span></div>
+                        <div class="include-item"><span>✨</span><span data-es="Fajitas de Pollo" data-en="Chicken Fajitas">Fajitas de Pollo</span></div>
+                        <div class="include-item"><span>✨</span><span data-es="Poc Chuc" data-en="Poc Chuc">Poc Chuc</span></div>
+                        <div class="include-item"><span>✨</span><span data-es="Pollo Maya" data-en="Mayan Chicken">Pollo Maya</span></div>
+                        <div class="include-item"><span>✨</span><span data-es="Fruta" data-en="Fruit">Fruta</span></div>
+                        <div class="include-item"><span>✨</span><span data-es="Postre" data-en="Dessert">Postre</span></div>
                     </div>
 
                     <div class="main-includes">
-                        <div class="main-include">
-                            <span>🚐</span>
-                            <span data-es="Transporte" data-en="Transportation">Transporte</span>
-                        </div>
-                        <div class="main-include">
-                            <span>🎟️</span>
-                            <span data-es="Entradas" data-en="Tickets">Entradas</span>
-                        </div>
-                        <div class="main-include">
-                            <span>👤</span>
-                            <span data-es="Guía" data-en="Guide">Guía</span>
-                        </div>
+                        <div class="main-include"><span>🚐</span><span data-es="Transporte" data-en="Transportation">Transporte</span></div>
+                        <div class="main-include"><span>🎟️</span><span data-es="Entradas" data-en="Tickets">Entradas</span></div>
+                        <div class="main-include"><span>👤</span><span data-es="Guía" data-en="Guide">Guía</span></div>
                     </div>
 
-                    <p class="not-included">
-                        <span>🚫</span>
-                        <span data-es="No incluye bebidas" data-en="Drinks not included">No incluye bebidas</span>
-                    </p>
+                    <p class="not-included"><span>🚫</span><span data-es="No incluye bebidas" data-en="Drinks not included">No incluye bebidas</span></p>
                 </div>
 
-                <!-- PRECIO -->
-                <div class="price-section">
-                    <div class="price">
-                        <span class="price-currency" id="currency-symbol">$</span>
-                        <span class="price-amount" id="price-value">50</span>
-                        <span class="price-currency" id="currency-code">USD</span>
-                        <p class="price-person" data-es="por persona" data-en="per person">por persona</p>
+                <div class="price-section" data-service="cenotes">
+                    <div class="price-row">
+                        <div class="price-info">
+                            <span class="price-label" data-es="Precio por persona" data-en="Price per person">Precio por persona</span>
+                            <span class="price-currency" data-currency-symbol>$</span>
+                            <span class="price-amount" data-price="50">50</span>
+                            <span class="price-currency" data-currency-code>USD</span>
+                        </div>
+                        <div class="quantity-selector">
+                            <button class="qty-btn" onclick="updateQuantity('cenotes', -1)">−</button>
+                            <span class="qty-value" id="qty-cenotes">0</span>
+                            <button class="qty-btn" onclick="updateQuantity('cenotes', 1)">+</button>
+                        </div>
                     </div>
-                    <button class="book-btn" data-tour="cenotes" data-es="¡Reservar Ahora!" data-en="Book Now!">¡Reservar Ahora!</button>
+                    <div class="subtotal-row">
+                        <span class="subtotal-label" data-es="Subtotal:" data-en="Subtotal:">Subtotal:</span>
+                        <span class="subtotal-amount" id="subtotal-cenotes">$0</span>
+                    </div>
+                    <button class="add-to-cart-btn" id="btn-cenotes" onclick="addToCart('cenotes')" disabled>
+                        <span>🛒</span>
+                        <span data-es="Agregar al Carrito" data-en="Add to Cart">Agregar al Carrito</span>
+                    </button>
                 </div>
             </div>
         </article>
-    </div>
 
-    <!-- SEPARADOR -->
-    <div class="section-divider">
-        <h3>⛵ <span data-es="Más Experiencias Increíbles" data-en="More Amazing Experiences">Más Experiencias Increíbles</span> ⛵</h3>
-    </div>
-
-    <!-- SERVICIO 2: CLEAR BOAT COZUMEL -->
-    <div class="container">
-        <article class="service-card">
-            <!-- SLIDER DE IMÁGENES -->
+        <!-- SERVICIO 2: CLEAR BOAT COZUMEL -->
+        <article class="service-card" data-service="clearboat">
             <div class="slider-container">
                 <div class="slider" id="slider2">
-                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/1.jpg');">
-                        <span class="placeholder">Imagen 1</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/2.jpg');">
-                        <span class="placeholder">Imagen 2</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/3.jpg');">
-                        <span class="placeholder">Imagen 3</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/4.jpg');">
-                        <span class="placeholder">Imagen 4</span>
-                    </div>
-                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/5.jpg');">
-                        <span class="placeholder">Imagen 5</span>
-                    </div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/1.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/2.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/3.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/4.jpg');"></div>
+                    <div class="slide" style="background-image: url('imagenes/servicios/Clear_Boat_Cozumel/5.jpg');"></div>
                 </div>
                 <button class="slider-btn prev" onclick="moveSlide('slider2', -1)">❮</button>
                 <button class="slider-btn next" onclick="moveSlide('slider2', 1)">❯</button>
                 <div class="slider-dots" id="dots2"></div>
             </div>
 
-            <!-- CONTENIDO -->
             <div class="service-content">
-                <span class="promo-badge">💙 <span data-es="Experiencia Única" data-en="Unique Experience">Experiencia Única</span></span>
-                <span class="new-badge">🤩 <span data-es="¡Lo más nuevo!" data-en="Brand New!">¡Lo más nuevo!</span></span>
+                <div class="badges">
+                    <span class="badge promo">💙 <span data-es="Experiencia Única" data-en="Unique Experience">Experiencia Única</span></span>
+                    <span class="badge new">🤩 <span data-es="¡Lo más nuevo!" data-en="Brand New!">¡Lo más nuevo!</span></span>
+                </div>
                 
                 <h2 class="service-title" data-es="Clear Boat ⛵ Cozumel" data-en="Clear Boat ⛵ Cozumel">Clear Boat ⛵ Cozumel</h2>
                 
-                <h3 class="service-subtitle">🐠 <span data-es="El único tour en lancha transparente del Caribe Mexicano" data-en="The only transparent boat tour in the Mexican Caribbean">El único tour en lancha transparente del Caribe Mexicano</span> 🏝️</h3>
+                <h3 class="service-subtitle">🐠 <span data-es="El único tour en lancha transparente" data-en="The only transparent boat tour">El único tour en lancha transparente</span> 🏝️</h3>
 
-                <p class="service-description" data-es="Vive una experiencia única y diferente. Clear Boat, lo más nuevo en Cozumel, México. Asómbrate con la vista del fondo marino que te ofrece la transparencia de la lancha mientras visitas los barcos hundidos en Cozumel." data-en="Live a unique and different experience. Clear Boat, the newest attraction in Cozumel, Mexico. Be amazed by the view of the seabed that the transparency of the boat offers while visiting the sunken ships in Cozumel.">
-                    Vive una experiencia única y diferente. Clear Boat, lo más nuevo en Cozumel, México. Asómbrate con la vista del fondo marino que te ofrece la transparencia de la lancha mientras visitas los barcos hundidos en Cozumel.
+                <p class="service-description" data-es="Vive una experiencia única. Clear Boat, lo más nuevo en Cozumel. Asómbrate con la vista del fondo marino mientras visitas los barcos hundidos." data-en="Live a unique experience. Clear Boat, the newest in Cozumel. Be amazed by the seabed view while visiting sunken ships.">
+                    Vive una experiencia única. Clear Boat, lo más nuevo en Cozumel. Asómbrate con la vista del fondo marino mientras visitas los barcos hundidos.
                 </p>
 
                 <div class="includes-section">
                     <h4 class="includes-title">✅ <span data-es="Nuestro Tour Incluye" data-en="Our Tour Includes">Nuestro Tour Incluye</span></h4>
                     
                     <div class="includes-list">
-                        <div class="include-item">
-                            <span>🚐</span>
-                            <span data-es="Transporte redondo en van con A/C" data-en="Round-trip van transportation with A/C">Transporte redondo en van con A/C</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🛳️</span>
-                            <span data-es="Ferry Playa del Carmen - Cozumel" data-en="Ferry Playa del Carmen - Cozumel">Ferry Playa del Carmen - Cozumel</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🙋‍♂️</span>
-                            <span data-es="Guía certificado" data-en="Certified guide">Guía certificado</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🚤</span>
-                            <span data-es="1:30 hrs en Clear Boat" data-en="1:30 hrs on Clear Boat">1:30 hrs en Clear Boat</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🛥️</span>
-                            <span data-es="Visita a barcos hundidos" data-en="Visit to sunken ships">Visita a barcos hundidos</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🤿</span>
-                            <span data-es="20 min de Snorkel en arrecife" data-en="20 min Snorkeling at reef">20 min de Snorkel en arrecife</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🦺</span>
-                            <span data-es="Equipo snorkel y chaleco" data-en="Snorkel gear and life jacket">Equipo snorkel y chaleco</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🍹</span>
-                            <span data-es="4 bebidas a bordo" data-en="4 drinks on board">4 bebidas a bordo</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🏖️</span>
-                            <span data-es="Tiempo libre en Cozumel" data-en="Free time in Cozumel">Tiempo libre en Cozumel</span>
-                        </div>
-                        <div class="include-item">
-                            <span>📸</span>
-                            <span data-es="Foto en letras de Cozumel" data-en="Photo at Cozumel letters">Foto en letras de Cozumel</span>
-                        </div>
-                    </div>
-
-                    <p class="food-title" data-es="🍽️ Comida a la Carta (a elegir):" data-en="🍽️ À la Carte Meal (choose one):">🍽️ Comida a la Carta (a elegir):</p>
-                    
-                    <div class="includes-list">
-                        <div class="include-item">
-                            <span>🐔</span>
-                            <span data-es="Pollo" data-en="Chicken">Pollo</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🥩</span>
-                            <span data-es="Carne" data-en="Beef">Carne</span>
-                        </div>
-                        <div class="include-item">
-                            <span>🐟</span>
-                            <span data-es="Pescado" data-en="Fish">Pescado</span>
-                        </div>
+                        <div class="include-item"><span>🚐</span><span data-es="Transporte con A/C" data-en="A/C Transportation">Transporte con A/C</span></div>
+                        <div class="include-item"><span>🛳️</span><span data-es="Ferry incluido" data-en="Ferry included">Ferry incluido</span></div>
+                        <div class="include-item"><span>🚤</span><span data-es="1:30 hrs Clear Boat" data-en="1:30 hrs Clear Boat">1:30 hrs Clear Boat</span></div>
+                        <div class="include-item"><span>🤿</span><span data-es="Snorkel en arrecife" data-en="Reef Snorkeling">Snorkel en arrecife</span></div>
+                        <div class="include-item"><span>🍹</span><span data-es="4 bebidas a bordo" data-en="4 drinks on board">4 bebidas a bordo</span></div>
+                        <div class="include-item"><span>🍽️</span><span data-es="Comida incluida" data-en="Meal included">Comida incluida</span></div>
                     </div>
 
                     <div class="main-includes">
-                        <div class="main-include" style="background: linear-gradient(135deg, #00b4db, #0083b0);">
-                            <span>⛑️</span>
-                            <span data-es="Protocolos de Sanidad" data-en="Health Protocols">Protocolos de Sanidad</span>
+                        <div class="main-include" style="background: linear-gradient(135deg, var(--ocean), var(--ocean-dark));">
+                            <span>⛑️</span><span data-es="Protocolos de Sanidad" data-en="Health Protocols">Protocolos de Sanidad</span>
                         </div>
                     </div>
 
-                    <p class="not-included">
-                        <span>🚫</span>
-                        <span data-es="No incluye impuesto de muelle" data-en="Dock tax not included">No incluye impuesto de muelle</span>
-                    </p>
-                    <p class="not-included">
-                        <span>🚫</span>
-                        <span data-es="No incluye bebidas en el restaurante" data-en="Restaurant drinks not included">No incluye bebidas en el restaurante</span>
-                    </p>
+                    <p class="not-included"><span>🚫</span><span data-es="No incluye impuesto de muelle" data-en="Dock tax not included">No incluye impuesto de muelle</span></p>
 
-                    <!-- ADVERTENCIA IMPORTANTE -->
                     <div class="warning-box">
                         <h5>⚠️ <span data-es="IMPORTANTE" data-en="IMPORTANT">IMPORTANTE</span></h5>
-                        <p data-es="❌ NO SE PUEDEN TOCAR LOS CORALES NI ESTRELLAS DE MAR, sólo debemos observar y enamorarnos de su belleza 😍" data-en="❌ DO NOT TOUCH CORALS OR STARFISH, we must only observe and fall in love with their beauty 😍">
-                            ❌ NO SE PUEDEN TOCAR LOS CORALES NI ESTRELLAS DE MAR, sólo debemos observar y enamorarnos de su belleza 😍
-                        </p>
+                        <p data-es="❌ NO TOCAR CORALES NI ESTRELLAS DE MAR 😍" data-en="❌ DO NOT TOUCH CORALS OR STARFISH 😍">❌ NO TOCAR CORALES NI ESTRELLAS DE MAR 😍</p>
                     </div>
                 </div>
 
-                <!-- PRECIO -->
-                <div class="price-section ocean">
-                    <div class="price">
-                        <!-- Precio Adulto -->
-                        <div class="price-row">
-                            <span class="price-label" data-es="👨 Adulto:" data-en="👨 Adult:">👨 Adulto:</span>
-                            <span class="price-currency" id="currency-symbol-2a">$</span>
-                            <span class="price-amount" id="price-value-2a">126</span>
-                            <span class="price-currency" id="currency-code-2a">USD</span>
+                <div class="price-section ocean" data-service="clearboat">
+                    <!-- Adultos -->
+                    <div class="price-row">
+                        <div class="price-info">
+                            <span class="price-label" data-es="👨 Adulto" data-en="👨 Adult">👨 Adulto</span>
+                            <span class="price-currency" data-currency-symbol>$</span>
+                            <span class="price-amount" data-price="126">126</span>
+                            <span class="price-currency" data-currency-code>USD</span>
                         </div>
-                        <!-- Precio Menor -->
-                        <div class="price-row">
-                            <span class="price-label" data-es="👧 Menor:" data-en="👧 Child:">👧 Menor:</span>
-                            <span class="price-currency small" id="currency-symbol-2b">$</span>
-                            <span class="price-amount small" id="price-value-2b">120</span>
-                            <span class="price-currency small" id="currency-code-2b">USD</span>
+                        <div class="quantity-selector">
+                            <button class="qty-btn" onclick="updateQuantity('clearboat-adult', -1)">−</button>
+                            <span class="qty-value" id="qty-clearboat-adult">0</span>
+                            <button class="qty-btn" onclick="updateQuantity('clearboat-adult', 1)">+</button>
                         </div>
-                        <p class="price-person" data-es="por persona" data-en="per person">por persona</p>
                     </div>
-                    <button class="book-btn ocean" data-tour="clearboat" data-es="¡Reservar Ahora!" data-en="Book Now!">¡Reservar Ahora!</button>
+                    <!-- Menores -->
+                    <div class="price-row">
+                        <div class="price-info">
+                            <span class="price-label" data-es="👧 Menor" data-en="👧 Child">👧 Menor</span>
+                            <span class="price-currency" data-currency-symbol>$</span>
+                            <span class="price-amount" data-price="120">120</span>
+                            <span class="price-currency" data-currency-code>USD</span>
+                        </div>
+                        <div class="quantity-selector">
+                            <button class="qty-btn" onclick="updateQuantity('clearboat-child', -1)">−</button>
+                            <span class="qty-value" id="qty-clearboat-child">0</span>
+                            <button class="qty-btn" onclick="updateQuantity('clearboat-child', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="subtotal-row">
+                        <span class="subtotal-label" data-es="Subtotal:" data-en="Subtotal:">Subtotal:</span>
+                        <span class="subtotal-amount" id="subtotal-clearboat">$0</span>
+                    </div>
+                    <button class="add-to-cart-btn ocean" id="btn-clearboat" onclick="addToCart('clearboat')" disabled>
+                        <span>🛒</span>
+                        <span data-es="Agregar al Carrito" data-en="Add to Cart">Agregar al Carrito</span>
+                    </button>
                 </div>
             </div>
         </article>
     </div>
 
-    <!-- FOOTER -->
+    <!-- ============================================
+         MODAL CARRITO
+    ============================================ -->
+    <div class="modal-overlay" id="cart-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🛒 <span data-es="Tu Carrito" data-en="Your Cart">Tu Carrito</span></h3>
+                <button class="close-modal" onclick="closeCartModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <!-- ITEMS DEL CARRITO -->
+                <div class="cart-items" id="cart-items">
+                    <div class="cart-empty">
+                        <span>🛒</span>
+                        <p data-es="Tu carrito está vacío" data-en="Your cart is empty">Tu carrito está vacío</p>
+                    </div>
+                </div>
+
+                <!-- TOTAL -->
+                <div class="cart-total" id="cart-total-section" style="display: none;">
+                    <span class="cart-total-label" data-es="Total a Pagar:" data-en="Total to Pay:">Total a Pagar:</span>
+                    <span class="cart-total-amount" id="cart-total-amount">$0</span>
+                </div>
+
+                <!-- FORMULARIO CHECKOUT -->
+                <div class="checkout-form" id="checkout-form">
+                    <h4 class="form-section-title">📝 <span data-es="Datos para tu Reservación" data-en="Reservation Details">Datos para tu Reservación</span></h4>
+                    
+                    <form id="booking-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label data-es="Nombre Completo *" data-en="Full Name *">Nombre Completo *</label>
+                                <input type="text" id="customer-name" required placeholder="Tu nombre">
+                            </div>
+                            <div class="form-group">
+                                <label data-es="Email *" data-en="Email *">Email *</label>
+                                <input type="email" id="customer-email" required placeholder="tu@email.com">
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label data-es="Teléfono / WhatsApp *" data-en="Phone / WhatsApp *">Teléfono / WhatsApp *</label>
+                                <input type="tel" id="customer-phone" required placeholder="+52 1 998 123 4567">
+                            </div>
+                            <div class="form-group">
+                                <label data-es="Fecha del Tour *" data-en="Tour Date *">Fecha del Tour *</label>
+                                <div class="date-picker-container">
+                                    <input type="text" id="tour-date" required placeholder="Selecciona fecha">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label data-es="Hotel / Punto de Recogida" data-en="Hotel / Pickup Point">Hotel / Punto de Recogida</label>
+                            <input type="text" id="customer-hotel" placeholder="Nombre de tu hotel o dirección">
+                        </div>
+
+                        <div class="form-group">
+                            <label data-es="Comentarios Adicionales" data-en="Additional Comments">Comentarios Adicionales</label>
+                            <textarea id="customer-comments" placeholder="Alergias, requerimientos especiales, etc."></textarea>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- BOTONES -->
+                <div class="form-buttons" id="cart-buttons">
+                    <button class="btn btn-secondary" onclick="closeCartModal()">
+                        <span data-es="Seguir Comprando" data-en="Continue Shopping">Seguir Comprando</span>
+                    </button>
+                    <button class="btn btn-primary" id="checkout-btn" onclick="proceedToCheckout()" style="display: none;">
+                        <span data-es="Proceder al Checkout" data-en="Proceed to Checkout">Proceder al Checkout</span>
+                    </button>
+                    <button class="btn btn-primary" id="send-email-btn" onclick="sendBookingEmail()" style="display: none;">
+                        ✉️ <span data-es="Enviar Reservación" data-en="Send Booking">Enviar Reservación</span>
+                    </button>
+                    <button class="btn btn-whatsapp" id="send-whatsapp-btn" onclick="sendToWhatsApp()" style="display: none;">
+                        📱 <span data-es="Enviar por WhatsApp" data-en="Send via WhatsApp">Enviar por WhatsApp</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         TOAST CONTAINER
+    ============================================ -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ============================================
+         FOOTER
+    ============================================ -->
     <footer>
         <p>© 2025 Lindo Tours. <span data-es="Todos los derechos reservados." data-en="All rights reserved.">Todos los derechos reservados.</span></p>
         <p>📧 contacto@lindotours.com | 📱 +52 1 998 144 0320</p>
     </footer>
 
+    <!-- ============================================
+         SCRIPTS
+    ============================================ -->
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+    
+    <!-- EmailJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
     <script>
-        // ========== SLIDERS MÚLTIPLES ==========
+        // ============================================
+        // CONFIGURACIÓN
+        // ============================================
+        const CONFIG = {
+            // ⚠️ IMPORTANTE: Reemplaza estos valores con los tuyos de EmailJS
+            // Instrucciones: https://www.emailjs.com/docs/
+            emailjs: {
+                publicKey: 'adpBU-SgpefU02llA',      // Obtener en: EmailJS Dashboard > Account > API Keys
+                serviceId: 'lindo_Tours',      // Obtener en: EmailJS Dashboard > Email Services
+                templateId: 'template_ms3160x'     // Obtener en: EmailJS Dashboard > Email Templates
+            },
+            whatsapp: {
+                phone: '5219981440320'
+            }
+        };
+
+        // ============================================
+        // DATOS DE SERVICIOS
+        // ============================================
+        const SERVICES = {
+            cenotes: {
+                id: 'cenotes',
+                name: { es: 'Cenotes y Playa del Carmen', en: 'Cenotes and Playa del Carmen' },
+                image: 'imagenes/servicios/Cenotes_y_Playa_del_Carmen/1.jpg',
+                basePrice: 50,
+                priceType: 'single' // precio único
+            },
+            clearboat: {
+                id: 'clearboat',
+                name: { es: 'Clear Boat Cozumel', en: 'Clear Boat Cozumel' },
+                image: 'imagenes/servicios/Clear_Boat_Cozumel/1.jpg',
+                adultPrice: 126,
+                childPrice: 120,
+                priceType: 'dual' // adultos y niños
+            }
+        };
+
+        // Tasas de cambio
+        const EXCHANGE_RATES = {
+            USD: { rate: 1, symbol: '$' },
+            MXN: { rate: 17.47, symbol: '$' },
+            EUR: { rate: 0.84, symbol: '€' }
+        };
+
+        // ============================================
+        // ESTADO DE LA APLICACIÓN
+        // ============================================
+        let state = {
+            language: 'es',
+            currency: 'USD',
+            quantities: {
+                'cenotes': 0,
+                'clearboat-adult': 0,
+                'clearboat-child': 0
+            },
+            cart: [],
+            checkoutMode: false
+        };
+
+        // ============================================
+        // INICIALIZACIÓN
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cargar estado desde LocalStorage
+            loadState();
+            
+            // Inicializar componentes
+            initSliders();
+            initLanguage();
+            initCurrency();
+            initDatePicker();
+            initEmailJS();
+            
+            // Actualizar UI
+            updateAllPrices();
+            updateCartUI();
+        });
+
+        // ============================================
+        // LOCALSTORAGE - PERSISTENCIA
+        // ============================================
+        function loadState() {
+            try {
+                const savedCart = localStorage.getItem('lindotours_cart');
+                const savedLang = localStorage.getItem('lindotours_language');
+                const savedCurrency = localStorage.getItem('lindotours_currency');
+                
+                if (savedCart) {
+                    state.cart = JSON.parse(savedCart);
+                }
+                if (savedLang) {
+                    state.language = savedLang;
+                }
+                if (savedCurrency) {
+                    state.currency = savedCurrency;
+                }
+            } catch (e) {
+                console.error('Error loading state:', e);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('lindotours_cart', JSON.stringify(state.cart));
+                localStorage.setItem('lindotours_language', state.language);
+                localStorage.setItem('lindotours_currency', state.currency);
+            } catch (e) {
+                console.error('Error saving state:', e);
+            }
+        }
+
+        // ============================================
+        // SLIDERS
+        // ============================================
         const sliders = {
-            slider: { current: 0, total: 8 },
+            slider1: { current: 0, total: 8 },
             slider2: { current: 0, total: 5 }
         };
 
-        // Crear dots para cada slider
-        Object.keys(sliders).forEach(sliderId => {
-            const dotsId = sliderId === 'slider' ? 'dots' : 'dots2';
-            const dotsContainer = document.getElementById(dotsId);
-            const { total } = sliders[sliderId];
-            
-            for (let i = 0; i < total; i++) {
-                const dot = document.createElement('span');
-                dot.classList.add('dot');
-                if (i === 0) dot.classList.add('active');
-                dot.onclick = () => goToSlide(sliderId, i);
-                dotsContainer.appendChild(dot);
-            }
-        });
-
-        function updateDots(sliderId) {
-            const dotsId = sliderId === 'slider' ? 'dots' : 'dots2';
-            const dotsContainer = document.getElementById(dotsId);
-            const currentSlide = sliders[sliderId].current;
-            dotsContainer.querySelectorAll('.dot').forEach((dot, index) => {
-                dot.classList.toggle('active', index === currentSlide);
+        function initSliders() {
+            Object.keys(sliders).forEach(sliderId => {
+                const dotsId = sliderId.replace('slider', 'dots');
+                const dotsContainer = document.getElementById(dotsId);
+                if (!dotsContainer) return;
+                
+                const { total } = sliders[sliderId];
+                
+                for (let i = 0; i < total; i++) {
+                    const dot = document.createElement('span');
+                    dot.classList.add('dot');
+                    if (i === 0) dot.classList.add('active');
+                    dot.onclick = () => goToSlide(sliderId, i);
+                    dotsContainer.appendChild(dot);
+                }
             });
+
+            // Auto-slide
+            setInterval(() => moveSlide('slider1', 1), 5000);
+            setInterval(() => moveSlide('slider2', 1), 5500);
         }
 
         function goToSlide(sliderId, index) {
             const slider = document.getElementById(sliderId);
+            if (!slider) return;
+            
             sliders[sliderId].current = index;
             slider.style.transform = `translateX(-${index * 100}%)`;
-            updateDots(sliderId);
+            
+            const dotsId = sliderId.replace('slider', 'dots');
+            const dotsContainer = document.getElementById(dotsId);
+            if (dotsContainer) {
+                dotsContainer.querySelectorAll('.dot').forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+            }
         }
 
         function moveSlide(sliderId, direction) {
-            if (direction === undefined) {
-                direction = sliderId;
-                sliderId = 'slider';
-            }
-            
             const { current, total } = sliders[sliderId];
             let newSlide = current + direction;
             if (newSlide < 0) newSlide = total - 1;
@@ -837,111 +1665,561 @@
             goToSlide(sliderId, newSlide);
         }
 
-        // Auto-slide
-        setInterval(() => moveSlide('slider', 1), 5000);
-        setInterval(() => moveSlide('slider2', 1), 5500);
+        // ============================================
+        // IDIOMA
+        // ============================================
+        function initLanguage() {
+            const selector = document.getElementById('language-selector');
+            selector.value = state.language;
+            changeLanguage(state.language);
+            
+            selector.addEventListener('change', (e) => {
+                state.language = e.target.value;
+                changeLanguage(state.language);
+                saveState();
+            });
+        }
 
-        // Ocultar placeholder cuando hay imagen
-        document.querySelectorAll('.slide').forEach(slide => {
-            const img = new Image();
-            img.onload = function() {
-                const placeholder = slide.querySelector('.placeholder');
-                if (placeholder) placeholder.style.display = 'none';
-            };
-            const bgImage = slide.style.backgroundImage;
-            if (bgImage) {
-                img.src = bgImage.slice(5, -2);
-            }
-        });
-
-        // ========== IDIOMA ==========
-        const langSelector = document.getElementById('language-selector');
-        
         function changeLanguage(lang) {
             document.querySelectorAll('[data-es]').forEach(el => {
                 el.textContent = el.getAttribute(`data-${lang}`);
             });
             document.documentElement.lang = lang;
-            localStorage.setItem('language', lang);
+            
+            // Actualizar flatpickr locale
+            if (window.tourDatePicker) {
+                window.tourDatePicker.set('locale', lang === 'es' ? 'es' : 'default');
+            }
         }
 
-        langSelector.addEventListener('change', (e) => changeLanguage(e.target.value));
-
-        const savedLang = localStorage.getItem('language') || 'es';
-        langSelector.value = savedLang;
-        changeLanguage(savedLang);
-
-        // ========== DIVISA ==========
-        const currencySelector = document.getElementById('currency-selector');
-
-        // PRECIOS BASE EN USD PARA TODOS LOS SERVICIOS
-        const prices = {
-            'price-value': 50,       // Cenotes
-            'price-value-2a': 126,   // Clear Boat Adulto
-            'price-value-2b': 120    // Clear Boat Menor
-        };
-
-        const exchangeRates = {
-            USD: { rate: 1, symbol: '$' },
-            MXN: { rate: 17.47, symbol: '$' },
-            EUR: { rate: 0.84, symbol: '€' }
-        };
-
-        function changeCurrency(currency) {
-            const { rate, symbol } = exchangeRates[currency];
+        // ============================================
+        // DIVISA
+        // ============================================
+        function initCurrency() {
+            const selector = document.getElementById('currency-selector');
+            selector.value = state.currency;
             
-            // Actualizar todos los precios
-            Object.keys(prices).forEach(priceId => {
-                const priceElement = document.getElementById(priceId);
-                if (priceElement) {
-                    const basePrice = prices[priceId];
-                    priceElement.textContent = Math.round(basePrice * rate);
-                }
+            selector.addEventListener('change', (e) => {
+                state.currency = e.target.value;
+                updateAllPrices();
+                saveState();
+            });
+        }
+
+        function updateAllPrices() {
+            const { rate, symbol } = EXCHANGE_RATES[state.currency];
+            
+            // Actualizar precios en cards
+            document.querySelectorAll('[data-price]').forEach(el => {
+                const basePrice = parseFloat(el.getAttribute('data-price'));
+                el.textContent = Math.round(basePrice * rate);
             });
             
-            // Actualizar todos los símbolos de moneda
-            document.querySelectorAll('[id^="currency-symbol"]').forEach(el => {
+            // Actualizar símbolos
+            document.querySelectorAll('[data-currency-symbol]').forEach(el => {
                 el.textContent = symbol;
             });
             
-            // Actualizar todos los códigos de moneda
-            document.querySelectorAll('[id^="currency-code"]').forEach(el => {
-                el.textContent = currency;
+            // Actualizar códigos
+            document.querySelectorAll('[data-currency-code]').forEach(el => {
+                el.textContent = state.currency;
             });
             
-            localStorage.setItem('currency', currency);
+            // Actualizar subtotales
+            updateSubtotal('cenotes');
+            updateSubtotal('clearboat');
+            updateCartTotal();
         }
 
-        currencySelector.addEventListener('change', (e) => changeCurrency(e.target.value));
+        function convertPrice(usdPrice) {
+            const { rate, symbol } = EXCHANGE_RATES[state.currency];
+            return `${symbol}${Math.round(usdPrice * rate)} ${state.currency}`;
+        }
 
-        const savedCurrency = localStorage.getItem('currency') || 'USD';
-        currencySelector.value = savedCurrency;
-        changeCurrency(savedCurrency);
+        // ============================================
+        // CANTIDADES Y SUBTOTALES
+        // ============================================
+        function updateQuantity(type, change) {
+            const currentQty = state.quantities[type] || 0;
+            const newQty = Math.max(0, Math.min(20, currentQty + change));
+            state.quantities[type] = newQty;
+            
+            // Actualizar UI
+            const qtyElement = document.getElementById(`qty-${type}`);
+            if (qtyElement) {
+                qtyElement.textContent = newQty;
+            }
+            
+            // Actualizar subtotal del servicio correspondiente
+            if (type === 'cenotes') {
+                updateSubtotal('cenotes');
+            } else {
+                updateSubtotal('clearboat');
+            }
+        }
 
-        // ========== BOTONES RESERVAR (WhatsApp) ==========
-        document.querySelectorAll('.book-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const lang = langSelector.value;
-                const tour = this.getAttribute('data-tour');
+        function updateSubtotal(service) {
+            const { rate, symbol } = EXCHANGE_RATES[state.currency];
+            let subtotal = 0;
+            
+            if (service === 'cenotes') {
+                const qty = state.quantities['cenotes'] || 0;
+                subtotal = qty * SERVICES.cenotes.basePrice;
                 
-                // Determinar nombre del tour
-                let tourName = '';
-                if (tour === 'clearboat') {
-                    tourName = 'Clear Boat Cozumel';
+                const btn = document.getElementById('btn-cenotes');
+                if (btn) btn.disabled = qty === 0;
+            } else if (service === 'clearboat') {
+                const adultQty = state.quantities['clearboat-adult'] || 0;
+                const childQty = state.quantities['clearboat-child'] || 0;
+                subtotal = (adultQty * SERVICES.clearboat.adultPrice) + (childQty * SERVICES.clearboat.childPrice);
+                
+                const btn = document.getElementById('btn-clearboat');
+                if (btn) btn.disabled = (adultQty + childQty) === 0;
+            }
+            
+            const subtotalElement = document.getElementById(`subtotal-${service}`);
+            if (subtotalElement) {
+                subtotalElement.textContent = `${symbol}${Math.round(subtotal * rate)}`;
+            }
+        }
+
+        // ============================================
+        // CARRITO
+        // ============================================
+        function addToCart(serviceId) {
+            const lang = state.language;
+            
+            if (serviceId === 'cenotes') {
+                const qty = state.quantities['cenotes'];
+                if (qty === 0) return;
+                
+                // Verificar si ya existe en el carrito
+                const existingIndex = state.cart.findIndex(item => item.id === 'cenotes');
+                
+                if (existingIndex >= 0) {
+                    state.cart[existingIndex].quantity += qty;
+                    state.cart[existingIndex].subtotalUSD = state.cart[existingIndex].quantity * SERVICES.cenotes.basePrice;
                 } else {
-                    tourName = lang === 'es' ? 'Cenotes y Playa del Carmen' : 'Cenotes and Playa del Carmen';
+                    state.cart.push({
+                        id: 'cenotes',
+                        name: SERVICES.cenotes.name[lang],
+                        image: SERVICES.cenotes.image,
+                        quantity: qty,
+                        priceUSD: SERVICES.cenotes.basePrice,
+                        subtotalUSD: qty * SERVICES.cenotes.basePrice,
+                        type: 'persons'
+                    });
                 }
                 
-                const message = lang === 'es' 
-                    ? `¡Hola! Me interesa reservar el tour: ${tourName}. ¿Me pueden dar más información?`
-                    : `Hi! I'm interested in booking: ${tourName}. Can you give me more information?`;
+                // Reset cantidad
+                state.quantities['cenotes'] = 0;
+                document.getElementById('qty-cenotes').textContent = '0';
+                updateSubtotal('cenotes');
                 
-                // Abrir WhatsApp
-                const encodedMessage = encodeURIComponent(message);
-                window.open(`https://wa.me/5219981440320?text=${encodedMessage}`, '_blank');
+            } else if (serviceId === 'clearboat') {
+                const adults = state.quantities['clearboat-adult'];
+                const children = state.quantities['clearboat-child'];
+                
+                if (adults === 0 && children === 0) return;
+                
+                const subtotal = (adults * SERVICES.clearboat.adultPrice) + (children * SERVICES.clearboat.childPrice);
+                
+                // Verificar si ya existe
+                const existingIndex = state.cart.findIndex(item => item.id === 'clearboat');
+                
+                if (existingIndex >= 0) {
+                    state.cart[existingIndex].adults += adults;
+                    state.cart[existingIndex].children += children;
+                    state.cart[existingIndex].subtotalUSD = 
+                        (state.cart[existingIndex].adults * SERVICES.clearboat.adultPrice) + 
+                        (state.cart[existingIndex].children * SERVICES.clearboat.childPrice);
+                } else {
+                    state.cart.push({
+                        id: 'clearboat',
+                        name: SERVICES.clearboat.name[lang],
+                        image: SERVICES.clearboat.image,
+                        adults: adults,
+                        children: children,
+                        adultPriceUSD: SERVICES.clearboat.adultPrice,
+                        childPriceUSD: SERVICES.clearboat.childPrice,
+                        subtotalUSD: subtotal,
+                        type: 'dual'
+                    });
+                }
+                
+                // Reset cantidades
+                state.quantities['clearboat-adult'] = 0;
+                state.quantities['clearboat-child'] = 0;
+                document.getElementById('qty-clearboat-adult').textContent = '0';
+                document.getElementById('qty-clearboat-child').textContent = '0';
+                updateSubtotal('clearboat');
+            }
+            
+            saveState();
+            updateCartUI();
+            
+            // Mostrar notificación
+            showToast('success', 
+                lang === 'es' ? '¡Agregado!' : 'Added!',
+                lang === 'es' ? 'Tour agregado al carrito' : 'Tour added to cart'
+            );
+            
+            // Animación del botón
+            const btn = document.getElementById(`btn-${serviceId}`);
+            if (btn) {
+                btn.classList.add('added');
+                btn.innerHTML = '<span>✓</span><span>' + (lang === 'es' ? 'Agregado' : 'Added') + '</span>';
+                setTimeout(() => {
+                    btn.classList.remove('added');
+                    btn.innerHTML = '<span>🛒</span><span data-es="Agregar al Carrito" data-en="Add to Cart">' + 
+                        (lang === 'es' ? 'Agregar al Carrito' : 'Add to Cart') + '</span>';
+                }, 1500);
+            }
+        }
+
+        function removeFromCart(index) {
+            state.cart.splice(index, 1);
+            saveState();
+            updateCartUI();
+            
+            showToast('info', 
+                state.language === 'es' ? 'Eliminado' : 'Removed',
+                state.language === 'es' ? 'Tour eliminado del carrito' : 'Tour removed from cart'
+            );
+        }
+
+        function updateCartUI() {
+            const cartCount = document.getElementById('cart-count');
+            const cartItems = document.getElementById('cart-items');
+            const totalSection = document.getElementById('cart-total-section');
+            const checkoutBtn = document.getElementById('checkout-btn');
+            const lang = state.language;
+            
+            // Calcular cantidad total
+            let totalItems = 0;
+            state.cart.forEach(item => {
+                if (item.type === 'dual') {
+                    totalItems += (item.adults || 0) + (item.children || 0);
+                } else {
+                    totalItems += item.quantity || 0;
+                }
             });
+            
+            // Actualizar contador
+            cartCount.textContent = totalItems;
+            cartCount.classList.toggle('empty', totalItems === 0);
+            
+            // Renderizar items
+            if (state.cart.length === 0) {
+                cartItems.innerHTML = `
+                    <div class="cart-empty">
+                        <span>🛒</span>
+                        <p data-es="Tu carrito está vacío" data-en="Your cart is empty">
+                            ${lang === 'es' ? 'Tu carrito está vacío' : 'Your cart is empty'}
+                        </p>
+                    </div>
+                `;
+                totalSection.style.display = 'none';
+                checkoutBtn.style.display = 'none';
+                
+                // Ocultar formulario si está visible
+                document.getElementById('checkout-form').classList.remove('active');
+                document.getElementById('send-email-btn').style.display = 'none';
+                document.getElementById('send-whatsapp-btn').style.display = 'none';
+                state.checkoutMode = false;
+            } else {
+                let html = '';
+                state.cart.forEach((item, index) => {
+                    let qtyText = '';
+                    if (item.type === 'dual') {
+                        const parts = [];
+                        if (item.adults > 0) parts.push(`${item.adults} ${lang === 'es' ? 'adulto(s)' : 'adult(s)'}`);
+                        if (item.children > 0) parts.push(`${item.children} ${lang === 'es' ? 'menor(es)' : 'child(ren)'}`);
+                        qtyText = parts.join(', ');
+                    } else {
+                        qtyText = `${item.quantity} ${lang === 'es' ? 'persona(s)' : 'person(s)'}`;
+                    }
+                    
+                    html += `
+                        <div class="cart-item">
+                            <div class="cart-item-image" style="background-image: url('${item.image}');"></div>
+                            <div class="cart-item-details">
+                                <div class="cart-item-name">${item.name}</div>
+                                <div class="cart-item-qty">${qtyText}</div>
+                            </div>
+                            <div class="cart-item-price">${convertPrice(item.subtotalUSD)}</div>
+                            <button class="cart-item-remove" onclick="removeFromCart(${index})">×</button>
+                        </div>
+                    `;
+                });
+                cartItems.innerHTML = html;
+                totalSection.style.display = 'flex';
+                checkoutBtn.style.display = state.checkoutMode ? 'none' : 'flex';
+            }
+            
+            updateCartTotal();
+        }
+
+        function updateCartTotal() {
+            const totalUSD = state.cart.reduce((sum, item) => sum + item.subtotalUSD, 0);
+            const totalElement = document.getElementById('cart-total-amount');
+            if (totalElement) {
+                totalElement.textContent = convertPrice(totalUSD);
+            }
+        }
+
+        // ============================================
+        // MODAL
+        // ============================================
+        function openCartModal() {
+            document.getElementById('cart-modal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            updateCartUI();
+        }
+
+        function closeCartModal() {
+            document.getElementById('cart-modal').classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Reset checkout mode
+            state.checkoutMode = false;
+            document.getElementById('checkout-form').classList.remove('active');
+            document.getElementById('checkout-btn').style.display = state.cart.length > 0 ? 'flex' : 'none';
+            document.getElementById('send-email-btn').style.display = 'none';
+            document.getElementById('send-whatsapp-btn').style.display = 'none';
+        }
+
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('cart-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCartModal();
+            }
+        });
+
+        // ============================================
+        // CHECKOUT
+        // ============================================
+        function proceedToCheckout() {
+            state.checkoutMode = true;
+            document.getElementById('checkout-form').classList.add('active');
+            document.getElementById('checkout-btn').style.display = 'none';
+            document.getElementById('send-email-btn').style.display = 'flex';
+            document.getElementById('send-whatsapp-btn').style.display = 'flex';
+        }
+
+        // ============================================
+        // DATE PICKER (FLATPICKR)
+        // ============================================
+        function initDatePicker() {
+            window.tourDatePicker = flatpickr('#tour-date', {
+                locale: state.language === 'es' ? 'es' : 'default',
+                minDate: 'today',
+                dateFormat: 'd/m/Y',
+                disableMobile: false,
+                allowInput: false,
+                onChange: function(selectedDates, dateStr) {
+                    // Fecha seleccionada
+                }
+            });
+        }
+
+        // ============================================
+        // EMAILJS
+        // ============================================
+        function initEmailJS() {
+            // Inicializar EmailJS con tu Public Key
+            if (CONFIG.emailjs.publicKey !== 'TU_PUBLIC_KEY') {
+                emailjs.init(CONFIG.emailjs.publicKey);
+            }
+        }
+
+        async function sendBookingEmail() {
+            const form = document.getElementById('booking-form');
+            const lang = state.language;
+            
+            // Validar formulario
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // Verificar configuración EmailJS
+            if (CONFIG.emailjs.publicKey === 'TU_PUBLIC_KEY') {
+                showToast('error', 
+                    lang === 'es' ? 'Configuración Pendiente' : 'Configuration Pending',
+                    lang === 'es' ? 'EmailJS no está configurado. Usa WhatsApp.' : 'EmailJS not configured. Use WhatsApp.'
+                );
+                return;
+            }
+            
+            const btn = document.getElementById('send-email-btn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            
+            try {
+                // Preparar datos
+                const cartSummary = state.cart.map(item => {
+                    if (item.type === 'dual') {
+                        return `${item.name}: ${item.adults} adultos, ${item.children} menores - ${convertPrice(item.subtotalUSD)}`;
+                    }
+                    return `${item.name}: ${item.quantity} personas - ${convertPrice(item.subtotalUSD)}`;
+                }).join('\n');
+                
+                const totalUSD = state.cart.reduce((sum, item) => sum + item.subtotalUSD, 0);
+                
+                const templateParams = {
+                    customer_name: document.getElementById('customer-name').value,
+                    customer_email: document.getElementById('customer-email').value,
+                    customer_phone: document.getElementById('customer-phone').value,
+                    tour_date: document.getElementById('tour-date').value,
+                    customer_hotel: document.getElementById('customer-hotel').value || 'No especificado',
+                    customer_comments: document.getElementById('customer-comments').value || 'Sin comentarios',
+                    cart_summary: cartSummary,
+                    total_amount: convertPrice(totalUSD),
+                    currency: state.currency
+                };
+                
+                await emailjs.send(
+                    CONFIG.emailjs.serviceId,
+                    CONFIG.emailjs.templateId,
+                    templateParams
+                );
+                
+                showToast('success',
+                    lang === 'es' ? '¡Reservación Enviada!' : 'Booking Sent!',
+                    lang === 'es' ? 'Te contactaremos pronto' : 'We will contact you soon'
+                );
+                
+                // Limpiar carrito
+                state.cart = [];
+                saveState();
+                setTimeout(closeCartModal, 2000);
+                
+            } catch (error) {
+                console.error('Error sending email:', error);
+                showToast('error',
+                    lang === 'es' ? 'Error al Enviar' : 'Send Error',
+                    lang === 'es' ? 'Intenta con WhatsApp' : 'Try with WhatsApp'
+                );
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        }
+
+        // ============================================
+        // WHATSAPP
+        // ============================================
+        function sendToWhatsApp() {
+            const form = document.getElementById('booking-form');
+            const lang = state.language;
+            
+            // Validar formulario
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // Construir mensaje
+            let message = lang === 'es' 
+                ? '🌴 *NUEVA RESERVACIÓN - LINDO TOURS*\n\n'
+                : '🌴 *NEW BOOKING - LINDO TOURS*\n\n';
+            
+            // Datos del cliente
+            message += lang === 'es' ? '👤 *Datos del Cliente:*\n' : '👤 *Customer Details:*\n';
+            message += `• ${lang === 'es' ? 'Nombre' : 'Name'}: ${document.getElementById('customer-name').value}\n`;
+            message += `• Email: ${document.getElementById('customer-email').value}\n`;
+            message += `• ${lang === 'es' ? 'Teléfono' : 'Phone'}: ${document.getElementById('customer-phone').value}\n`;
+            message += `• ${lang === 'es' ? 'Fecha' : 'Date'}: ${document.getElementById('tour-date').value}\n`;
+            
+            const hotel = document.getElementById('customer-hotel').value;
+            if (hotel) {
+                message += `• Hotel: ${hotel}\n`;
+            }
+            
+            message += '\n';
+            
+            // Tours
+            message += lang === 'es' ? '🎫 *Tours Seleccionados:*\n' : '🎫 *Selected Tours:*\n';
+            state.cart.forEach(item => {
+                if (item.type === 'dual') {
+                    message += `• ${item.name}\n`;
+                    if (item.adults > 0) message += `   - ${item.adults} ${lang === 'es' ? 'adulto(s)' : 'adult(s)'}\n`;
+                    if (item.children > 0) message += `   - ${item.children} ${lang === 'es' ? 'menor(es)' : 'child(ren)'}\n`;
+                    message += `   ${lang === 'es' ? 'Subtotal' : 'Subtotal'}: ${convertPrice(item.subtotalUSD)}\n`;
+                } else {
+                    message += `• ${item.name}\n`;
+                    message += `   - ${item.quantity} ${lang === 'es' ? 'persona(s)' : 'person(s)'}\n`;
+                    message += `   ${lang === 'es' ? 'Subtotal' : 'Subtotal'}: ${convertPrice(item.subtotalUSD)}\n`;
+                }
+            });
+            
+            // Total
+            const totalUSD = state.cart.reduce((sum, item) => sum + item.subtotalUSD, 0);
+            message += `\n💰 *TOTAL: ${convertPrice(totalUSD)}*\n`;
+            
+            // Comentarios
+            const comments = document.getElementById('customer-comments').value;
+            if (comments) {
+                message += `\n📝 ${lang === 'es' ? 'Comentarios' : 'Comments'}: ${comments}`;
+            }
+            
+            // Abrir WhatsApp
+            const encodedMessage = encodeURIComponent(message);
+            window.open(`https://wa.me/${CONFIG.whatsapp.phone}?text=${encodedMessage}`, '_blank');
+            
+            showToast('success',
+                lang === 'es' ? '¡Redirigiendo a WhatsApp!' : 'Redirecting to WhatsApp!',
+                lang === 'es' ? 'Completa el envío en WhatsApp' : 'Complete the send on WhatsApp'
+            );
+            
+            // Limpiar carrito después de un momento
+            setTimeout(() => {
+                state.cart = [];
+                saveState();
+                closeCartModal();
+            }, 2000);
+        }
+
+        // ============================================
+        // TOAST NOTIFICATIONS
+        // ============================================
+        function showToast(type, title, message) {
+            const container = document.getElementById('toast-container');
+            
+            const icons = {
+                success: '✅',
+                error: '❌',
+                info: 'ℹ️'
+            };
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type]}</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Remover después de 4 segundos
+            setTimeout(() => {
+                toast.style.animation = 'toastSlide 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ============================================
+        // KEYBOARD SHORTCUTS
+        // ============================================
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeCartModal();
+            }
         });
     </script>
-
 </body>
 </html>
