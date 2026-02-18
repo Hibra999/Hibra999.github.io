@@ -1,90 +1,49 @@
-// ============================================
-// DATOS & TRADUCCIONES
-// ============================================
-
-const EXCHANGE_RATES = {
-    USD: { rate: 1, symbol: '$' },
-    MXN: { rate: 17.47, symbol: '$' },
-    EUR: { rate: 0.84, symbol: '€' }
-};
-
-const SERVICES = {
-    cenotes: {
-        id: 'cenotes',
-        name: { es: 'Cenotes y Playa del Carmen', en: 'Cenotes and Playa del Carmen' },
-        description: {
-            es: 'Tulum es misticismo, historia, naturaleza, aventura y arte. En este tour podrás disfrutar de una variedad de cenotes, visitarás Casa Tortuga y Multun Ha.',
-            en: 'Tulum is mysticism, history, nature, adventure and art. In this tour you will enjoy a variety of cenotes, visiting Casa Tortuga and Multun Ha.'
+const TOURS = {
+    tulum: {
+        id: 'tulum', imageFolder: 'imagenes/servicios/tour_privado_tulum_ruinas',
+        card: { thumbnail: 1, title: { en: 'Private Tulum Tour', es: 'Tour Privado a Tulum' }, shortDescription: { en: 'Visit the only Mayan city built on the coastline. Private, comfortable, and flexible.', es: 'Visita la unica ciudad maya construida sobre la costa. Privado, comodo y flexible.' }, priceFrom: 49 },
+        hero: { title: { en: 'Private Tulum Tour', es: 'Tour Privado a Tulum' }, subtitle: { en: 'Private Trip to Tulum Ruins', es: 'Viaje Privado a las Ruinas de Tulum' }, description: { en: 'Visit the beautiful ruins of Tulum, the only Mayan city built on the coastline. Our private tour makes this trip easy and comfortable. You decide the pickup time at your hotel and you can stay in Tulum as long as you like.', es: 'Visita las hermosas ruinas de Tulum, la unica ciudad maya construida sobre la costa. Nuestro tour privado hace este viaje facil y comodo. Tu decides la hora de recogida en tu hotel y puedes quedarte en Tulum el tiempo que desees.' }, heroImage: 1 },
+        gallery: { images: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], title: { en: 'Gallery', es: 'Galeria' } },
+        pricing: {
+            sectionTitle: { en: 'Pricing', es: 'Precios' }, tableHeader: { adults: { en: 'Number of Adults', es: 'Numero de Adultos' }, adultPrice: { en: 'Price per Adult (13+)', es: 'Precio por Adulto (13+)' }, childPrice: { en: 'Price per Child (5-12)', es: 'Precio por Nino (5-12)' } },
+            tiers: [{ adults: 1, adultPrice: 269 }, { adults: 2, adultPrice: 169 }, { adults: 3, adultPrice: 139 }, { adults: 4, adultPrice: 99 }, { adults: 5, adultPrice: 89 }, { adults: 6, adultPrice: 79 }, { adults: 7, adultPrice: 69 }, { adults: 8, adultPrice: 69 }, { adults: 9, adultPrice: 59 }, { adults: 10, adultPrice: 49 }],
+            childPriceFlat: 39, freeChildNote: { en: 'Children under 5 years old ride free.', es: 'Ninos menores de 5 anos viajan gratis.' }, groupNote: { en: 'For groups of 11 or more (including children), please email us for a custom quote.', es: 'Para grupos de 11 o mas personas (incluyendo ninos), envie un correo para una cotizacion personalizada.' }, pricingNote: { en: 'The price per adult decreases as the total number of adults increases. Child prices remain the same regardless of group size.', es: 'El precio por adulto disminuye conforme aumenta el numero total de adultos. El precio por nino permanece igual sin importar el tamano del grupo.' }
         },
-        subtitle: {
-            es: 'Tour de cenotes más visita a Multun Ha',
-            en: 'Cenotes Tour plus visit to Multun Ha'
-        },
-        badges: [
-            { text: { es: 'Super Promoción', en: 'Super Deal' }, icon: '🔥', class: 'promo' },
-        ],
-        // Image logic: assumes standard naming 1.jpg to count
-        imageFolder: 'imagenes/servicios/Cenotes_y_Playa_del_Carmen',
-        imageCount: 8,
-        priceType: 'single',
-        basePrice: 50,
-        includes: {
-            sectionTitle: { es: 'Incluye', en: 'Includes' },
-            foodTitle: { es: '🍽️ Comida Buffet:', en: '🍽️ Buffet Meal:' },
-            items: [
-                { es: 'Cochinita Pibil', en: 'Cochinita Pibil' },
-                { es: 'Fajitas de Pollo', en: 'Chicken Fajitas' },
-                { es: 'Poc Chuc', en: 'Poc Chuc' },
-                { es: 'Pollo Maya', en: 'Mayan Chicken' },
-                { es: 'Fruta', en: 'Fruit' },
-                { es: 'Postre', en: 'Dessert' }
-            ],
-            main: [
-                { icon: '🚐', es: 'Transporte', en: 'Transportation' },
-                { icon: '🎟️', es: 'Entradas', en: 'Tickets' },
-                { icon: '👤', es: 'Guía', en: 'Guide' }
-            ],
-            notIncluded: { es: 'No incluye bebidas', en: 'Drinks not included' }
-        }
+        includes: { sectionTitle: { en: 'What Is Included', es: 'Que Incluye' }, items: [{ en: 'Round-trip air-conditioned transportation exclusively for your group', es: 'Transporte con aire acondicionado ida y vuelta exclusivamente para su grupo' }, { en: 'English-speaking driver', es: 'Conductor que habla ingles' }, { en: 'Entrance fee to Tulum ruins', es: 'Tarifa de entrada a las ruinas de Tulum' }, { en: 'Tolls and parking', es: 'Peajes y estacionamiento' }], excludesTitle: { en: 'Not Included', es: 'No Incluido' }, excludes: [{ en: 'Guide in Tulum (approx. $50 USD)', es: 'Guia en Tulum (aprox. $50 USD)' }, { en: 'Lunch', es: 'Almuerzo' }, { en: 'Tip to the driver (if warranted)', es: 'Propina al conductor (si aplica)' }] },
+        itinerary: { sectionTitle: { en: 'Itinerary', es: 'Itinerario' }, steps: [{ en: 'Hotel pickup at the time you choose (we suggest 7-8 AM)', es: 'Recogida en su hotel a la hora que elija (sugerimos 7-8 AM)' }, { en: 'Visit Tulum ruins. Hire a tour guide on-site or explore on your own.', es: 'Visite las ruinas de Tulum. Contrate un guia en el sitio o explore por su cuenta.' }, { en: 'The driver can suggest traditional Mexican restaurants for lunch (not included).', es: 'El conductor puede sugerir restaurantes mexicanos tradicionales para el almuerzo (no incluido).' }, { en: 'Return to your hotel at your convenience.', es: 'Regreso a su hotel a su conveniencia.' }], warning: { en: 'All archaeological sites close at 5:00 PM. Please plan your time accordingly.', es: 'Todos los sitios arqueologicos cierran a las 5:00 PM. Por favor planifique su tiempo.' }, comboNote: { en: 'We also offer the Tulum & Coba Combo Tour.', es: 'Tambien ofrecemos el Tour Combinado Tulum y Coba.' } },
+        addOns: { sectionTitle: { en: 'Add-On Options', es: 'Opciones Adicionales' }, options: [{ id: 'reef-snorkel', title: { en: 'Reef Snorkeling in Puerto Morelos', es: 'Snorkel en Arrecife en Puerto Morelos' }, description: { en: 'Our favorite spot to snorkel on the coral reef. Includes gear and guide.', es: 'Nuestro lugar favorito para hacer snorkel en el arrecife de coral. Incluye equipo y guia.' }, pricePerPerson: 30 }, { id: 'turtle-snorkel', title: { en: 'Akumal Sea Turtle Snorkel', es: 'Snorkel con Tortugas Marinas en Akumal' }, description: { en: 'Snorkel with sea turtles in their natural environment. Easy and safe snorkeling right from the beach. Includes snorkel gear.', es: 'Haga snorkel con tortugas marinas en su ambiente natural. Snorkel facil y seguro desde la playa. Incluye equipo de snorkel.' }, pricePerPerson: 30 }] },
+        packingList: { sectionTitle: { en: 'What to Bring', es: 'Que Llevar' }, items: [{ en: 'Sunblock', es: 'Bloqueador solar', icon: 'sun' }, { en: 'Sunglasses', es: 'Lentes de sol', icon: 'glasses' }, { en: 'Hat', es: 'Sombrero', icon: 'hat' }, { en: 'Bottle of water', es: 'Botella de agua', icon: 'water' }, { en: 'Camera', es: 'Camara', icon: 'camera' }, { en: 'Towel and swimsuit (if swimming)', es: 'Toalla y traje de bano (si va a nadar)', icon: 'swim' }] },
+        booking: { sectionTitle: { en: 'Booking Information', es: 'Informacion de Reservacion' }, description: { en: 'You can add reef snorkeling or snorkeling with sea turtles at Akumal as add-on options. Once you book online and complete the deposit payment, we will send you the confirmation voucher by email. Print your voucher and bring it with you to Cancun. It includes all the details and our contact information if you need to make any changes.', es: 'Puede agregar snorkel en arrecife o snorkel con tortugas marinas en Akumal como opciones adicionales. Una vez que reserve en linea y complete el pago del deposito, le enviaremos el voucher de confirmacion por correo electronico. Imprima su voucher y traigalo consigo a Cancun. Incluye todos los detalles y nuestra informacion de contacto si necesita hacer cambios.' } }
     },
-    clearboat: {
-        id: 'clearboat',
-        name: { es: 'Clear Boat ⛵ Cozumel', en: 'Clear Boat ⛵ Cozumel' },
-        description: {
-            es: 'Vive una experiencia única. Clear Boat, lo más nuevo en Cozumel. Asómbrate con la vista del fondo marino mientras visitas los barcos hundidos.',
-            en: 'Live a unique experience. Clear Boat, the newest in Cozumel. Be amazed by the seabed view while visiting sunken ships.'
+    tulumAkumal: {
+        id: 'tulumAkumal', imageFolder: 'imagenes/servicios/tulum_akumal_snorkel_tortugas',
+        card: { thumbnail: 1, title: { en: 'Private Tulum & Akumal Snorkel with Sea Turtles', es: 'Tour Privado Tulum y Snorkel con Tortugas Marinas en Akumal' }, shortDescription: { en: 'Tulum ruins, Tulum beach, and snorkeling with sea turtles in Akumal. Private and flexible.', es: 'Ruinas de Tulum, playa de Tulum y snorkel con tortugas marinas en Akumal. Privado y flexible.' }, priceFrom: 49 },
+        hero: {
+            title: { en: 'Private Tulum & Akumal Snorkel with Sea Turtles', es: 'Tour Privado Tulum y Snorkel con Tortugas Marinas en Akumal' }, subtitle: { en: 'Tulum Ruins and Snorkeling with Sea Turtles at Akumal', es: 'Ruinas de Tulum y Snorkel con Tortugas Marinas en Akumal' },
+            description: { en: 'Tour Tulum ruins, explore Tulum beach, and then snorkel in the ocean with sea turtles in their natural environment in Akumal. Akumal is home to the sea turtle nesting grounds. It is amazing to swim with the turtles (who don\'t seem to mind or care that we were there). Private tour lets you decide the pickup time and how much or little time you spend in Tulum ruins and snorkeling with the sea turtles.', es: 'Recorre las ruinas de Tulum, explora la playa de Tulum y luego haz snorkel en el oceano con tortugas marinas en su ambiente natural en Akumal. Akumal es el hogar de los sitios de anidacion de tortugas marinas. Es increible nadar con las tortugas (a quienes no parece importarles nuestra presencia). El tour privado te permite decidir la hora de recogida y cuanto tiempo pasar en las ruinas de Tulum y haciendo snorkel con las tortugas.' }, heroImage: 1
         },
-        subtitle: {
-            es: 'El único tour en lancha transparente',
-            en: 'The only transparent boat tour'
+        gallery: { images: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], title: { en: 'Gallery', es: 'Galeria' } },
+        pricing: {
+            sectionTitle: { en: 'Pricing', es: 'Precios' }, tableHeader: { adults: { en: 'Number of Adults', es: 'Numero de Adultos' }, adultPrice: { en: 'Price per Adult (13+)', es: 'Precio por Adulto (13+)' }, childPrice: { en: 'Price per Child (5-12)', es: 'Precio por Nino (5-12)' } },
+            tiers: [{ adults: 1, adultPrice: 299 }, { adults: 2, adultPrice: 199 }, { adults: 3, adultPrice: 169 }, { adults: 4, adultPrice: 139 }, { adults: 5, adultPrice: 119 }, { adults: 6, adultPrice: 109 }, { adults: 7, adultPrice: 99 }, { adults: 8, adultPrice: 89 }, { adults: 9, adultPrice: 79 }, { adults: 10, adultPrice: 69 }],
+            childPriceFlat: 49, freeChildNote: { en: 'Children under 5 years old ride free.', es: 'Ninos menores de 5 anos viajan gratis.' }, groupNote: { en: 'For groups of 11 or more (including children), please email us for a custom quote.', es: 'Para grupos de 11 o mas personas (incluyendo ninos), envie un correo para una cotizacion personalizada.' }, pricingNote: { en: 'The price per adult decreases as the total number of adults increases. Child prices remain the same regardless of group size.', es: 'El precio por adulto disminuye conforme aumenta el numero total de adultos. El precio por nino permanece igual sin importar el tamano del grupo.' }
         },
-        badges: [
-            { text: { es: 'Experiencia Única', en: 'Unique Experience' }, icon: '💙', class: 'promo' }, // Reusing promo class for visual consistency or define new
-            { text: { es: '¡Lo más nuevo!', en: 'Brand New!' }, icon: '🤩', class: 'new' }
-        ],
-        imageFolder: 'imagenes/servicios/Clear_Boat_Cozumel',
-        imageCount: 5,
-        priceType: 'dual',
-        adultPrice: 126,
-        childPrice: 120,
-        includes: {
-            sectionTitle: { es: 'Nuestro Tour Incluye', en: 'Our Tour Includes' },
-            items: [
-                { icon: '🚐', es: 'Transporte con A/C', en: 'A/C Transportation' },
-                { icon: '🛳️', es: 'Ferry incluido', en: 'Ferry included' },
-                { icon: '🚤', es: '1:30 hrs Clear Boat', en: '1:30 hrs Clear Boat' },
-                { icon: '🤿', es: 'Snorkel en arrecife', en: 'Reef Snorkeling' },
-                { icon: '🍹', es: '4 bebidas a bordo', en: '4 drinks on board' },
-                { icon: '🍽️', es: 'Comida incluida', en: 'Meal included' }
-            ],
-            main: [
-                { icon: '⛑️', es: 'Protocolos de Sanidad', en: 'Health Protocols', style: 'background: linear-gradient(135deg, var(--ocean), var(--ocean-dark));' }
-            ],
-            notIncluded: { es: 'No incluye impuesto de muelle', en: 'Dock tax not included' },
-            warning: {
-                title: { es: 'IMPORTANTE', en: 'IMPORTANT' },
-                text: { es: '❌ NO TOCAR CORALES NI ESTRELLAS DE MAR 😍', en: '❌ DO NOT TOUCH CORALS OR STARFISH 😍' }
-            }
-        }
+        includes: { sectionTitle: { en: 'What Is Included', es: 'Que Incluye' }, items: [{ en: 'Air-conditioned private transportation exclusively for your group', es: 'Transporte privado con aire acondicionado exclusivamente para su grupo' }, { en: 'English-speaking driver', es: 'Conductor que habla ingles' }, { en: 'All toll road and parking fees, entrance fees & taxes', es: 'Todas las cuotas de autopista y estacionamiento, tarifas de entrada e impuestos' }, { en: 'Snorkel gear, lockers & showers at Akumal ($5.50 USD tax at Akumal is included)', es: 'Equipo de snorkel, casilleros y duchas en Akumal (impuesto de $5.50 USD en Akumal incluido)' }], excludesTitle: { en: 'Not Included', es: 'No Incluido' }, excludes: [{ en: 'Official guide inside Tulum (approx. $50-$75 for a 90 min tour, available at entrance)', es: 'Guia oficial dentro de Tulum (aprox. $50-$75 por un tour de 90 min, disponible en la entrada)' }, { en: 'Tram from parking lot to ruins entrance (20 pesos per person)', es: 'Tranvia del estacionamiento a la entrada de las ruinas (20 pesos por persona)' }, { en: 'Lunch', es: 'Almuerzo' }, { en: 'Small federal fee for video cameras at Tulum', es: 'Pequena tarifa federal por camaras de video en Tulum' }, { en: 'Tip to the driver (if warranted)', es: 'Propina al conductor (si aplica)' }] },
+        itinerary: { sectionTitle: { en: 'Itinerary', es: 'Itinerario' }, steps: [{ en: 'Hotel pickup at the time you choose (we suggest 7-8 AM)', es: 'Recogida en su hotel a la hora que elija (sugerimos 7-8 AM)' }, { en: 'Tulum ruins. Hire a tour guide or just explore on your own.', es: 'Ruinas de Tulum. Contrate un guia o simplemente explore por su cuenta.' }, { en: 'The driver can suggest traditional Mexican restaurants for lunch.', es: 'El conductor puede sugerir restaurantes mexicanos tradicionales para el almuerzo.' }, { en: 'Akumal Bay for snorkeling with the sea turtles.', es: 'Bahia de Akumal para snorkel con las tortugas marinas.' }], warning: { en: 'All sites of ruins close at 5:00 PM. Plan your time accordingly.', es: 'Todos los sitios de ruinas cierran a las 5:00 PM. Planifique su tiempo.' } },
+        addOns: { sectionTitle: { en: 'Add-On Options', es: 'Opciones Adicionales' }, options: [{ id: 'reef-snorkel-pm', title: { en: 'Reef Snorkeling in Puerto Morelos', es: 'Snorkel en Arrecife en Puerto Morelos' }, description: { en: 'Our favorite spot to snorkel on the coral reef. Includes gear and guide.', es: 'Nuestro lugar favorito para hacer snorkel en el arrecife de coral. Incluye equipo y guia.' }, pricePerPerson: 30 }] },
+        packingList: { sectionTitle: { en: 'What to Bring', es: 'Que Llevar' }, items: [{ en: 'Sunblock', es: 'Bloqueador solar', icon: 'sun' }, { en: 'Sunglasses', es: 'Lentes de sol', icon: 'glasses' }, { en: 'Hat', es: 'Sombrero', icon: 'hat' }, { en: 'Bottle of water', es: 'Botella de agua', icon: 'water' }, { en: 'Camera', es: 'Camara', icon: 'camera' }] },
+        booking: { sectionTitle: { en: 'Booking Information', es: 'Informacion de Reservacion' }, description: { en: 'Once you book online and complete the deposit payment, we will send you the confirmation voucher by email. Print your voucher and bring it with you to Cancun. It has all the details including our contact info if you need to make any changes.', es: 'Una vez que reserve en linea y complete el pago del deposito, le enviaremos el voucher de confirmacion por correo electronico. Imprima su voucher y traigalo consigo a Cancun. Incluye todos los detalles y nuestra informacion de contacto si necesita hacer cambios.' } }
+    },
+    atvCenoteZipline: {
+        id: 'atvCenoteZipline', imageFolder: 'imagenes/servicios/atv_cenote_zipline',
+        card: { thumbnail: 1, title: { en: 'ATVs, Cenote & Zip Line Adventure', es: 'Aventura en ATVs, Cenote y Tirolesas' }, shortDescription: { en: 'Extreme adventure with zip lines, ATVs and swimming in a cenote. Fun for the whole family.', es: 'Aventura extrema con tirolesas, ATVs y nado en cenote. Diversion para toda la familia.' }, priceFrom: 99 },
+        hero: { title: { en: 'ATVs, Cenote & Zip Line Adventure', es: 'Aventura en ATVs, Cenote y Tirolesas' }, subtitle: { en: 'Extreme Adventure with Zip Lines, ATVs and Cenote Swim', es: 'Aventura Extrema con Tirolesas, ATVs y Nado en Cenote' }, description: { en: 'The Extreme Adventure Tour takes you on a jungle adventure the whole family will remember. Zip lines, ATVs, balance bridges and cenote swim combined into one awesome tour. Choose from two daily departures and enjoy 4 hours of pure adrenaline through the Riviera Maya jungle.', es: 'El Tour de Aventura Extrema te lleva a una aventura en la selva que toda la familia recordara. Tirolesas, ATVs, puentes de equilibrio y nado en cenote combinados en un tour increible. Elige entre dos salidas diarias y disfruta 4 horas de pura adrenalina en la selva de la Riviera Maya.' }, heroImage: 1 },
+        gallery: { images: [1, 2, 3, 4, 5, 6, 7, 8], title: { en: 'Gallery', es: 'Galeria' } },
+        pricing: { sectionTitle: { en: 'Pricing', es: 'Precios' }, tableHeader: { adults: { en: 'Number of Adults', es: 'Numero de Adultos' }, adultPrice: { en: 'Price per Adult (18+)', es: 'Precio por Adulto (18+)' }, childPrice: { en: 'Price per Child (4-17)', es: 'Precio por Nino (4-17)' } }, tiers: [{ adults: 1, adultPrice: 129 }, { adults: 2, adultPrice: 119 }, { adults: 3, adultPrice: 109 }, { adults: 4, adultPrice: 99 }, { adults: 5, adultPrice: 99 }, { adults: 6, adultPrice: 99 }, { adults: 7, adultPrice: 99 }, { adults: 8, adultPrice: 99 }, { adults: 9, adultPrice: 99 }, { adults: 10, adultPrice: 99 }], childPriceFlat: 79, freeChildNote: { en: 'Children as young as 4 years old can participate. Must be 18 or older to drive ATVs.', es: 'Ninos desde 4 anos pueden participar. Se requiere ser mayor de 18 anos para conducir ATVs.' }, groupNote: { en: 'For groups of 11 or more, please email us for a custom quote.', es: 'Para grupos de 11 o mas personas, envie un correo para una cotizacion personalizada.' }, pricingNote: { en: 'Price includes all activities: 5 zip lines, 3 bridges, 50-minute ATV ride, and 50-minute cenote swim. Two tour times available: 9:30 AM or 1:30 PM.', es: 'El precio incluye todas las actividades: 5 tirolesas, 3 puentes, paseo en ATV de 50 minutos y nado en cenote de 50 minutos. Dos horarios disponibles: 9:30 AM o 1:30 PM.' } },
+        includes: { sectionTitle: { en: 'What Is Included', es: 'Que Incluye' }, items: [{ en: 'Round-trip transportation from Cancun, Bahia Petempich & Puerto Morelos', es: 'Transporte ida y vuelta desde Cancun, Bahia Petempich y Puerto Morelos' }, { en: '5 zip lines and 3 balance bridges', es: '5 tirolesas y 3 puentes de equilibrio' }, { en: '50 minutes of ATV riding through the jungle (250 and 350 HP ATVs for 1 or 2 people)', es: '50 minutos de paseo en ATV por la selva (ATVs de 250 y 350 HP para 1 o 2 personas)' }, { en: '50 minutes of swim time at an open cenote with zip lines and jump platforms', es: '50 minutos de nado en cenote abierto con tirolesas y plataformas de salto' }, { en: 'All gear and bilingual guide', es: 'Todo el equipo y guia bilingue' }], excludesTitle: { en: 'Additional Charges', es: 'Cargos Adicionales' }, excludes: [{ en: 'Hotels in Playa Paraiso, Playa del Carmen, Puerto Aventuras, Tulum, Bahia Principe & Akumal: $10 USD per person', es: 'Hoteles en Playa Paraiso, Playa del Carmen, Puerto Aventuras, Tulum, Bahia Principe y Akumal: $10 USD por persona' }, { en: 'Hotels south of Playa del Carmen: $15 USD per person', es: 'Hoteles al sur de Playa del Carmen: $15 USD por persona' }, { en: 'Costa Mujeres, Playa Mujeres or other locations: email us for a quote', es: 'Costa Mujeres, Playa Mujeres u otras ubicaciones: envie un correo para cotizacion' }] },
+        itinerary: { sectionTitle: { en: 'Tour Details', es: 'Detalles del Tour' }, steps: [{ en: 'Choose your tour time: 9:30 AM or 1:30 PM departure', es: 'Elige tu horario: salida a las 9:30 AM o 1:30 PM' }, { en: 'Hotel pickup and round-trip transportation', es: 'Recogida en hotel y transporte ida y vuelta' }, { en: '5 zip lines and 3 balance bridges through the jungle canopy', es: '5 tirolesas y 3 puentes de equilibrio sobre la selva' }, { en: '50 minutes of ATV riding through jungle trails', es: '50 minutos de paseo en ATV por senderos en la selva' }, { en: '50 minutes of swimming at an open cenote with zip lines and jump platforms', es: '50 minutos de nado en cenote abierto con tirolesas y plataformas de salto' }], warning: { en: 'Total tour time: 4 hours. Must be 18 years or older to drive ATVs. Children as young as 4 can participate as passengers. Maximum weight: 130 kg (286 lbs).', es: 'Duracion total del tour: 4 horas. Se requiere ser mayor de 18 anos para conducir ATVs. Ninos desde 4 anos pueden participar como pasajeros. Peso maximo: 130 kg (286 lbs).' } },
+        addOns: { sectionTitle: { en: 'Add-On Options', es: 'Opciones Adicionales' }, options: [] },
+        packingList: { sectionTitle: { en: 'What to Bring', es: 'Que Llevar' }, items: [{ en: 'Towel', es: 'Toalla', icon: 'swim' }, { en: 'Biodegradable sunscreen', es: 'Bloqueador solar biodegradable', icon: 'sun' }, { en: 'Sunglasses', es: 'Lentes de sol', icon: 'glasses' }, { en: 'Swimsuit', es: 'Traje de bano', icon: 'swim' }, { en: 'Camera', es: 'Camara', icon: 'camera' }, { en: 'Insect repellent', es: 'Repelente de insectos', icon: 'sun' }, { en: 'Light clothes you don\'t mind getting dirty', es: 'Ropa ligera que no te importe ensuciar', icon: 'hat' }, { en: 'Tennis shoes or sport sandals', es: 'Tenis o sandalias deportivas', icon: 'water' }] },
+        booking: { sectionTitle: { en: 'Booking Information', es: 'Informacion de Reservacion' }, description: { en: 'Select your preferred tour time (9:30 AM or 1:30 PM) when booking. Once you book online and complete the deposit payment, we will send you the confirmation voucher by email. Print your voucher and bring it with you. It includes all the details and our contact information if you need to make any changes. Please specify your hotel location so we can confirm transportation availability and any additional charges.', es: 'Seleccione su horario preferido (9:30 AM o 1:30 PM) al reservar. Una vez que reserve en linea y complete el pago del deposito, le enviaremos el voucher de confirmacion por correo electronico. Imprima su voucher y traigalo consigo. Incluye todos los detalles y nuestra informacion de contacto si necesita hacer cambios. Por favor indique la ubicacion de su hotel para confirmar disponibilidad de transporte y cargos adicionales.' } }
     }
 };

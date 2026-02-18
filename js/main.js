@@ -1,712 +1,127 @@
-
-// ============================================
-// ESTADO DE LA APLICACIÓN
-// ============================================
-let state = {
-    language: 'es',
-    currency: 'USD',
-    quantities: {},
-    cart: [],
-    checkoutMode: false
-};
-
-// ============================================
-// INICIALIZACIÓN
-// ============================================
-document.addEventListener('DOMContentLoaded', function () {
-    loadState();
-
-    // Renderizar servicios dinámicamente
-    renderServices();
-
-    // Inicializar componentes
-    initLanguage();
-    initCurrency();
-    initDatePicker();
-    initEmailJS();
-
-    // Actualizar UI
-    updateAllPrices();
-    updateCartUI();
-});
-
-// ============================================
-// RENDERIZADO DINÁMICO
-// ============================================
-function renderServices() {
-    const container = document.getElementById('services-container');
-    container.innerHTML = ''; // Limpiar
-
-    Object.values(SERVICES).forEach(service => {
-        // Inicializar cantidades en el estado si no existen
-        if (service.priceType === 'single') {
-            if (state.quantities[service.id] === undefined) state.quantities[service.id] = 0;
-        } else {
-            if (state.quantities[`${service.id}-adult`] === undefined) state.quantities[`${service.id}-adult`] = 0;
-            if (state.quantities[`${service.id}-child`] === undefined) state.quantities[`${service.id}-child`] = 0;
-        }
-
-        const article = document.createElement('article');
-        article.className = 'service-card';
-        article.dataset.service = service.id;
-
-        // Construir HTML del Servicio
-        let slidesHtml = '';
-        for (let i = 1; i <= service.imageCount; i++) {
-            slidesHtml += `<div class="slide" style="background-image: url('${service.imageFolder}/${i}.jpg');"></div>`;
-        }
-
-        let badgesHtml = service.badges.map(b =>
-            `<span class="badge ${b.class}">${b.icon} <span data-es="${b.text.es}" data-en="${b.text.en}">${b.text[state.language]}</span></span>`
-        ).join('');
-
-        let includesHtml = '';
-        if (service.includes.items) {
-            includesHtml += `<div class="includes-list">` +
-                service.includes.items.map(item => {
-                    const icon = item.icon ? `<span>${item.icon}</span>` : '<span>✨</span>';
-                    return `<div class="include-item">${icon}<span data-es="${item.es}" data-en="${item.en}">${item[state.language]}</span></div>`;
-                }).join('') + `</div>`;
-        }
-
-        let mainIncludesHtml = '';
-        if (service.includes.main) {
-            mainIncludesHtml += `<div class="main-includes">` +
-                service.includes.main.map(item => {
-                    const style = item.style ? `style="${item.style}"` : '';
-                    return `<div class="main-include" ${style}><span>${item.icon}</span><span data-es="${item.es}" data-en="${item.en}">${item[state.language]}</span></div>`
-                }).join('') + `</div>`;
-        }
-
-        // Sección de Precios
-        let priceSectionHtml = '';
-        const sectionClass = service.priceType === 'dual' ? 'price-section ocean' : 'price-section';
-        const btnClass = service.priceType === 'dual' ? 'add-to-cart-btn ocean' : 'add-to-cart-btn';
-
-        if (service.priceType === 'single') {
-            priceSectionHtml = `
-                <div class="${sectionClass}" data-service="${service.id}">
-                    <div class="price-row">
-                        <div class="price-info">
-                            <span class="price-label" data-es="Precio por persona" data-en="Price per person">Precio por persona</span>
-                            <span class="price-currency" data-currency-symbol>$</span>
-                            <span class="price-amount" data-price="${service.basePrice}">${service.basePrice}</span>
-                            <span class="price-currency" data-currency-code>USD</span>
-                        </div>
-                        <div class="quantity-selector">
-                            <button class="qty-btn" onclick="updateQuantity('${service.id}', -1)">−</button>
-                            <span class="qty-value" id="qty-${service.id}">${state.quantities[service.id]}</span>
-                            <button class="qty-btn" onclick="updateQuantity('${service.id}', 1)">+</button>
-                        </div>
-                    </div>
-                    <div class="subtotal-row">
-                         <span class="subtotal-label" data-es="Subtotal:" data-en="Subtotal:">Subtotal:</span>
-                         <span class="subtotal-amount" id="subtotal-${service.id}">$0</span>
-                    </div>
-                    <button class="${btnClass}" id="btn-${service.id}" onclick="addToCart('${service.id}')" disabled>
-                        <span>🛒</span>
-                        <span data-es="Agregar al Carrito" data-en="Add to Cart">Agregar al Carrito</span>
-                    </button>
-                </div>
-            `;
-        } else {
-            priceSectionHtml = `
-                <div class="${sectionClass}" data-service="${service.id}">
-                    <div class="price-row">
-                         <div class="price-info">
-                            <span class="price-label" data-es="👨 Adulto" data-en="👨 Adult">👨 Adulto</span>
-                            <span class="price-currency" data-currency-symbol>$</span>
-                            <span class="price-amount" data-price="${service.adultPrice}">${service.adultPrice}</span>
-                            <span class="price-currency" data-currency-code>USD</span>
-                         </div>
-                         <div class="quantity-selector">
-                            <button class="qty-btn" onclick="updateQuantity('${service.id}-adult', -1)">−</button>
-                            <span class="qty-value" id="qty-${service.id}-adult">${state.quantities[`${service.id}-adult`]}</span>
-                            <button class="qty-btn" onclick="updateQuantity('${service.id}-adult', 1)">+</button>
-                        </div>
-                    </div>
-                    <div class="price-row">
-                         <div class="price-info">
-                            <span class="price-label" data-es="👧 Menor" data-en="👧 Child">👧 Menor</span>
-                            <span class="price-currency" data-currency-symbol>$</span>
-                            <span class="price-amount" data-price="${service.childPrice}">${service.childPrice}</span>
-                            <span class="price-currency" data-currency-code>USD</span>
-                         </div>
-                         <div class="quantity-selector">
-                            <button class="qty-btn" onclick="updateQuantity('${service.id}-child', -1)">−</button>
-                            <span class="qty-value" id="qty-${service.id}-child">${state.quantities[`${service.id}-child`]}</span>
-                            <button class="qty-btn" onclick="updateQuantity('${service.id}-child', 1)">+</button>
-                        </div>
-                    </div>
-                    <div class="subtotal-row">
-                         <span class="subtotal-label" data-es="Subtotal:" data-en="Subtotal:">Subtotal:</span>
-                         <span class="subtotal-amount" id="subtotal-${service.id}">$0</span>
-                    </div>
-                    <button class="${btnClass}" id="btn-${service.id}" onclick="addToCart('${service.id}')" disabled>
-                        <span>🛒</span>
-                        <span data-es="Agregar al Carrito" data-en="Add to Cart">Agregar al Carrito</span>
-                    </button>
-                </div>
-            `;
-        }
-
-        // Warning Box (if exists)
-        let warningHtml = '';
-        if (service.includes.warning) {
-            warningHtml = `
-             <div class="warning-box">
-                <h5>⚠️ <span data-es="${service.includes.warning.title.es}" data-en="${service.includes.warning.title.en}">${service.includes.warning.title[state.language]}</span></h5>
-                <p data-es="${service.includes.warning.text.es}" data-en="${service.includes.warning.text.en}">${service.includes.warning.text[state.language]}</p>
-             </div>`;
-        }
-
-        const foodTitleHtml = service.includes.foodTitle ?
-            `<p class="food-title" data-es="${service.includes.foodTitle.es}" data-en="${service.includes.foodTitle.en}">${service.includes.foodTitle[state.language]}</p>` : '';
-
-        const notIncludedHtml = service.includes.notIncluded ?
-            `<p class="not-included"><span>🚫</span><span data-es="${service.includes.notIncluded.es}" data-en="${service.includes.notIncluded.en}">${service.includes.notIncluded[state.language]}</span></p>` : '';
-
-        article.innerHTML = `
-            <div class="slider-container">
-                <div class="slider" id="slider-${service.id}">
-                    ${slidesHtml}
-                </div>
-                <button class="slider-btn prev" onclick="moveSlide('slider-${service.id}', -1)">❮</button>
-                <button class="slider-btn next" onclick="moveSlide('slider-${service.id}', 1)">❯</button>
-                <div class="slider-dots" id="dots-${service.id}"></div>
-            </div>
-
-            <div class="service-content">
-                <div class="badges">${badgesHtml}</div>
-                <h2 class="service-title" data-es="${service.name.es}" data-en="${service.name.en}">${service.name[state.language]}</h2>
-                <h3 class="service-subtitle">😍 <span data-es="${service.subtitle.es}" data-en="${service.subtitle.en}">${service.subtitle[state.language]}</span> ✨</h3>
-                <p class="service-description" data-es="${service.description.es}" data-en="${service.description.en}">
-                    ${service.description[state.language]}
-                </p>
-
-                <div class="includes-section">
-                    <h4 class="includes-title">✅ <span data-es="${service.includes.sectionTitle.es}" data-en="${service.includes.sectionTitle.en}">${service.includes.sectionTitle[state.language]}</span></h4>
-                    ${foodTitleHtml}
-                    ${includesHtml}
-                    ${mainIncludesHtml}
-                    ${notIncludedHtml}
-                    ${warningHtml}
-                </div>
-
-                ${priceSectionHtml}
-            </div>
-        `;
-
-        container.appendChild(article);
-
-        // Inicializar slider para este servicio
-        initSingleSlider(service.id, service.imageCount);
+let state = { language: 'es', currentView: 'catalog', currentTour: null, adults: 0, children: 0, addOns: {}, cart: [], checkoutMode: false };
+document.addEventListener('DOMContentLoaded', function () { loadState(); initLanguage(); initDatePicker(); initEmailJS(); initHotelAutocomplete(); initTimePicker(); updateCartUI(); window.addEventListener('hashchange', handleHash); handleHash(); });
+function handleHash() { var hash = window.location.hash.slice(1); if (hash === 'about') { showAbout(); } else if (hash && TOURS[hash]) { showDetail(hash); } else { showCatalog(); } }
+var SVG = { check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>', cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>', cart: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>', warning: '<svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>', arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>', sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/></svg>', glasses: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="15" r="4"/><circle cx="18" cy="15" r="4"/><path d="M10 15h4"/></svg>', hat: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20"/><path d="M4 18v-4a8 8 0 0 1 16 0v4"/></svg>', water: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l5 10a5 5 0 0 1-10 0z"/></svg>', camera: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>', swim: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/><circle cx="12" cy="7" r="3"/></svg>', back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>' };
+function navigateTo(view, tourId) { if (view === 'catalog') window.location.hash = ''; else if (view === 'detail' && tourId) window.location.hash = tourId; else if (view === 'about') window.location.hash = 'about'; }
+function showCatalog() { state.currentView = 'catalog'; state.currentTour = null; document.getElementById('catalog-hero').style.display = ''; document.getElementById('main-view').style.display = ''; document.getElementById('detail-view').style.display = 'none'; document.getElementById('about-view').style.display = 'none'; renderCatalog(); window.scrollTo(0, 0); }
+function showDetail(tourId) { var tour = TOURS[tourId]; if (!tour) return showCatalog(); state.currentView = 'detail'; state.currentTour = tourId; state.adults = 0; state.children = 0; state.addOns = {}; document.getElementById('catalog-hero').style.display = 'none'; document.getElementById('main-view').style.display = 'none'; document.getElementById('detail-view').style.display = ''; document.getElementById('about-view').style.display = 'none'; renderTourDetail(tour); window.scrollTo(0, 0); }
+function showAbout() { state.currentView = 'about'; document.getElementById('catalog-hero').style.display = 'none'; document.getElementById('main-view').style.display = 'none'; document.getElementById('detail-view').style.display = 'none'; document.getElementById('about-view').style.display = ''; applyLanguage(); window.scrollTo(0, 0); }
+function renderCatalog() { var grid = document.getElementById('catalog-grid'), lang = state.language, html = ''; Object.values(TOURS).forEach(function (tour) { html += '<article class="tour-card" onclick="navigateTo(\'detail\',\'' + tour.id + '\')">' + '<div class="tour-card-image" style="background-image:url(\'' + tour.imageFolder + '/' + tour.card.thumbnail + '.jpg\');"></div>' + '<div class="tour-card-body">' + '<h3 class="tour-card-title" data-es="' + tour.card.title.es + '" data-en="' + tour.card.title.en + '">' + tour.card.title[lang] + '</h3>' + '<p class="tour-card-desc" data-es="' + tour.card.shortDescription.es + '" data-en="' + tour.card.shortDescription.en + '">' + tour.card.shortDescription[lang] + '</p>' + '<div class="tour-card-footer">' + '<span class="tour-card-price">' + (lang === 'es' ? 'Desde' : 'From') + ' $' + tour.card.priceFrom + ' USD</span>' + '<span class="tour-card-cta">' + (lang === 'es' ? 'Ver Detalles' : 'View Details') + ' &rarr;</span>' + '</div></div></article>'; }); grid.innerHTML = html; }
+function renderTourDetail(tour) {
+    var c = document.getElementById('detail-view'), lang = state.language, d = tour, ib = d.imageFolder; if (d.addOns && d.addOns.options) d.addOns.options.forEach(function (o) { if (state.addOns[o.id] === undefined) state.addOns[o.id] = false; }); var h = '';
+    h += '<div class="detail-nav"><button class="back-btn" onclick="navigateTo(\'catalog\')">' + SVG.back + ' <span data-es="Volver a Tours" data-en="Back to Tours">' + (lang === 'es' ? 'Volver a Tours' : 'Back to Tours') + '</span></button></div>';
+    h += '<section class="tour-hero" style="background-image:url(\'' + ib + '/' + d.hero.heroImage + '.jpg\')"><div class="tour-hero-overlay"><div class="tour-hero-content"><h2 data-es="' + d.hero.title.es + '" data-en="' + d.hero.title.en + '">' + d.hero.title[lang] + '</h2><h3 data-es="' + d.hero.subtitle.es + '" data-en="' + d.hero.subtitle.en + '">' + d.hero.subtitle[lang] + '</h3></div></div></section>';
+    h += '<section class="tour-section"><div class="section-divider"></div><p class="tour-description-text" data-es="' + d.hero.description.es + '" data-en="' + d.hero.description.en + '">' + d.hero.description[lang] + '</p></section>';
+    var gs = '', gd = ''; d.gallery.images.forEach(function (n, i) { gs += '<div class="gallery-slide" style="background-image:url(\'' + ib + '/' + n + '.jpg\')"></div>'; gd += '<button class="gallery-dot' + (i === 0 ? ' active' : '') + '" onclick="goToGallerySlide(' + i + ')"></button>'; });
+    h += '<section class="tour-gallery"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.gallery.title.es + '" data-en="' + d.gallery.title.en + '">' + d.gallery.title[lang] + '</h2><div style="height:16px"></div><div class="gallery-container"><div class="gallery-slider" id="gallery-slider">' + gs + '</div><button class="gallery-btn prev" onclick="moveGallery(-1)">' + SVG.arrowLeft + '</button><button class="gallery-btn next" onclick="moveGallery(1)">' + SVG.arrowRight + '</button></div><div class="gallery-dots" id="gallery-dots">' + gd + '</div></div></section>';
+    var tr = ''; d.pricing.tiers.forEach(function (t) { tr += '<tr data-adults="' + t.adults + '" onclick="selectTier(' + t.adults + ')"><td>' + t.adults + '</td><td>$' + t.adultPrice + ' USD</td><td>$' + d.pricing.childPriceFlat + ' USD</td></tr>'; });
+    h += '<section class="pricing-section"><div class="tour-section"><div class="section-divider"></div>';
+    h += '<h2 class="section-title" data-es="' + d.pricing.sectionTitle.es + '" data-en="' + d.pricing.sectionTitle.en + '">' + d.pricing.sectionTitle[lang] + '</h2>';
+    h += '<div style="height:8px"></div><p class="pricing-note" data-es="' + d.pricing.pricingNote.es + '" data-en="' + d.pricing.pricingNote.en + '">' + d.pricing.pricingNote[lang] + '</p>';
+    h += '<div class="pricing-table-wrapper"><table class="pricing-table" id="pricing-table"><thead><tr>';
+    h += '<th data-es="' + d.pricing.tableHeader.adults.es + '" data-en="' + d.pricing.tableHeader.adults.en + '">' + d.pricing.tableHeader.adults[lang] + '</th>';
+    h += '<th data-es="' + d.pricing.tableHeader.adultPrice.es + '" data-en="' + d.pricing.tableHeader.adultPrice.en + '">' + d.pricing.tableHeader.adultPrice[lang] + '</th>';
+    h += '<th data-es="' + d.pricing.tableHeader.childPrice.es + '" data-en="' + d.pricing.tableHeader.childPrice.en + '">' + d.pricing.tableHeader.childPrice[lang] + '</th>';
+    h += '</tr></thead><tbody>' + tr + '</tbody></table></div>';
+    h += '<p class="pricing-note" data-es="' + d.pricing.freeChildNote.es + '" data-en="' + d.pricing.freeChildNote.en + '">' + d.pricing.freeChildNote[lang] + '</p>';
+    h += '<p class="pricing-note-highlight" data-es="' + d.pricing.groupNote.es + '" data-en="' + d.pricing.groupNote.en + '">' + d.pricing.groupNote[lang] + '</p>';
+    h += '<div class="booking-configurator"><h3 class="configurator-title" data-es="Configura tu Reservacion" data-en="Configure Your Booking">' + (lang === 'es' ? 'Configura tu Reservacion' : 'Configure Your Booking') + '</h3>';
+    h += '<div class="configurator-row"><div class="configurator-label"><span class="configurator-label-main" data-es="Adultos (13+)" data-en="Adults (13+)">' + (lang === 'es' ? 'Adultos (13+)' : 'Adults (13+)') + '</span><span class="configurator-label-sub" id="adult-price-label">' + (lang === 'es' ? 'Seleccione cantidad' : 'Select quantity') + '</span></div><div class="quantity-selector"><button class="qty-btn" onclick="updateAdults(-1)">-</button><span class="qty-value" id="qty-adults">0</span><button class="qty-btn" onclick="updateAdults(1)">+</button></div></div>';
+    h += '<div class="configurator-row"><div class="configurator-label"><span class="configurator-label-main" data-es="Ninos (5-12)" data-en="Children (5-12)">' + (lang === 'es' ? 'Ninos (5-12)' : 'Children (5-12)') + '</span><span class="configurator-label-sub">$' + d.pricing.childPriceFlat + ' USD ' + (lang === 'es' ? 'por nino' : 'per child') + '</span></div><div class="quantity-selector"><button class="qty-btn" onclick="updateChildren(-1)">-</button><span class="qty-value" id="qty-children">0</span><button class="qty-btn" onclick="updateChildren(1)">+</button></div></div>';
+    h += '<div class="configurator-total"><span class="configurator-total-label">Total:</span><span class="configurator-total-amount" id="configurator-total">$0 USD</span></div>';
+    h += '<button class="add-to-cart-btn" id="btn-add-tour" onclick="addTourToCart()" disabled>' + SVG.cart + ' <span data-es="Agregar al Carrito" data-en="Add to Cart">' + (lang === 'es' ? 'Agregar al Carrito' : 'Add to Cart') + '</span></button>';
+    h += '</div></div></section>';
+    var incl = '', excl = ''; d.includes.items.forEach(function (it) { incl += '<li><span class="check-icon">' + SVG.check + '</span><span data-es="' + it.es + '" data-en="' + it.en + '">' + it[lang] + '</span></li>'; }); d.includes.excludes.forEach(function (it) { excl += '<li><span class="cross-icon">' + SVG.cross + '</span><span data-es="' + it.es + '" data-en="' + it.en + '">' + it[lang] + '</span></li>'; });
+    h += '<section class="includes-excludes-section"><div class="tour-section"><div class="section-divider"></div><div class="includes-grid"><div class="includes-col"><h4 data-es="' + d.includes.sectionTitle.es + '" data-en="' + d.includes.sectionTitle.en + '">' + d.includes.sectionTitle[lang] + '</h4><ul>' + incl + '</ul></div><div class="includes-col"><h4 data-es="' + d.includes.excludesTitle.es + '" data-en="' + d.includes.excludesTitle.en + '">' + d.includes.excludesTitle[lang] + '</h4><ul>' + excl + '</ul></div></div></div></section>';
+    var itin = ''; d.itinerary.steps.forEach(function (s, i) { itin += '<li class="itinerary-item"><span class="itinerary-number">' + (i + 1) + '.</span> <span data-es="' + s.es + '" data-en="' + s.en + '">' + s[lang] + '</span></li>'; });
+    h += '<section class="itinerary-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.itinerary.sectionTitle.es + '" data-en="' + d.itinerary.sectionTitle.en + '">' + d.itinerary.sectionTitle[lang] + '</h2><div style="height:16px"></div><ul class="itinerary-list">' + itin + '</ul><div class="itinerary-warning">' + SVG.warning + ' <span data-es="' + d.itinerary.warning.es + '" data-en="' + d.itinerary.warning.en + '">' + d.itinerary.warning[lang] + '</span></div>';
+    if (d.itinerary.comboNote) { h += '<p class="itinerary-combo" data-es="' + d.itinerary.comboNote.es + '" data-en="' + d.itinerary.comboNote.en + '">' + d.itinerary.comboNote[lang] + '</p>'; }
+    h += '</div></section>';
+    if (d.addOns && d.addOns.options.length > 0) {
+        var ac = ''; d.addOns.options.forEach(function (opt) { var sel = state.addOns[opt.id] ? ' selected' : ''; var selTxt = state.addOns[opt.id] ? (lang === 'es' ? 'Seleccionado' : 'Selected') : (lang === 'es' ? 'Seleccionar' : 'Select'); ac += '<div class="addon-card' + sel + '" id="addon-' + opt.id + '" onclick="toggleAddon(\'' + opt.id + '\')"><div class="addon-content"><div class="addon-header"><span class="addon-title" data-es="' + opt.title.es + '" data-en="' + opt.title.en + '">' + opt.title[lang] + '</span><span class="addon-price">+$' + opt.pricePerPerson + ' USD / ' + (lang === 'es' ? 'persona' : 'person') + '</span></div><p class="addon-description" data-es="' + opt.description.es + '" data-en="' + opt.description.en + '">' + opt.description[lang] + '</p><div class="addon-toggle"><span class="addon-checkbox">' + SVG.check + '</span><span>' + selTxt + '</span></div></div></div>'; });
+        h += '<section class="addons-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.addOns.sectionTitle.es + '" data-en="' + d.addOns.sectionTitle.en + '">' + d.addOns.sectionTitle[lang] + '</h2><div style="height:16px"></div><div class="addons-grid">' + ac + '</div></div></section>';
+    }
+    var pk = ''; d.packingList.items.forEach(function (it) { pk += '<div class="packing-item"><span class="packing-icon">' + (SVG[it.icon] || '') + '</span><span data-es="' + it.es + '" data-en="' + it.en + '">' + it[lang] + '</span></div>'; });
+    h += '<section class="packing-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.packingList.sectionTitle.es + '" data-en="' + d.packingList.sectionTitle.en + '">' + d.packingList.sectionTitle[lang] + '</h2><div style="height:16px"></div><div class="packing-grid">' + pk + '</div></div></section>';
+    h += '<section class="booking-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.booking.sectionTitle.es + '" data-en="' + d.booking.sectionTitle.en + '">' + d.booking.sectionTitle[lang] + '</h2><div style="height:16px"></div><p class="booking-text" data-es="' + d.booking.description.es + '" data-en="' + d.booking.description.en + '">' + d.booking.description[lang] + '</p></div></section>';
+    c.innerHTML = h; initGallerySlider(); updateConfigurator();
+}
+var galleryState = { current: 0, total: 0 }, galleryAutoSlide;
+function initGallerySlider() { if (!state.currentTour) return; galleryState = { current: 0, total: TOURS[state.currentTour].gallery.images.length }; clearInterval(galleryAutoSlide); galleryAutoSlide = setInterval(function () { moveGallery(1); }, 5000); }
+function goToGallerySlide(i) { galleryState.current = i; var s = document.getElementById('gallery-slider'); if (s) s.style.transform = 'translateX(-' + (i * 100) + '%)'; document.querySelectorAll('.gallery-dot').forEach(function (d, j) { d.classList.toggle('active', j === i); }); }
+function moveGallery(dir) { var n = galleryState.current + dir; if (n < 0) n = galleryState.total - 1; if (n >= galleryState.total) n = 0; goToGallerySlide(n); }
+function getCurrentTour() { return state.currentTour ? TOURS[state.currentTour] : null; }
+function selectTier(a) { state.adults = a; document.getElementById('qty-adults').textContent = a; highlightTier(); updateConfigurator(); }
+function updateAdults(ch) { state.adults = Math.max(0, Math.min(10, state.adults + ch)); document.getElementById('qty-adults').textContent = state.adults; highlightTier(); updateConfigurator(); }
+function updateChildren(ch) { state.children = Math.max(0, Math.min(10, state.children + ch)); document.getElementById('qty-children').textContent = state.children; updateConfigurator(); }
+function highlightTier() { document.querySelectorAll('#pricing-table tbody tr').forEach(function (r) { r.classList.toggle('selected', parseInt(r.dataset.adults) === state.adults); }); }
+function getAdultPrice() { var tour = getCurrentTour(); if (!tour || state.adults === 0) return 0; var tier = tour.pricing.tiers.find(function (t) { return t.adults === state.adults; }); return tier ? tier.adultPrice : 0; }
+function calculateTotal() { var tour = getCurrentTour(); if (!tour) return 0; var total = state.adults * getAdultPrice() + state.children * tour.pricing.childPriceFlat; var persons = state.adults + state.children; if (tour.addOns) tour.addOns.options.forEach(function (o) { if (state.addOns[o.id]) total += o.pricePerPerson * persons; }); return total; }
+function updateConfigurator() { var lang = state.language, ap = getAdultPrice(); var label = document.getElementById('adult-price-label'); if (label) label.textContent = state.adults > 0 ? ('$' + ap + ' USD ' + (lang === 'es' ? 'por adulto' : 'per adult')) : (lang === 'es' ? 'Seleccione cantidad' : 'Select quantity'); var el = document.getElementById('configurator-total'); if (el) el.textContent = '$' + calculateTotal() + ' USD'; var btn = document.getElementById('btn-add-tour'); if (btn) btn.disabled = (state.adults + state.children) === 0; }
+function toggleAddon(id) { state.addOns[id] = !state.addOns[id]; var card = document.getElementById('addon-' + id); if (card) { card.classList.toggle('selected', state.addOns[id]); var tl = card.querySelector('.addon-toggle span:last-child'); if (tl) tl.textContent = state.addOns[id] ? (state.language === 'es' ? 'Seleccionado' : 'Selected') : (state.language === 'es' ? 'Seleccionar' : 'Select'); } updateConfigurator(); }
+function addTourToCart() { var lang = state.language, tour = getCurrentTour(); if (!tour || state.adults + state.children === 0) return; var selectedAddOns = []; if (tour.addOns) tour.addOns.options.forEach(function (o) { if (state.addOns[o.id]) selectedAddOns.push({ id: o.id, name: o.title[lang], pricePerPerson: o.pricePerPerson }); }); state.cart.push({ id: tour.id + '-' + Date.now(), tourId: tour.id, name: tour.hero.title[lang], image: tour.imageFolder + '/1.jpg', adults: state.adults, children: state.children, adultPriceUSD: getAdultPrice(), childPriceUSD: tour.pricing.childPriceFlat, addOns: selectedAddOns, subtotalUSD: calculateTotal() }); state.adults = 0; state.children = 0; Object.keys(state.addOns).forEach(function (k) { state.addOns[k] = false; }); document.getElementById('qty-adults').textContent = '0'; document.getElementById('qty-children').textContent = '0'; highlightTier(); document.querySelectorAll('.addon-card').forEach(function (c) { c.classList.remove('selected'); var tl = c.querySelector('.addon-toggle span:last-child'); if (tl) tl.textContent = lang === 'es' ? 'Seleccionar' : 'Select'; }); updateConfigurator(); saveState(); updateCartUI(); showToast('success', lang === 'es' ? 'Agregado' : 'Added', lang === 'es' ? 'Tour agregado al carrito' : 'Tour added to cart'); var btn = document.getElementById('btn-add-tour'); if (btn) { btn.classList.add('added'); var orig = btn.innerHTML; btn.innerHTML = SVG.check + ' <span>' + (lang === 'es' ? 'Agregado' : 'Added') + '</span>'; setTimeout(function () { btn.classList.remove('added'); btn.innerHTML = orig; changeLanguage(state.language); }, 1500); } }
+function removeFromCart(i) { state.cart.splice(i, 1); saveState(); updateCartUI(); showToast('info', state.language === 'es' ? 'Eliminado' : 'Removed', state.language === 'es' ? 'Tour eliminado del carrito' : 'Tour removed from cart'); }
+function updateCartUI() { var cc = document.getElementById('cart-count'), ci = document.getElementById('cart-items'), ts = document.getElementById('cart-total-section'), cb = document.getElementById('checkout-btn'), lang = state.language; var total = 0; state.cart.forEach(function (it) { total += (it.adults || 0) + (it.children || 0); }); cc.textContent = total; cc.classList.toggle('empty', total === 0); if (state.cart.length === 0) { ci.innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><p>' + (lang === 'es' ? 'Tu carrito esta vacio' : 'Your cart is empty') + '</p></div>'; ts.style.display = 'none'; if (cb) cb.style.display = 'none'; document.getElementById('checkout-form').classList.remove('active'); document.getElementById('send-email-btn').style.display = 'none'; document.getElementById('send-whatsapp-btn').style.display = 'none'; state.checkoutMode = false; } else { var html = ''; state.cart.forEach(function (it, idx) { var parts = []; if (it.adults > 0) parts.push(it.adults + ' ' + (lang === 'es' ? 'adulto(s)' : 'adult(s)')); if (it.children > 0) parts.push(it.children + ' ' + (lang === 'es' ? 'nino(s)' : 'child(ren)')); var qt = parts.join(', '); if (it.addOns && it.addOns.length > 0) qt += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', '); html += '<div class="cart-item"><div class="cart-item-image" style="background-image:url(\'' + it.image + '\')"></div><div class="cart-item-details"><div class="cart-item-name">' + it.name + '</div><div class="cart-item-qty">' + qt + '</div></div><div class="cart-item-price">$' + it.subtotalUSD + ' USD</div><button class="cart-item-remove" onclick="removeFromCart(' + idx + ')">&times;</button></div>'; }); ci.innerHTML = html; ts.style.display = 'flex'; if (cb) cb.style.display = state.checkoutMode ? 'none' : 'flex'; if (state.checkoutMode) { document.getElementById('checkout-form').classList.add('active'); document.getElementById('send-email-btn').style.display = 'flex'; document.getElementById('send-whatsapp-btn').style.display = 'flex'; } } updateCartTotal(); }
+function updateCartTotal() { var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0); var el = document.getElementById('cart-total-amount'); if (el) el.textContent = '$' + t + ' USD'; }
+function loadState() { try { var c = localStorage.getItem('lindotours_cart'), l = localStorage.getItem('lindotours_language'); if (c) state.cart = JSON.parse(c); if (l) state.language = l; } catch (e) { console.error(e); } }
+function saveState() { try { localStorage.setItem('lindotours_cart', JSON.stringify(state.cart)); localStorage.setItem('lindotours_language', state.language); } catch (e) { console.error(e); } }
+function initLanguage() { var sel = document.getElementById('language-selector'); sel.value = state.language; changeLanguage(state.language); sel.addEventListener('change', function (e) { state.language = e.target.value; changeLanguage(state.language); saveState(); if (state.currentView === 'catalog') renderCatalog(); else if (state.currentTour) renderTourDetail(TOURS[state.currentTour]); }); }
+function changeLanguage(lang) { document.querySelectorAll('[data-es]').forEach(function (el) { el.textContent = el.getAttribute('data-' + lang); }); document.documentElement.lang = lang; if (window.tourDatePicker) window.tourDatePicker.set('locale', lang === 'es' ? 'es' : 'default'); var flag = document.getElementById('lang-flag'); if (flag) flag.src = 'imagenes/flags/' + (lang === 'es' ? 'es' : 'us') + '.jpg'; }
+function openCartModal() { document.getElementById('cart-modal').classList.add('active'); document.body.style.overflow = 'hidden'; updateCartUI(); }
+function closeCartModal() { document.getElementById('cart-modal').classList.remove('active'); document.body.style.overflow = ''; state.checkoutMode = false; document.getElementById('checkout-form').classList.remove('active'); var cb = document.getElementById('checkout-btn'); if (cb) cb.style.display = state.cart.length > 0 ? 'flex' : 'none'; document.getElementById('send-email-btn').style.display = 'none'; document.getElementById('send-whatsapp-btn').style.display = 'none'; }
+document.getElementById('cart-modal').addEventListener('click', function (e) { if (e.target === this) closeCartModal(); });
+function proceedToCheckout() { state.checkoutMode = true; document.getElementById('checkout-form').classList.add('active'); document.getElementById('checkout-btn').style.display = 'none'; document.getElementById('send-email-btn').style.display = 'flex'; document.getElementById('send-whatsapp-btn').style.display = 'flex'; }
+function initDatePicker() { window.tourDatePicker = flatpickr('#tour-date', { locale: state.language === 'es' ? 'es' : 'default', minDate: 'today', dateFormat: 'd/m/Y', disableMobile: false, allowInput: false }); }
+function initEmailJS() { if (CONFIG.emailjs.publicKey && CONFIG.emailjs.publicKey !== 'TU_PUBLIC_KEY') emailjs.init(CONFIG.emailjs.publicKey); }
+async function sendBookingEmail() { var lang = state.language, form = document.getElementById('booking-form'); if (!form.checkValidity()) { form.reportValidity(); return; } var btn = document.getElementById('send-email-btn'); btn.classList.add('loading'); btn.disabled = true; try { var cs = state.cart.map(function (it) { var l = it.name + ': ' + it.adults + 'ad, ' + it.children + 'ch'; if (it.addOns && it.addOns.length > 0) l += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', '); l += ' - $' + it.subtotalUSD + ' USD'; return l; }).join('\n'); var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0); await emailjs.send(CONFIG.emailjs.serviceId, CONFIG.emailjs.templateId, { customer_name: document.getElementById('customer-name').value, customer_email: document.getElementById('customer-email').value, customer_phone: document.getElementById('customer-phone').value, tour_date: document.getElementById('tour-date').value, pickup_time: document.getElementById('pickup-time').value || 'Not specified', customer_hotel: document.getElementById('customer-hotel').value || 'Not specified', customer_comments: document.getElementById('customer-comments').value || 'No comments', cart_summary: cs, total_amount: '$' + t + ' USD' }); showToast('success', lang === 'es' ? 'Reservacion Enviada' : 'Booking Sent', ''); state.cart = []; saveState(); setTimeout(closeCartModal, 2000); } catch (e) { console.error(e); showToast('error', lang === 'es' ? 'Error. Use WhatsApp' : 'Error. Use WhatsApp', ''); } finally { btn.classList.remove('loading'); btn.disabled = false; } }
+function sendToWhatsApp() { var lang = state.language, form = document.getElementById('booking-form'); if (!form.checkValidity()) { form.reportValidity(); return; } var m = lang === 'es' ? '*NUEVA RESERVACION*\n\n' : '*NEW BOOKING*\n\n'; m += '*' + document.getElementById('customer-name').value + '*\n' + document.getElementById('tour-date').value + '\n' + (document.getElementById('pickup-time').value ? document.getElementById('pickup-time').value + ' (MX Time)\n' : '') + document.getElementById('customer-phone').value + '\n\n*Tours:*\n'; state.cart.forEach(function (it) { m += '- ' + it.name + ' (' + it.adults + 'ad, ' + it.children + 'ch)'; if (it.addOns && it.addOns.length > 0) m += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', '); m += ' - $' + it.subtotalUSD + ' USD\n'; }); var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0); m += '\n*TOTAL: $' + t + ' USD*'; var c = document.getElementById('customer-comments').value; if (c) m += '\n' + c; window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(m), '_blank'); setTimeout(function () { state.cart = []; saveState(); closeCartModal(); }, 2000); }
+function showToast(type, title, message) { var c = document.getElementById('toast-container'), icons = { success: SVG.check, error: SVG.cross, info: SVG.cart }; var t = document.createElement('div'); t.className = 'toast ' + type; t.innerHTML = '<span class="toast-icon">' + icons[type] + '</span><div class="toast-content"><div class="toast-title">' + title + '</div><div class="toast-message">' + message + '</div></div>'; c.appendChild(t); setTimeout(function () { t.style.animation = 'toastSlide 0.25s ease reverse'; setTimeout(function () { t.remove(); }, 250); }, 4000); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCartModal(); });
+var hotelAC = { wrap: null, list: null, idx: -1, open: false };
+function initHotelAutocomplete() {
+    var inp = document.getElementById('customer-hotel'); if (!inp || hotelAC.wrap) return;
+    var w = document.createElement('div'); w.className = 'ac-wrap';
+    inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    var ul = document.createElement('ul'); ul.className = 'ac-list'; w.appendChild(ul);
+    hotelAC.wrap = w; hotelAC.list = ul;
+    inp.setAttribute('autocomplete', 'off');
+    inp.addEventListener('input', function () { filterHotels(this.value); });
+    inp.addEventListener('focus', function () { if (this.value.length >= 2) filterHotels(this.value); });
+    inp.addEventListener('keydown', function (e) {
+        var items = ul.querySelectorAll('.ac-item');
+        if (e.key === 'ArrowDown') { e.preventDefault(); hotelAC.idx = Math.min(hotelAC.idx + 1, items.length - 1); highlightAC(items); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); hotelAC.idx = Math.max(hotelAC.idx - 1, 0); highlightAC(items); }
+        else if (e.key === 'Enter' && hotelAC.open && hotelAC.idx >= 0) { e.preventDefault(); items[hotelAC.idx].click(); }
+        else if (e.key === 'Escape') { closeAC(); }
     });
+    document.addEventListener('click', function (e) { if (!w.contains(e.target)) closeAC(); });
 }
-
-// ============================================
-// LOGICA DE SLIDERS
-// ============================================
-const sliders = {};
-
-function initSingleSlider(id, count) {
-    const sliderId = `slider-${id}`;
-    sliders[sliderId] = { current: 0, total: count };
-
-    const dotsContainer = document.getElementById(`dots-${id}`);
-    if (dotsContainer) {
-        for (let i = 0; i < count; i++) {
-            const dot = document.createElement('span');
-            dot.classList.add('dot');
-            if (i === 0) dot.classList.add('active');
-            dot.onclick = () => goToSlide(sliderId, i);
-            dotsContainer.appendChild(dot);
-        }
-    }
-
-    // Auto-slide 
-    // Random offset to avoid syncing
-    const delay = 5000 + Math.random() * 1000;
-    setInterval(() => moveSlide(sliderId, 1), delay);
-}
-
-function goToSlide(sliderId, index) {
-    const slider = document.getElementById(sliderId);
-    if (!slider) return;
-
-    sliders[sliderId].current = index;
-    slider.style.transform = `translateX(-${index * 100}%)`;
-
-    const dotsId = sliderId.replace('slider', 'dots');
-    const dotsContainer = document.getElementById(dotsId);
-    if (dotsContainer) {
-        dotsContainer.querySelectorAll('.dot').forEach((dot, i) => {
-            dot.classList.toggle('active', i === index);
-        });
-    }
-}
-
-function moveSlide(sliderId, direction) {
-    if (!sliders[sliderId]) return;
-    const { current, total } = sliders[sliderId];
-    let newSlide = current + direction;
-    if (newSlide < 0) newSlide = total - 1;
-    if (newSlide >= total) newSlide = 0;
-    goToSlide(sliderId, newSlide);
-}
-
-
-// ============================================
-// PERSISTENCIA & LENGUAJE
-// ============================================
-function loadState() {
-    try {
-        const savedCart = localStorage.getItem('lindotours_cart');
-        const savedLang = localStorage.getItem('lindotours_language');
-        const savedCurrency = localStorage.getItem('lindotours_currency');
-
-        if (savedCart) state.cart = JSON.parse(savedCart);
-        if (savedLang) state.language = savedLang;
-        if (savedCurrency) state.currency = savedCurrency;
-    } catch (e) {
-        console.error('Error loading state:', e);
-    }
-}
-
-function saveState() {
-    try {
-        localStorage.setItem('lindotours_cart', JSON.stringify(state.cart));
-        localStorage.setItem('lindotours_language', state.language);
-        localStorage.setItem('lindotours_currency', state.currency);
-    } catch (e) { console.error(e); }
-}
-
-function initLanguage() {
-    const selector = document.getElementById('language-selector');
-    selector.value = state.language;
-    changeLanguage(state.language);
-
-    selector.addEventListener('change', (e) => {
-        state.language = e.target.value;
-        changeLanguage(state.language);
-        saveState();
-        // Re-render to update dynamic contents not controlled by data attributes (if any remain)
-        // Note: Currently most content has data-attributes so re-render isn't strictly necessary for all, 
-        // but cleaner for JS-injected content.
-        renderServices();
-        updateAllPrices(); // Re-bind prices
+function filterHotels(q) {
+    var ul = hotelAC.list; hotelAC.idx = -1;
+    if (q.length < 2) { closeAC(); return; }
+    var ql = q.toLowerCase(), results = HOTELS.filter(function (h) { return h.n.toLowerCase().indexOf(ql) !== -1 || h.z.toLowerCase().indexOf(ql) !== -1; }).slice(0, 12);
+    if (results.length === 0) { closeAC(); return; }
+    var html = ''; results.forEach(function (h, i) {
+        html += '<li class="ac-item" data-i="' + i + '" onmousedown="selectHotel(\'' + h.n.replace(/'/g, "\\'") + '\',\'' + h.z.replace(/'/g, "\\'") + '\')">' +
+            '<span class="ac-name">' + boldMatch(h.n, ql) + '</span><span class="ac-zone">' + h.z + '</span></li>';
     });
+    ul.innerHTML = html; ul.style.display = 'block'; hotelAC.open = true;
 }
-
-function changeLanguage(lang) {
-    document.querySelectorAll('[data-es]').forEach(el => {
-        el.textContent = el.getAttribute(`data-${lang}`);
-    });
-    document.documentElement.lang = lang;
-    if (window.tourDatePicker) {
-        window.tourDatePicker.set('locale', lang === 'es' ? 'es' : 'default');
+function boldMatch(text, q) { var i = text.toLowerCase().indexOf(q); if (i === -1) return text; return text.slice(0, i) + '<strong>' + text.slice(i, i + q.length) + '</strong>' + text.slice(i + q.length); }
+function highlightAC(items) { items.forEach(function (el, i) { el.classList.toggle('ac-active', i === hotelAC.idx); if (i === hotelAC.idx) el.scrollIntoView({ block: 'nearest' }); }); }
+function selectHotel(name, zone) { var inp = document.getElementById('customer-hotel'); inp.value = name + ' (' + zone + ')'; inp.dataset.hotel = name; inp.dataset.zone = zone; closeAC(); }
+function closeAC() { if (hotelAC.list) { hotelAC.list.style.display = 'none'; hotelAC.open = false; hotelAC.idx = -1; } }
+function initTimePicker() {
+    var h = document.getElementById('pickup-hour'), m = document.getElementById('pickup-min'), ap = document.getElementById('pickup-ampm'), hidden = document.getElementById('pickup-time');
+    function sync() { if (h.value && m.value) { hidden.value = h.value + ':' + m.value + ' ' + ap.value; } else { hidden.value = ''; } }
+    function updateAMPM() {
+        var hr = parseInt(h.value);
+        if (!hr) return;
+        if (hr >= 7 && hr <= 11) { ap.value = 'AM'; }
+        else if (hr === 12 || (hr >= 1 && hr <= 5)) { ap.value = 'PM'; }
+        sync();
     }
+    h.addEventListener('change', updateAMPM);
+    m.addEventListener('change', sync);
+    ap.addEventListener('change', sync);
 }
-
-function initCurrency() {
-    const selector = document.getElementById('currency-selector');
-    selector.value = state.currency;
-    selector.addEventListener('change', (e) => {
-        state.currency = e.target.value;
-        updateAllPrices();
-        saveState();
-    });
-}
-
-function updateAllPrices() {
-    const { rate, symbol } = EXCHANGE_RATES[state.currency];
-
-    document.querySelectorAll('[data-price]').forEach(el => {
-        const basePrice = parseFloat(el.getAttribute('data-price'));
-        el.textContent = Math.round(basePrice * rate);
-    });
-
-    document.querySelectorAll('[data-currency-symbol]').forEach(el => el.textContent = symbol);
-    document.querySelectorAll('[data-currency-code]').forEach(el => el.textContent = state.currency);
-
-    Object.keys(SERVICES).forEach(id => updateSubtotal(id));
-    updateCartTotal();
-}
-
-function convertPrice(usdPrice) {
-    const { rate, symbol } = EXCHANGE_RATES[state.currency];
-    return `${symbol}${Math.round(usdPrice * rate)} ${state.currency}`;
-}
-
-
-// ============================================
-// CANTIDADES Y CARRITO
-// ============================================
-function updateQuantity(id, change) {
-    const currentQty = state.quantities[id] || 0;
-    const newQty = Math.max(0, Math.min(20, currentQty + change));
-    state.quantities[id] = newQty;
-
-    const qtyElement = document.getElementById(`qty-${id}`);
-    if (qtyElement) qtyElement.textContent = newQty;
-
-    // Find service base ID
-    const serviceId = id.split('-')[0];
-    updateSubtotal(serviceId);
-}
-
-function updateSubtotal(serviceId) {
-    const service = SERVICES[serviceId];
-    if (!service) return;
-
-    const { rate, symbol } = EXCHANGE_RATES[state.currency];
-    let subtotal = 0;
-
-    if (service.priceType === 'single') {
-        const qty = state.quantities[serviceId] || 0;
-        subtotal = qty * service.basePrice;
-        const btn = document.getElementById(`btn-${serviceId}`);
-        if (btn) btn.disabled = qty === 0;
-    } else {
-        const adultQty = state.quantities[`${serviceId}-adult`] || 0;
-        const childQty = state.quantities[`${serviceId}-child`] || 0;
-        subtotal = (adultQty * service.adultPrice) + (childQty * service.childPrice);
-        const btn = document.getElementById(`btn-${serviceId}`);
-        if (btn) btn.disabled = (adultQty + childQty) === 0;
-    }
-
-    const subtotalElement = document.getElementById(`subtotal-${serviceId}`);
-    if (subtotalElement) subtotalElement.textContent = `${symbol}${Math.round(subtotal * rate)}`;
-}
-
-function addToCart(serviceId) {
-    const service = SERVICES[serviceId];
-    const lang = state.language;
-
-    if (service.priceType === 'single') {
-        const qty = state.quantities[serviceId];
-        if (qty === 0) return;
-
-        const existingIndex = state.cart.findIndex(item => item.id === serviceId);
-        if (existingIndex >= 0) {
-            state.cart[existingIndex].quantity += qty;
-            state.cart[existingIndex].subtotalUSD = state.cart[existingIndex].quantity * service.basePrice;
-        } else {
-            state.cart.push({
-                id: serviceId,
-                name: service.name[lang],
-                image: `${service.imageFolder}/1.jpg`,
-                quantity: qty,
-                priceUSD: service.basePrice,
-                subtotalUSD: qty * service.basePrice,
-                type: 'persons'
-            });
-        }
-
-        state.quantities[serviceId] = 0;
-        document.getElementById(`qty-${serviceId}`).textContent = '0';
-
-    } else {
-        const adults = state.quantities[`${serviceId}-adult`];
-        const children = state.quantities[`${serviceId}-child`];
-
-        if (adults === 0 && children === 0) return;
-
-        const subtotal = (adults * service.adultPrice) + (children * service.childPrice);
-        const existingIndex = state.cart.findIndex(item => item.id === serviceId);
-
-        if (existingIndex >= 0) {
-            state.cart[existingIndex].adults += adults;
-            state.cart[existingIndex].children += children;
-            state.cart[existingIndex].subtotalUSD =
-                (state.cart[existingIndex].adults * service.adultPrice) +
-                (state.cart[existingIndex].children * service.childPrice);
-        } else {
-            state.cart.push({
-                id: serviceId,
-                name: service.name[lang],
-                image: `${service.imageFolder}/1.jpg`,
-                adults: adults,
-                children: children,
-                adultPriceUSD: service.adultPrice,
-                childPriceUSD: service.childPrice,
-                subtotalUSD: subtotal,
-                type: 'dual'
-            });
-        }
-
-        state.quantities[`${serviceId}-adult`] = 0;
-        state.quantities[`${serviceId}-child`] = 0;
-        document.getElementById(`qty-${serviceId}-adult`).textContent = '0';
-        document.getElementById(`qty-${serviceId}-child`).textContent = '0';
-    }
-
-    updateSubtotal(serviceId);
-    saveState();
-    updateCartUI();
-
-    showToast('success',
-        lang === 'es' ? '¡Agregado!' : 'Added!',
-        lang === 'es' ? 'Tour agregado al carrito' : 'Tour added to cart'
-    );
-
-    // Animation
-    const btn = document.getElementById(`btn-${serviceId}`);
-    if (btn) {
-        btn.classList.add('added');
-        const originalContent = btn.innerHTML;
-        btn.innerHTML = '<span>✓</span><span>' + (lang === 'es' ? 'Agregado' : 'Added') + '</span>';
-        setTimeout(() => {
-            btn.classList.remove('added');
-            btn.innerHTML = originalContent;
-        }, 1500);
-    }
-}
-
-function removeFromCart(index) {
-    state.cart.splice(index, 1);
-    saveState();
-    updateCartUI();
-    showToast('info',
-        state.language === 'es' ? 'Eliminado' : 'Removed',
-        state.language === 'es' ? 'Tour eliminado del carrito' : 'Tour removed from cart'
-    );
-}
-
-function updateCartUI() {
-    const cartCount = document.getElementById('cart-count');
-    const cartItems = document.getElementById('cart-items');
-    const totalSection = document.getElementById('cart-total-section');
-    const checkoutBtn = document.getElementById('checkout-btn');
-    const lang = state.language;
-
-    let totalItems = 0;
-    state.cart.forEach(item => {
-        if (item.type === 'dual') {
-            totalItems += (item.adults || 0) + (item.children || 0);
-        } else {
-            totalItems += item.quantity || 0;
-        }
-    });
-
-    cartCount.textContent = totalItems;
-    cartCount.classList.toggle('empty', totalItems === 0);
-
-    if (state.cart.length === 0) {
-        cartItems.innerHTML = `
-            <div class="cart-empty">
-                <span>🛒</span>
-                <p>${lang === 'es' ? 'Tu carrito está vacío' : 'Your cart is empty'}</p>
-            </div>`;
-        totalSection.style.display = 'none';
-        checkoutBtn.style.display = 'none';
-
-        // Reset checkout visibility
-        document.getElementById('checkout-form').classList.remove('active');
-        document.getElementById('send-email-btn').style.display = 'none';
-        document.getElementById('send-whatsapp-btn').style.display = 'none';
-        state.checkoutMode = false;
-    } else {
-        let html = '';
-        state.cart.forEach((item, index) => {
-            let qtyText = '';
-            if (item.type === 'dual') {
-                const parts = [];
-                if (item.adults > 0) parts.push(`${item.adults} ${lang === 'es' ? 'adulto(s)' : 'adult(s)'}`);
-                if (item.children > 0) parts.push(`${item.children} ${lang === 'es' ? 'menor(es)' : 'child(ren)'}`);
-                qtyText = parts.join(', ');
-            } else {
-                qtyText = `${item.quantity} ${lang === 'es' ? 'persona(s)' : 'person(s)'}`;
-            }
-
-            html += `
-                <div class="cart-item">
-                    <div class="cart-item-image" style="background-image: url('${item.image}');"></div>
-                    <div class="cart-item-details">
-                        <div class="cart-item-name">${item.name}</div>
-                        <div class="cart-item-qty">${qtyText}</div>
-                    </div>
-                    <div class="cart-item-price">${convertPrice(item.subtotalUSD)}</div>
-                    <button class="cart-item-remove" onclick="removeFromCart(${index})">×</button>
-                </div>`;
-        });
-        cartItems.innerHTML = html;
-        totalSection.style.display = 'flex';
-        checkoutBtn.style.display = state.checkoutMode ? 'none' : 'flex';
-
-        // Ensure buttons visibility is correct if in checkout mode
-        if (state.checkoutMode) {
-            document.getElementById('checkout-form').classList.add('active');
-            document.getElementById('send-email-btn').style.display = 'flex';
-            document.getElementById('send-whatsapp-btn').style.display = 'flex';
-        }
-    }
-    updateCartTotal();
-}
-
-function updateCartTotal() {
-    const totalUSD = state.cart.reduce((sum, item) => sum + item.subtotalUSD, 0);
-    const totalElement = document.getElementById('cart-total-amount');
-    if (totalElement) totalElement.textContent = convertPrice(totalUSD);
-}
-
-
-// ============================================
-// MODAL & CHECKOUT
-// ============================================
-function openCartModal() {
-    document.getElementById('cart-modal').classList.add('active');
-    document.body.style.overflow = 'hidden';
-    updateCartUI();
-}
-
-function closeCartModal() {
-    document.getElementById('cart-modal').classList.remove('active');
-    document.body.style.overflow = '';
-    state.checkoutMode = false;
-    document.getElementById('checkout-form').classList.remove('active');
-    document.getElementById('checkout-btn').style.display = state.cart.length > 0 ? 'flex' : 'none';
-    document.getElementById('send-email-btn').style.display = 'none';
-    document.getElementById('send-whatsapp-btn').style.display = 'none';
-}
-
-document.getElementById('cart-modal').addEventListener('click', function (e) {
-    if (e.target === this) closeCartModal();
-});
-
-function proceedToCheckout() {
-    state.checkoutMode = true;
-    document.getElementById('checkout-form').classList.add('active');
-    document.getElementById('checkout-btn').style.display = 'none';
-    document.getElementById('send-email-btn').style.display = 'flex';
-    document.getElementById('send-whatsapp-btn').style.display = 'flex';
-}
-
-// ============================================
-// UTILITIES
-// ============================================
-function initDatePicker() {
-    window.tourDatePicker = flatpickr('#tour-date', {
-        locale: state.language === 'es' ? 'es' : 'default',
-        minDate: 'today',
-        dateFormat: 'd/m/Y',
-        disableMobile: false,
-        allowInput: false
-    });
-}
-
-function initEmailJS() {
-    if (CONFIG.emailjs.publicKey && CONFIG.emailjs.publicKey !== 'TU_PUBLIC_KEY') {
-        emailjs.init(CONFIG.emailjs.publicKey);
-    }
-}
-
-async function sendBookingEmail() {
-    const form = document.getElementById('booking-form');
-    const lang = state.language;
-
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
-
-    const btn = document.getElementById('send-email-btn');
-    btn.classList.add('loading');
-    btn.disabled = true;
-
-    try {
-        const cartSummary = state.cart.map(item => {
-            if (item.type === 'dual') {
-                return `${item.name}: ${item.adults} ad, ${item.children} ch - ${convertPrice(item.subtotalUSD)}`;
-            }
-            return `${item.name}: ${item.quantity} pers - ${convertPrice(item.subtotalUSD)}`;
-        }).join('\n');
-
-        const totalUSD = state.cart.reduce((sum, item) => sum + item.subtotalUSD, 0);
-
-        const templateParams = {
-            customer_name: document.getElementById('customer-name').value,
-            customer_email: document.getElementById('customer-email').value,
-            customer_phone: document.getElementById('customer-phone').value,
-            tour_date: document.getElementById('tour-date').value,
-            customer_hotel: document.getElementById('customer-hotel').value || 'No especificado',
-            customer_comments: document.getElementById('customer-comments').value || 'Sin comentarios',
-            cart_summary: cartSummary,
-            total_amount: convertPrice(totalUSD),
-            currency: state.currency
-        };
-
-        await emailjs.send(CONFIG.emailjs.serviceId, CONFIG.emailjs.templateId, templateParams);
-
-        showToast('success', lang === 'es' ? '¡Reservación Enviada!' : 'Booking Sent!', '');
-        state.cart = [];
-        saveState();
-        setTimeout(closeCartModal, 2000);
-
-    } catch (error) {
-        console.error(error);
-        showToast('error', lang === 'es' ? 'Error. Usa WhatsApp' : 'Error. Use WhatsApp', '');
-    } finally {
-        btn.classList.remove('loading');
-        btn.disabled = false;
-    }
-}
-
-function sendToWhatsApp() {
-    const form = document.getElementById('booking-form');
-    const lang = state.language;
-
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
-
-    let message = lang === 'es' ? '🌴 *NUEVA RESERVACIÓN*\n\n' : '🌴 *NEW BOOKING*\n\n';
-
-    message += `👤 *${document.getElementById('customer-name').value}*\n`;
-    message += `📅 ${document.getElementById('tour-date').value}\n`;
-    message += `📞 ${document.getElementById('customer-phone').value}\n\n`;
-
-    message += lang === 'es' ? '🎫 *Tours:*\n' : '🎫 *Tours:*\n';
-    state.cart.forEach(item => {
-        message += `• ${item.name}`;
-        if (item.type === 'dual') {
-            message += ` (${item.adults}ad, ${item.children}ch)`;
-        } else {
-            message += ` (${item.quantity}p)`;
-        }
-        message += ` - ${convertPrice(item.subtotalUSD)}\n`;
-    });
-
-    const totalUSD = state.cart.reduce((sum, item) => sum + item.subtotalUSD, 0);
-    message += `\n💰 *TOTAL: ${convertPrice(totalUSD)}*`;
-
-    const comments = document.getElementById('customer-comments').value;
-    if (comments) message += `\n📝 ${comments}`;
-
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${CONFIG.whatsapp.phone}?text=${encodedMessage}`, '_blank');
-
-    setTimeout(() => {
-        state.cart = [];
-        saveState();
-        closeCartModal();
-    }, 2000);
-}
-
-function showToast(type, title, message) {
-    const container = document.getElementById('toast-container');
-    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><div class="toast-content"><div class="toast-title">${title}</div><div class="toast-message">${message}</div></div>`;
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.style.animation = 'toastSlide 0.3s ease reverse';
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
-}
-
-document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') closeCartModal();
-});
