@@ -1,13 +1,17 @@
 let state = { language: 'es', currentView: 'catalog', currentTour: null, adults: 0, children: 0, addOns: {}, cart: [], checkoutMode: false };
 let TOURS = {}, HOTELS = [], CONFIG = { emailjs: {}, whatsapp: {} };
 document.addEventListener('DOMContentLoaded', async function () {
-    loadState(); initLanguage(); initDatePicker(); initTimePicker();
+    try { loadState(); } catch (e) { console.warn('loadState error', e); }
+    try { initLanguage(); } catch (e) { console.warn('initLanguage error', e); }
+    try { initDatePicker(); } catch (e) { console.warn('initDatePicker error', e); }
+    try { initTimePicker(); } catch (e) { console.warn('initTimePicker error', e); }
     try {
         const [tours, hotels, config] = await Promise.all([fetch('/api/tours').then(r => r.json()), fetch('/api/hotels').then(r => r.json()), fetch('/api/config').then(r => r.json())]);
         tours.forEach(t => { TOURS[t.id] = t }); HOTELS = hotels; CONFIG = config;
-        if (CONFIG.emailjs.publicKey) emailjs.init(CONFIG.emailjs.publicKey);
+        try { if (CONFIG.emailjs && CONFIG.emailjs.publicKey && typeof emailjs !== 'undefined') emailjs.init(CONFIG.emailjs.publicKey); } catch (e2) { console.warn('EmailJS init error', e2); }
     } catch (e) { console.error('API error', e) }
-    initHotelAutocomplete(); updateCartUI(); window.addEventListener('hashchange', handleHash); handleHash();
+    try { initHotelAutocomplete(); } catch (e) { console.warn('initHotelAutocomplete error', e); }
+    updateCartUI(); window.addEventListener('hashchange', handleHash); handleHash();
 });
 function handleHash() { var hash = window.location.hash.slice(1); if (hash === 'about') showAbout(); else if (hash && TOURS[hash]) showDetail(hash); else showCatalog(); }
 var SVG = { check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>', cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>', cart: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>', warning: '<svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>', arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>', sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/></svg>', glasses: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="15" r="4"/><circle cx="18" cy="15" r="4"/><path d="M10 15h4"/></svg>', hat: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20"/><path d="M4 18v-4a8 8 0 0 1 16 0v4"/></svg>', water: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l5 10a5 5 0 0 1-10 0z"/></svg>', camera: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>', swim: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/><circle cx="12" cy="7" r="3"/></svg>', back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>' };
@@ -108,8 +112,9 @@ function initHotelAutocomplete() {
     inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
     var ul = document.createElement('ul'); ul.className = 'ac-list'; w.appendChild(ul);
     hotelAC.wrap = w; hotelAC.list = ul; inp.setAttribute('autocomplete', 'off');
-    inp.addEventListener('input', function () { filterHotels(this.value); });
+    inp.addEventListener('input', function () { filterHotels(this.value); hideMapBtn(); });
     inp.addEventListener('focus', function () { if (this.value.length >= 2) filterHotels(this.value); });
+    inp.addEventListener('blur', function () { var v = this.value.trim(); if (v.length > 2) { setTimeout(function () { showMapBtn(v); }, 300); } });
     inp.addEventListener('keydown', function (e) {
         var items = ul.querySelectorAll('.ac-item');
         if (e.key === 'ArrowDown') { e.preventDefault(); hotelAC.idx = Math.min(hotelAC.idx + 1, items.length - 1); highlightAC(items); }
@@ -132,8 +137,11 @@ function filterHotels(q) {
 }
 function boldMatch(text, q) { var i = text.toLowerCase().indexOf(q); if (i === -1) return text; return text.slice(0, i) + '<strong>' + text.slice(i, i + q.length) + '</strong>' + text.slice(i + q.length); }
 function highlightAC(items) { items.forEach(function (el, i) { el.classList.toggle('ac-active', i === hotelAC.idx); if (i === hotelAC.idx) el.scrollIntoView({ block: 'nearest' }); }); }
-function selectHotel(name, zone) { var inp = document.getElementById('customer-hotel'); inp.value = name + ' (' + zone + ')'; inp.dataset.hotel = name; inp.dataset.zone = zone; closeAC(); }
+function selectHotel(name, zone) { var inp = document.getElementById('customer-hotel'); inp.value = name + ' (' + zone + ')'; inp.dataset.hotel = name; inp.dataset.zone = zone; closeAC(); showMapBtn(name); }
 function closeAC() { if (hotelAC.list) { hotelAC.list.style.display = 'none'; hotelAC.open = false; hotelAC.idx = -1; } }
+function showMapBtn(hotelName) { hideMapBtn(); if (!hotelName || hotelName.length < 3) return; var wrap = hotelAC.wrap || document.getElementById('customer-hotel').parentNode; var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'hotel-map-btn'; btn.title = 'Ver en Google Maps'; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <span>Maps</span>'; btn.onclick = function () { openHotelMap(hotelName); }; wrap.appendChild(btn); }
+function hideMapBtn() { var existing = document.querySelector('.hotel-map-btn'); if (existing) existing.remove(); }
+function openHotelMap(name) { var q = encodeURIComponent(name + ' Cancun Mexico'); window.open('https://www.google.com/maps/search/?api=1&query=' + q, '_blank'); }
 function initTimePicker() {
     var h = document.getElementById('pickup-hour'), m = document.getElementById('pickup-min'), ap = document.getElementById('pickup-ampm'), hidden = document.getElementById('pickup-time');
     function sync() { if (h.value && m.value) { hidden.value = h.value + ':' + m.value + ' ' + ap.value; } else { hidden.value = ''; } }

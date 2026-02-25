@@ -1322,6 +1322,36 @@ footer {
   line-height: 1.4
 }
 
+.hotel-map-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 6px 14px;
+  background: var(--teal);
+  color: var(--white);
+  border: none;
+  border-radius: 20px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  line-height: 1
+}
+
+.hotel-map-btn:hover {
+  background: #156b5f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(26, 122, 109, 0.35)
+}
+
+.hotel-map-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0
+}
+
 .about-btn {
   display: flex;
   align-items: center;
