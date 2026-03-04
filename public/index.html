@@ -29,12 +29,28 @@
                 </svg>
                 <span data-es="Nosotros" data-en="About Us">About Us</span>
             </button>
-            <div class="selector">
-                <img id="lang-flag" src="imagenes/flags/es.jpg" alt="flag" class="lang-flag">
-                <select id="language-selector">
+            <div class="selector" id="language-selector-container">
+                <div class="selector-current" onclick="toggleLanguageDropdown()">
+                    <img id="lang-flag" src="imagenes/flags/es.jpg" alt="flag" class="lang-flag">
+                    <span id="lang-text">Español</span>
+                    <svg class="selector-arrow" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M1 1l4 4 4-4"/>
+                    </svg>
+                </div>
+                <select id="language-selector" onchange="changeLanguage(this.value)">
                     <option value="es" selected>Español</option>
                     <option value="en">English</option>
                 </select>
+                <div class="selector-dropdown" id="language-dropdown">
+                    <div class="selector-option" onclick="changeLanguage('es')" data-lang="es">
+                        <img src="imagenes/flags/es.jpg" alt="Español">
+                        <span>Español</span>
+                    </div>
+                    <div class="selector-option" onclick="changeLanguage('en')" data-lang="en">
+                        <img src="imagenes/flags/en.jpg" alt="English">
+                        <span>English</span>
+                    </div>
+                </div>
             </div>
             <button class="cart-btn" id="cart-btn" onclick="openCartModal()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -70,7 +86,7 @@
                         <line x1="19" y1="12" x2="5" y2="12" />
                         <polyline points="12 19 5 12 12 5" />
                     </svg>
-                    <span data-es="Volver a Tours" data-en="Back to Tours">Back to Tours</span>
+                    <span data-es="Volver a Inicio" data-en="Back to Home">Back to Home</span>
                 </button>
             </div>
             <div class="about-content">
@@ -138,12 +154,69 @@
                 </h3>
                 <button class="close-modal" onclick="closeCartModal()">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="cart-items" id="cart-items"></div>
-                <div class="cart-total" id="cart-total-section" style="display:none;">
-                    <span class="cart-total-label" data-es="Total a Pagar:" data-en="Total to Pay:">Total to Pay:</span>
-                    <span class="cart-total-amount" id="cart-total-amount">$0</span>
+            
+            <!-- Progress Indicator -->
+            <div class="checkout-progress" id="checkout-progress">
+                <div class="progress-step active" id="step-1">
+                    <span class="progress-number">1</span>
+                    <span class="progress-label" data-es="Carrito" data-en="Cart">Cart</span>
                 </div>
+                <div class="progress-step" id="step-2">
+                    <span class="progress-number">2</span>
+                    <span class="progress-label" data-es="Datos" data-en="Details">Details</span>
+                </div>
+                <div class="progress-step" id="step-3">
+                    <span class="progress-number">3</span>
+                    <span class="progress-label" data-es="Confirmar" data-en="Confirm">Confirm</span>
+                </div>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Order Summary Collapsible -->
+                <div class="order-summary-toggle" onclick="toggleOrderSummary()">
+                    <h4>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="9" cy="21" r="1" />
+                            <circle cx="20" cy="21" r="1" />
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                        </svg>
+                        <span data-es="Resumen del Pedido" data-en="Order Summary">Order Summary</span>
+                    </h4>
+                    <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                </div>
+                <div class="order-summary-content" id="order-summary-content">
+                    <div class="cart-items" id="cart-items"></div>
+                    <div class="cart-total" id="cart-total-section" style="display:none;">
+                        <span class="cart-total-label" data-es="Total a Pagar:" data-en="Total to Pay:">Total to Pay:</span>
+                        <span class="cart-total-amount" id="cart-total-amount">$0</span>
+                    </div>
+                </div>
+                
+                <!-- Trust Badges -->
+                <div class="trust-badges" id="trust-badges">
+                    <div class="trust-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        <span data-es="Pago Seguro" data-en="Secure Payment">Secure Payment</span>
+                    </div>
+                    <div class="trust-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        <span data-es="Datos Protegidos" data-en="Data Protected">Data Protected</span>
+                    </div>
+                    <div class="trust-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span data-es="Confirmación" data-en="Confirmation">Confirmation</span>
+                    </div>
+                </div>
+                
                 <div class="checkout-form" id="checkout-form">
                     <h4 class="form-section-title">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -222,6 +295,29 @@
                                 id="customer-comments" placeholder="Allergies, special requirements, etc."></textarea>
                         </div>
                     </form>
+                    
+                    <!-- WhatsApp Preview -->
+                    <div class="whatsapp-preview" id="whatsapp-preview" style="display:none;">
+                        <div class="whatsapp-preview-header">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                            </svg>
+                            <span data-es="Vista Previa de WhatsApp" data-en="WhatsApp Preview">WhatsApp Preview</span>
+                        </div>
+                        <div class="whatsapp-message-preview" id="whatsapp-message-content"></div>
+                    </div>
+                    
+                    <!-- Email Preview -->
+                    <div class="email-preview" id="email-preview" style="display:none;">
+                        <div class="email-preview-header">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                                <polyline points="22,6 12,13 2,6" />
+                            </svg>
+                            <span data-es="Vista Previa de Email" data-en="Email Preview">Email Preview</span>
+                        </div>
+                        <div class="email-preview-content" id="email-preview-content"></div>
+                    </div>
                 </div>
                 <div class="form-buttons" id="cart-buttons">
                     <button class="btn btn-secondary" onclick="closeCartModal()"><span data-es="Seguir Comprando"
@@ -250,6 +346,70 @@
             </div>
         </div>
     </div>
+    
+    <!-- Testimonials Section -->
+    <section class="testimonials-section" id="testimonials">
+        <div class="testimonials-container">
+            <div class="testimonials-header">
+                <h2 data-es="Lo Que Dicen Nuestros Clientes" data-en="What Our Clients Say">What Our Clients Say</h2>
+                <p data-es="Experiencias reales de viajeros reales" data-en="Real experiences from real travelers">Real experiences from real travelers</p>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-rating">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <p class="testimonial-text" data-es="Increíble experiencia en Tulum. El guía fue muy profesional y el transporte súper cómodo. ¡Definitivamente lo recomiendo!" data-en="Amazing experience in Tulum. The guide was very professional and the transportation super comfortable. Definitely recommend it!">Amazing experience in Tulum. The guide was very professional and the transportation super comfortable. Definitely recommend it!</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">SM</div>
+                        <div class="testimonial-info">
+                            <div class="testimonial-name">Sarah M.</div>
+                            <div class="testimonial-tour" data-es="Tour: Tulum Privado" data-en="Tour: Private Tulum">Tour: Private Tulum</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-rating">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <p class="testimonial-text" data-es="Nadar con las tortugas en Akumal fue el highlight de nuestro viaje. Los ninos quedaron fascinados. Gracias Lindo Tours!" data-en="Swimming with turtles in Akumal was the highlight of our trip. The kids were fascinated. Thank you Lindo Tours!">Swimming with turtles in Akumal was the highlight of our trip. The kids were fascinated. Thank you Lindo Tours!</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">JR</div>
+                        <div class="testimonial-info">
+                            <div class="testimonial-name">James R.</div>
+                            <div class="testimonial-tour" data-es="Tour: Tulum & Akumal" data-en="Tour: Tulum & Akumal">Tour: Tulum & Akumal</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-rating">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <p class="testimonial-text" data-es="La aventura de ATVs y cenote fue extrema! Adrenalina pura. El equipo estaba en perfectas condiciones y muy seguros." data-en="The ATVs and cenote adventure was extreme! Pure adrenaline. The equipment was in perfect condition and very safe.">The ATVs and cenote adventure was extreme! Pure adrenaline. The equipment was in perfect condition and very safe.</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">CL</div>
+                        <div class="testimonial-info">
+                            <div class="testimonial-name">Carlos L.</div>
+                            <div class="testimonial-tour" data-es="Tour: ATV Cenote Zipline" data-en="Tour: ATV Cenote Zipline">Tour: ATV Cenote Zipline</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
     <div class="toast-container" id="toast-container"></div>
     <footer>
         <p>&copy; 2026 Lindo Tours. <span data-es="Todos los derechos reservados." data-en="All rights reserved.">All
