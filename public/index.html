@@ -229,25 +229,34 @@
                     </h4>
                     <form id="booking-form">
                         <div class="form-grid">
-                            <div class="form-group"><label data-es="Nombre Completo *" data-en="Full Name *">Full Name
-                                    *</label><input type="text" id="customer-name" required placeholder="Your name">
+                            <div class="form-group">
+                                <label data-es="Nombre Completo *" data-en="Full Name *">Full Name *</label>
+                                <input type="text" id="customer-name" required 
+                                    data-placeholder-es="Tu nombre" data-placeholder-en="Your name" placeholder="Your name">
                             </div>
-                            <div class="form-group"><label data-es="Email *" data-en="Email *">Email *</label><input
-                                    type="email" id="customer-email" required placeholder="you@email.com"></div>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group"><label data-es="Telefono / WhatsApp *"
-                                    data-en="Phone / WhatsApp *">Phone / WhatsApp *</label><input type="tel"
-                                    id="customer-phone" required placeholder="+52 1 998 123 4567"></div>
-                            <div class="form-group"><label data-es="Fecha del Tour *" data-en="Tour Date *">Tour Date
-                                    *</label>
-                                <div class="date-picker-container"><input type="text" id="tour-date" required
-                                        placeholder="Select date"></div>
+                            <div class="form-group">
+                                <label data-es="Email *" data-en="Email *">Email *</label>
+                                <input type="email" id="customer-email" required 
+                                    data-placeholder-es="tu@email.com" data-placeholder-en="you@email.com" placeholder="you@email.com">
                             </div>
                         </div>
                         <div class="form-grid">
-                            <div class="form-group"><label data-es="Hora de Recogida (Hora MX) *"
-                                    data-en="Pickup Time (Mexico Time) *">Pickup Time (Mexico Time) *</label>
+                            <div class="form-group">
+                                <label data-es="Teléfono / WhatsApp *" data-en="Phone / WhatsApp *">Phone / WhatsApp *</label>
+                                <input type="tel" id="customer-phone" required 
+                                    data-placeholder-es="+52 1 998 123 4567" data-placeholder-en="+52 1 998 123 4567" placeholder="+52 1 998 123 4567">
+                            </div>
+                            <div class="form-group">
+                                <label data-es="Fecha del Tour *" data-en="Tour Date *">Tour Date *</label>
+                                <div class="date-picker-container">
+                                    <input type="text" id="tour-date" required 
+                                        data-placeholder-es="Seleccionar fecha" data-placeholder-en="Select date" placeholder="Select date">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label data-es="Hora de Recogida (Hora MX) *" data-en="Pickup Time (Mexico Time) *">Pickup Time (Mexico Time) *</label>
                                 <div class="time-picker-custom">
                                     <select id="pickup-hour" required>
                                         <option value="" disabled selected>--</option>
@@ -282,17 +291,22 @@
                             </div>
                             <div class="form-group"></div>
                         </div>
-                        <div class="form-group"><label data-es="Hotel / Punto de Recogida"
-                                data-en="Hotel / Pickup Point">Hotel / Pickup Point</label><input type="text"
-                                id="customer-hotel" placeholder="Hotel name or address">
+                        <div class="form-group">
+                            <label data-es="Hotel / Punto de Recogida" data-en="Hotel / Pickup Point">Hotel / Pickup Point</label>
+                            <input type="text" id="customer-hotel" 
+                                data-placeholder-es="Nombre del hotel o dirección" data-placeholder-en="Hotel name or address" 
+                                placeholder="Hotel name or address">
                             <p class="hotel-hint"
                                 data-es="Si tu hotel no aparece en la lista, puedes escribir el nombre completo manualmente."
-                                data-en="If your hotel doesn't appear in the list, you can type the full name manually.">
+                                data-en="Si tu hotel no aparece en la lista, puedes escribir el nombre completo manualmente.">
                                 If your hotel doesn't appear in the list, you can type the full name manually.</p>
                         </div>
-                        <div class="form-group"><label data-es="Comentarios Adicionales"
-                                data-en="Additional Comments">Additional Comments</label><textarea
-                                id="customer-comments" placeholder="Allergies, special requirements, etc."></textarea>
+                        <div class="form-group">
+                            <label data-es="Comentarios Adicionales" data-en="Additional Comments">Additional Comments</label>
+                            <textarea id="customer-comments" 
+                                data-placeholder-es="Alergias, requerimientos especiales, etc." 
+                                data-placeholder-en="Allergies, special requirements, etc." 
+                                placeholder="Allergies, special requirements, etc."></textarea>
                         </div>
                     </form>
                     

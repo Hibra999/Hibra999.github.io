@@ -108,24 +108,37 @@ function toggleLanguageDropdown() {
 
 function applyLanguage() { changeLanguage(state.language); }
 
-function changeLanguage(lang) { 
-    document.querySelectorAll('[data-es]').forEach(function (el) { 
-        el.textContent = el.getAttribute('data-' + lang); 
-    }); 
-    document.documentElement.lang = lang; 
-    if (window.tourDatePicker) window.tourDatePicker.set('locale', lang === 'es' ? 'es' : 'default'); 
-    var flag = document.getElementById('lang-flag'); 
+function changeLanguage(lang) {
+    // Update text content for elements with data-es/data-en
+    document.querySelectorAll('[data-es]').forEach(function (el) {
+        el.textContent = el.getAttribute('data-' + lang);
+    });
+    
+    // Update placeholders for inputs and textareas
+    document.querySelectorAll('[data-placeholder-es]').forEach(function (el) {
+        el.setAttribute('placeholder', el.getAttribute('data-placeholder-' + lang));
+    });
+    
+    document.documentElement.lang = lang;
+    if (window.tourDatePicker) window.tourDatePicker.set('locale', lang === 'es' ? 'es' : 'default');
+    var flag = document.getElementById('lang-flag');
     var text = document.getElementById('lang-text');
     if (flag) flag.src = 'imagenes/flags/' + (lang === 'es' ? 'es' : 'us') + '.jpg';
     if (text) text.textContent = lang === 'es' ? 'Español' : 'English';
-    
+
     // Update dropdown active state
     document.querySelectorAll('.selector-option').forEach(function(opt) {
         opt.classList.toggle('active', opt.dataset.lang === lang);
     });
     
-    if (state.currentView === 'catalog') renderCatalog(); 
-    else if (state.currentTour) renderTourDetail(TOURS[state.currentTour]); 
+    // Update hotel hint text
+    var hotelHint = document.querySelector('.hotel-hint');
+    if (hotelHint) {
+        hotelHint.textContent = hotelHint.getAttribute('data-' + lang);
+    }
+
+    if (state.currentView === 'catalog') renderCatalog();
+    else if (state.currentTour) renderTourDetail(TOURS[state.currentTour]);
 }
 function openCartModal() { document.getElementById('cart-modal').classList.add('active'); document.body.style.overflow = 'hidden'; updateCartUI(); }
 function closeCartModal() { document.getElementById('cart-modal').classList.remove('active'); document.body.style.overflow = ''; state.checkoutMode = false; document.getElementById('checkout-form').classList.remove('active'); var cb = document.getElementById('checkout-btn'); if (cb) cb.style.display = state.cart.length > 0 ? 'flex' : 'none'; document.getElementById('send-email-btn').style.display = 'none'; document.getElementById('send-whatsapp-btn').style.display = 'none'; }
