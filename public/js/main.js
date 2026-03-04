@@ -13,12 +13,17 @@ document.addEventListener('DOMContentLoaded', async function () {
     try { initHotelAutocomplete(); } catch (e) { console.warn('initHotelAutocomplete error', e); }
     updateCartUI(); window.addEventListener('hashchange', handleHash); handleHash();
 });
-function handleHash() { var hash = window.location.hash.slice(1); if (hash === 'about') showAbout(); else if (hash && TOURS[hash]) showDetail(hash); else showCatalog(); }
+function handleHash() { var hash = window.location.hash.slice(1); if (hash === 'about') showAbout(); else if (hash === 'admin') showAdminLogin(); else if (hash === 'dashboard' && sessionStorage.getItem('admin_auth')) showAdminDashboard(); else if (hash && TOURS[hash]) showDetail(hash); else showCatalog(); }
 var SVG = { check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>', cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>', cart: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>', warning: '<svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>', arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>', sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/></svg>', glasses: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="15" r="4"/><circle cx="18" cy="15" r="4"/><path d="M10 15h4"/></svg>', hat: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20"/><path d="M4 18v-4a8 8 0 0 1 16 0v4"/></svg>', water: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l5 10a5 5 0 0 1-10 0z"/></svg>', camera: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>', swim: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/><circle cx="12" cy="7" r="3"/></svg>', back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>' };
-function navigateTo(view, tourId) { if (view === 'catalog') window.location.hash = ''; else if (view === 'detail' && tourId) window.location.hash = tourId; else if (view === 'about') window.location.hash = 'about'; }
-function showCatalog() { state.currentView = 'catalog'; state.currentTour = null; document.getElementById('catalog-hero').style.display = ''; document.getElementById('main-view').style.display = ''; document.getElementById('detail-view').style.display = 'none'; document.getElementById('about-view').style.display = 'none'; renderCatalog(); window.scrollTo(0, 0); }
-function showDetail(tourId) { var tour = TOURS[tourId]; if (!tour) return showCatalog(); state.currentView = 'detail'; state.currentTour = tourId; state.adults = 0; state.children = 0; state.addOns = {}; document.getElementById('catalog-hero').style.display = 'none'; document.getElementById('main-view').style.display = 'none'; document.getElementById('detail-view').style.display = ''; document.getElementById('about-view').style.display = 'none'; renderTourDetail(tour); window.scrollTo(0, 0); }
-function showAbout() { state.currentView = 'about'; document.getElementById('catalog-hero').style.display = 'none'; document.getElementById('main-view').style.display = 'none'; document.getElementById('detail-view').style.display = 'none'; document.getElementById('about-view').style.display = ''; applyLanguage(); window.scrollTo(0, 0); }
+function navigateTo(view, tourId) { if (view === 'catalog') window.location.hash = ''; else if (view === 'detail' && tourId) window.location.hash = tourId; else if (view === 'about') window.location.hash = 'about'; else if (view === 'admin') window.location.hash = 'admin'; else if (view === 'dashboard') window.location.hash = 'dashboard'; }
+function hideAllViews() { document.getElementById('catalog-hero').style.display = 'none'; document.getElementById('main-view').style.display = 'none'; document.getElementById('detail-view').style.display = 'none'; document.getElementById('about-view').style.display = 'none'; document.getElementById('admin-login-view').style.display = 'none'; document.getElementById('admin-dashboard-view').style.display = 'none'; document.getElementById('testimonials').style.display = 'none'; var fb = document.getElementById('floating-back'); if (fb) fb.remove(); }
+function showCatalog() { state.currentView = 'catalog'; state.currentTour = null; hideAllViews(); document.getElementById('catalog-hero').style.display = ''; document.getElementById('main-view').style.display = ''; document.getElementById('testimonials').style.display = ''; renderCatalog(); window.scrollTo(0, 0); }
+function showDetail(tourId) { var tour = TOURS[tourId]; if (!tour) return showCatalog(); state.currentView = 'detail'; state.currentTour = tourId; state.adults = 0; state.children = 0; state.addOns = {}; hideAllViews(); document.getElementById('detail-view').style.display = ''; renderTourDetail(tour); window.scrollTo(0, 0); }
+function showAbout() { state.currentView = 'about'; hideAllViews(); document.getElementById('about-view').style.display = ''; applyLanguage(); window.scrollTo(0, 0); }
+function showAdminLogin() { state.currentView = 'admin'; hideAllViews(); document.getElementById('admin-login-view').style.display = ''; document.getElementById('admin-login-error').style.display = 'none'; applyLanguage(); window.scrollTo(0, 0); }
+function showAdminDashboard() { state.currentView = 'dashboard'; hideAllViews(); document.getElementById('admin-dashboard-view').style.display = ''; applyLanguage(); window.scrollTo(0, 0); }
+function handleAdminLogin(e) { e.preventDefault(); var u = document.getElementById('admin-username').value, p = document.getElementById('admin-password').value; if (u === 'hibraim' && p === 'hibraim999') { sessionStorage.setItem('admin_auth', '1'); document.getElementById('admin-login-form').reset(); navigateTo('dashboard'); } else { document.getElementById('admin-login-error').style.display = 'flex'; setTimeout(function () { document.getElementById('admin-login-error').style.display = 'none'; }, 3000); } }
+function adminLogout() { sessionStorage.removeItem('admin_auth'); navigateTo('catalog'); showToast('info', state.language === 'es' ? 'Sesión cerrada' : 'Signed out', ''); }
 function renderCatalog() {
     var grid = document.getElementById('catalog-grid'), lang = state.language; if (Object.keys(TOURS).length === 0) { grid.innerHTML = '<div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>'; return; }
     var html = ''; Object.values(TOURS).forEach(function (tour) { html += '<article class="tour-card fade-in" onclick="navigateTo(\'detail\',\'' + tour.id + '\')">' + '<div class="tour-card-image" style="background-image:url(\'' + tour.imageFolder + '/' + tour.card.thumbnail + '.jpg\');"></div>' + '<div class="tour-card-body">' + '<h3 class="tour-card-title" data-es="' + tour.card.title.es + '" data-en="' + tour.card.title.en + '">' + tour.card.title[lang] + '</h3>' + '<p class="tour-card-desc" data-es="' + tour.card.shortDescription.es + '" data-en="' + tour.card.shortDescription.en + '">' + tour.card.shortDescription[lang] + '</p>' + '<div class="tour-card-footer">' + '<span class="tour-card-price">' + (lang === 'es' ? 'Desde' : 'From') + ' $' + tour.card.priceFrom + ' USD</span>' + '<span class="tour-card-cta">' + (lang === 'es' ? 'Ver Detalles' : 'View Details') + ' &rarr;</span>' + '</div></div></article>'; }); grid.innerHTML = html; requestAnimationFrame(() => { document.querySelectorAll('.fade-in').forEach((el, i) => { setTimeout(() => el.classList.add('visible'), i * 100) }) });
@@ -61,6 +66,7 @@ function renderTourDetail(tour) {
     h += '<section class="packing-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.packingList.sectionTitle.es + '" data-en="' + d.packingList.sectionTitle.en + '">' + d.packingList.sectionTitle[lang] + '</h2><div style="height:16px"></div><div class="packing-grid">' + pk + '</div></div></section>';
     h += '<section class="booking-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.booking.sectionTitle.es + '" data-en="' + d.booking.sectionTitle.en + '">' + d.booking.sectionTitle[lang] + '</h2><div style="height:16px"></div><p class="booking-text" data-es="' + d.booking.description.es + '" data-en="' + d.booking.description.en + '">' + d.booking.description[lang] + '</p></div></section>';
     c.innerHTML = h; initGallerySlider(); updateConfigurator();
+    var fb = document.createElement('button'); fb.id = 'floating-back'; fb.className = 'floating-back-btn'; fb.onclick = function () { navigateTo('catalog'); }; fb.innerHTML = SVG.back + ' <span>' + (lang === 'es' ? 'Volver' : 'Back') + '</span>'; document.body.appendChild(fb);
 }
 var galleryState = { current: 0, total: 0 }, galleryAutoSlide;
 function initGallerySlider() { if (!state.currentTour) return; galleryState = { current: 0, total: TOURS[state.currentTour].gallery.images.length }; clearInterval(galleryAutoSlide); galleryAutoSlide = setInterval(function () { moveGallery(1); }, 5000); }
@@ -77,27 +83,24 @@ function updateConfigurator() { var lang = state.language, ap = getAdultPrice();
 function toggleAddon(id) { state.addOns[id] = !state.addOns[id]; var card = document.getElementById('addon-' + id); if (card) { card.classList.toggle('selected', state.addOns[id]); var tl = card.querySelector('.addon-toggle span:last-child'); if (tl) tl.textContent = state.addOns[id] ? (state.language === 'es' ? 'Seleccionado' : 'Selected') : (state.language === 'es' ? 'Seleccionar' : 'Select'); } updateConfigurator(); }
 function addTourToCart() { var lang = state.language, tour = getCurrentTour(); if (!tour || state.adults + state.children === 0) return; var selectedAddOns = []; if (tour.addOns) tour.addOns.options.forEach(function (o) { if (state.addOns[o.id]) selectedAddOns.push({ id: o.id, name: o.title[lang], pricePerPerson: o.pricePerPerson }); }); state.cart.push({ id: tour.id + '-' + Date.now(), tourId: tour.id, name: tour.hero.title[lang], image: tour.imageFolder + '/1.jpg', adults: state.adults, children: state.children, adultPriceUSD: getAdultPrice(), childPriceUSD: tour.pricing.childPriceFlat, addOns: selectedAddOns, subtotalUSD: calculateTotal() }); state.adults = 0; state.children = 0; Object.keys(state.addOns).forEach(function (k) { state.addOns[k] = false; }); document.getElementById('qty-adults').textContent = '0'; document.getElementById('qty-children').textContent = '0'; highlightTier(); document.querySelectorAll('.addon-card').forEach(function (c) { c.classList.remove('selected'); var tl = c.querySelector('.addon-toggle span:last-child'); if (tl) tl.textContent = lang === 'es' ? 'Seleccionar' : 'Select'; }); updateConfigurator(); saveState(); updateCartUI(); showToast('success', lang === 'es' ? 'Agregado' : 'Added', lang === 'es' ? 'Tour agregado al carrito' : 'Tour added to cart'); var btn = document.getElementById('btn-add-tour'); if (btn) { btn.classList.add('added'); var orig = btn.innerHTML; btn.innerHTML = SVG.check + ' <span>' + (lang === 'es' ? 'Agregado' : 'Added') + '</span>'; setTimeout(function () { btn.classList.remove('added'); btn.innerHTML = orig; changeLanguage(state.language); }, 1500); } }
 function removeFromCart(i) { state.cart.splice(i, 1); saveState(); updateCartUI(); showToast('info', state.language === 'es' ? 'Eliminado' : 'Removed', state.language === 'es' ? 'Tour eliminado del carrito' : 'Tour removed from cart'); }
-function updateCartUI() { var cc = document.getElementById('cart-count'), ci = document.getElementById('cart-items'), ts = document.getElementById('cart-total-section'), cb = document.getElementById('checkout-btn'), lang = state.language; var total = 0; state.cart.forEach(function (it) { total += (it.adults || 0) + (it.children || 0); }); cc.textContent = total; cc.classList.toggle('empty', total === 0); if (state.cart.length === 0) { ci.innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><p>' + (lang === 'es' ? 'Tu carrito esta vacio' : 'Your cart is empty') + '</p></div>'; ts.style.display = 'none'; if (cb) cb.style.display = 'none'; document.getElementById('checkout-form').classList.remove('active'); document.getElementById('send-email-btn').style.display = 'none'; document.getElementById('send-whatsapp-btn').style.display = 'none'; state.checkoutMode = false; } else { var html = ''; state.cart.forEach(function (it, idx) { var parts = []; if (it.adults > 0) parts.push(it.adults + ' ' + (lang === 'es' ? 'adulto(s)' : 'adult(s)')); if (it.children > 0) parts.push(it.children + ' ' + (lang === 'es' ? 'nino(s)' : 'child(ren)')); var qt = parts.join(', '); if (it.addOns && it.addOns.length > 0) qt += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', '); html += '<div class="cart-item"><div class="cart-item-image" style="background-image:url(\'' + it.image + '\')"></div><div class="cart-item-details"><div class="cart-item-name">' + it.name + '</div><div class="cart-item-qty">' + qt + '</div></div><div class="cart-item-price">$' + it.subtotalUSD + ' USD</div><button class="cart-item-remove" onclick="removeFromCart(' + idx + ')">&times;</button></div>'; }); ci.innerHTML = html; ts.style.display = 'flex'; if (cb) cb.style.display = state.checkoutMode ? 'none' : 'flex'; if (state.checkoutMode) { document.getElementById('checkout-form').classList.add('active'); document.getElementById('send-email-btn').style.display = 'flex'; document.getElementById('send-whatsapp-btn').style.display = 'flex'; } } updateCartTotal(); }
+
 function updateCartTotal() { var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0); var el = document.getElementById('cart-total-amount'); if (el) el.textContent = '$' + t + ' USD'; }
 function loadState() { try { var c = localStorage.getItem('lindotours_cart'), l = localStorage.getItem('lindotours_language'); if (c) state.cart = JSON.parse(c); if (l) state.language = l; } catch (e) { console.error(e); } }
 function saveState() { try { localStorage.setItem('lindotours_cart', JSON.stringify(state.cart)); localStorage.setItem('lindotours_language', state.language); } catch (e) { console.error(e); } }
-function initLanguage() { 
-    var sel = document.getElementById('language-selector'); 
-    sel.value = state.language; 
-    changeLanguage(state.language); 
-    sel.addEventListener('change', function (e) { 
-        state.language = e.target.value; 
-        changeLanguage(state.language); 
-        saveState(); 
-        if (state.currentView === 'catalog') renderCatalog(); 
-        else if (state.currentTour) renderTourDetail(TOURS[state.currentTour]); 
-    }); 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
+function initLanguage() {
+    var sel = document.getElementById('language-selector');
+    sel.value = state.language;
+    changeLanguage(state.language);
+    sel.addEventListener('change', function (e) {
+        state.language = e.target.value;
+        changeLanguage(state.language);
+        saveState();
+        if (state.currentView === 'catalog') renderCatalog();
+        else if (state.currentTour) renderTourDetail(TOURS[state.currentTour]);
+    });
+    document.addEventListener('click', function (e) {
         var selector = document.getElementById('language-selector-container');
-        if (selector && !selector.contains(e.target)) {
-            selector.classList.remove('open');
-        }
+        if (selector && !selector.contains(e.target)) selector.classList.remove('open');
     });
 }
 
@@ -109,56 +112,29 @@ function toggleLanguageDropdown() {
 function applyLanguage() { changeLanguage(state.language); }
 
 function changeLanguage(lang) {
-    // Update text content for elements with data-es/data-en
     document.querySelectorAll('[data-es]').forEach(function (el) {
         el.textContent = el.getAttribute('data-' + lang);
     });
-    
-    // Update placeholders for inputs and textareas
     document.querySelectorAll('[data-placeholder-es]').forEach(function (el) {
         el.setAttribute('placeholder', el.getAttribute('data-placeholder-' + lang));
     });
-    
     document.documentElement.lang = lang;
     if (window.tourDatePicker) window.tourDatePicker.set('locale', lang === 'es' ? 'es' : 'default');
     var flag = document.getElementById('lang-flag');
     var text = document.getElementById('lang-text');
     if (flag) flag.src = 'imagenes/flags/' + (lang === 'es' ? 'es' : 'us') + '.jpg';
     if (text) text.textContent = lang === 'es' ? 'Español' : 'English';
-
-    // Update dropdown active state
-    document.querySelectorAll('.selector-option').forEach(function(opt) {
+    document.querySelectorAll('.selector-option').forEach(function (opt) {
         opt.classList.toggle('active', opt.dataset.lang === lang);
     });
-    
-    // Update hotel hint text
     var hotelHint = document.querySelector('.hotel-hint');
-    if (hotelHint) {
-        hotelHint.textContent = hotelHint.getAttribute('data-' + lang);
-    }
-
+    if (hotelHint) hotelHint.textContent = hotelHint.getAttribute('data-' + lang);
     if (state.currentView === 'catalog') renderCatalog();
     else if (state.currentTour) renderTourDetail(TOURS[state.currentTour]);
 }
 function openCartModal() { document.getElementById('cart-modal').classList.add('active'); document.body.style.overflow = 'hidden'; updateCartUI(); }
-function closeCartModal() { document.getElementById('cart-modal').classList.remove('active'); document.body.style.overflow = ''; state.checkoutMode = false; document.getElementById('checkout-form').classList.remove('active'); var cb = document.getElementById('checkout-btn'); if (cb) cb.style.display = state.cart.length > 0 ? 'flex' : 'none'; document.getElementById('send-email-btn').style.display = 'none'; document.getElementById('send-whatsapp-btn').style.display = 'none'; }
 document.getElementById('cart-modal').addEventListener('click', function (e) { if (e.target === this) closeCartModal(); });
-function proceedToCheckout() { state.checkoutMode = true; document.getElementById('checkout-form').classList.add('active'); document.getElementById('checkout-btn').style.display = 'none'; document.getElementById('send-email-btn').style.display = 'flex'; document.getElementById('send-whatsapp-btn').style.display = 'flex'; }
 function initDatePicker() { window.tourDatePicker = flatpickr('#tour-date', { locale: state.language === 'es' ? 'es' : 'default', minDate: 'today', dateFormat: 'd/m/Y', disableMobile: false, allowInput: false }); }
-async function sendBookingEmail() {
-    var lang = state.language, form = document.getElementById('booking-form'); if (!form.checkValidity()) { form.reportValidity(); return; } var btn = document.getElementById('send-email-btn'); btn.classList.add('loading'); btn.disabled = true; try {
-        var cs = state.cart.map(function (it) { var l = it.name + ': ' + it.adults + 'ad, ' + it.children + 'ch'; if (it.addOns && it.addOns.length > 0) l += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', '); l += ' - $' + it.subtotalUSD + ' USD'; return l; }).join('\n'); var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0);
-        // Save to DB
-        await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('customer-name').value, email: document.getElementById('customer-email').value, phone: document.getElementById('customer-phone').value, date: document.getElementById('tour-date').value, pickup_time: document.getElementById('pickup-time').value || '', hotel: document.getElementById('customer-hotel').value || '', comments: document.getElementById('customer-comments').value || '', cart: state.cart, total: t }) });
-        await emailjs.send(CONFIG.emailjs.serviceId, CONFIG.emailjs.templateId, { customer_name: document.getElementById('customer-name').value, customer_email: document.getElementById('customer-email').value, customer_phone: document.getElementById('customer-phone').value, tour_date: document.getElementById('tour-date').value, pickup_time: document.getElementById('pickup-time').value || 'Not specified', customer_hotel: document.getElementById('customer-hotel').value || 'Not specified', customer_comments: document.getElementById('customer-comments').value || 'No comments', cart_summary: cs, total_amount: '$' + t + ' USD' }); showToast('success', lang === 'es' ? 'Reservacion Enviada' : 'Booking Sent', ''); state.cart = []; saveState(); setTimeout(closeCartModal, 2000);
-    } catch (e) { console.error(e); showToast('error', lang === 'es' ? 'Error. Use WhatsApp' : 'Error. Use WhatsApp', ''); } finally { btn.classList.remove('loading'); btn.disabled = false; }
-}
-function sendToWhatsApp() {
-    var lang = state.language, form = document.getElementById('booking-form'); if (!form.checkValidity()) { form.reportValidity(); return; } var m = lang === 'es' ? '*NUEVA RESERVACION*\n\n' : '*NEW BOOKING*\n\n'; m += '*' + document.getElementById('customer-name').value + '*\n' + document.getElementById('tour-date').value + '\n' + (document.getElementById('pickup-time').value ? document.getElementById('pickup-time').value + ' (MX Time)\n' : '') + document.getElementById('customer-phone').value + '\n\n*Tours:*\n'; state.cart.forEach(function (it) { m += '- ' + it.name + ' (' + it.adults + 'ad, ' + it.children + 'ch)'; if (it.addOns && it.addOns.length > 0) m += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', '); m += ' - $' + it.subtotalUSD + ' USD\n'; }); var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0); m += '\n*TOTAL: $' + t + ' USD*'; var c = document.getElementById('customer-comments').value; if (c) m += '\n' + c;
-    // Save to DB
-    fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('customer-name').value, email: document.getElementById('customer-email').value, phone: document.getElementById('customer-phone').value, date: document.getElementById('tour-date').value, pickup_time: document.getElementById('pickup-time').value || '', hotel: document.getElementById('customer-hotel').value || '', comments: document.getElementById('customer-comments').value || '', cart: state.cart, total: t }) });
-    window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(m), '_blank'); setTimeout(function () { state.cart = []; saveState(); closeCartModal(); }, 2000);
-}
 function showToast(type, title, message) { var c = document.getElementById('toast-container'), icons = { success: SVG.check, error: SVG.cross, info: SVG.cart }; var t = document.createElement('div'); t.className = 'toast ' + type; t.innerHTML = '<span class="toast-icon">' + icons[type] + '</span><div class="toast-content"><div class="toast-title">' + title + '</div><div class="toast-message">' + message + '</div></div>'; c.appendChild(t); setTimeout(function () { t.style.animation = 'toastSlide 0.25s ease reverse'; setTimeout(function () { t.remove(); }, 250); }, 4000); }
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCartModal(); });
 var hotelAC = { wrap: null, list: null, idx: -1, open: false };
@@ -205,7 +181,6 @@ function initTimePicker() {
     h.addEventListener('change', updateAMPM); m.addEventListener('change', sync); ap.addEventListener('change', sync);
 }
 
-// Order Summary Toggle
 function toggleOrderSummary() {
     var content = document.getElementById('order-summary-content');
     var toggle = document.querySelector('.order-summary-toggle');
@@ -218,7 +193,6 @@ function toggleOrderSummary() {
     }
 }
 
-// Progress Indicator
 function updateProgressIndicator(step) {
     for (var i = 1; i <= 3; i++) {
         var s = document.getElementById('step-' + i);
@@ -228,40 +202,36 @@ function updateProgressIndicator(step) {
     }
 }
 
-// Update Previews
 function updatePreviews() {
     var lang = state.language;
     var form = document.getElementById('booking-form');
     if (!form.checkValidity()) return;
-    
-    // Build WhatsApp message
+
     var m = lang === 'es' ? '*NUEVA RESERVACION*\n\n' : '*NEW BOOKING*\n\n';
     m += '*' + document.getElementById('customer-name').value + '*\n';
     m += document.getElementById('tour-date').value + '\n';
     var pickupTime = document.getElementById('pickup-time').value;
     if (pickupTime) m += pickupTime + ' (MX Time)\n';
     m += document.getElementById('customer-phone').value + '\n\n*Tours:*\n';
-    
+
     state.cart.forEach(function (it) {
         m += '- ' + it.name + ' (' + it.adults + 'ad, ' + it.children + 'ch)';
         if (it.addOns && it.addOns.length > 0) m += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', ');
         m += ' - $' + it.subtotalUSD + ' USD\n';
     });
-    
+
     var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0);
     m += '\n*TOTAL: $' + t + ' USD*';
     var comments = document.getElementById('customer-comments').value;
     if (comments) m += '\n\n' + comments;
-    
-    // Update WhatsApp preview
+
     var wpPreview = document.getElementById('whatsapp-preview');
     var wpContent = document.getElementById('whatsapp-message-content');
     if (wpPreview && wpContent) {
         wpPreview.style.display = 'block';
         wpContent.textContent = m;
     }
-    
-    // Build Email preview
+
     var emailPreview = document.getElementById('email-preview');
     var emailContent = document.getElementById('email-preview-content');
     if (emailPreview && emailContent) {
@@ -272,8 +242,8 @@ function updatePreviews() {
             if (it.addOns && it.addOns.length > 0) details += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', ');
             itemsHtml += '<div class="email-row"><span class="email-label">' + it.name + '</span><span class="email-value">$' + it.subtotalUSD + '</span></div>';
         });
-        
-        emailContent.innerHTML = 
+
+        emailContent.innerHTML =
             '<h4>' + (lang === 'es' ? 'Resumen de Reservación' : 'Booking Summary') + '</h4>' +
             '<div class="email-row"><span class="email-label">' + (lang === 'es' ? 'Nombre' : 'Name') + '</span><span class="email-value">' + document.getElementById('customer-name').value + '</span></div>' +
             '<div class="email-row"><span class="email-label">' + (lang === 'es' ? 'Email' : 'Email') + '</span><span class="email-value">' + document.getElementById('customer-email').value + '</span></div>' +
@@ -287,7 +257,6 @@ function updatePreviews() {
     }
 }
 
-// Enhanced proceed to checkout
 function proceedToCheckout() {
     state.checkoutMode = true;
     document.getElementById('checkout-form').classList.add('active');
@@ -296,25 +265,22 @@ function proceedToCheckout() {
     document.getElementById('send-whatsapp-btn').style.display = 'flex';
     document.getElementById('trust-badges').style.display = 'none';
     updateProgressIndicator(2);
-    
-    // Scroll to form
-    setTimeout(function() {
+
+    setTimeout(function () {
         document.getElementById('checkout-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 }
 
-// Enhanced send booking email
 async function sendBookingEmail() {
     var lang = state.language, form = document.getElementById('booking-form');
     if (!form.checkValidity()) { form.reportValidity(); return; }
-    
-    // Update to step 3
+
     updateProgressIndicator(3);
-    
+
     var btn = document.getElementById('send-email-btn');
     btn.classList.add('loading');
     btn.disabled = true;
-    
+
     try {
         var cs = state.cart.map(function (it) {
             var l = it.name + ': ' + it.adults + 'ad, ' + it.children + 'ch';
@@ -322,10 +288,9 @@ async function sendBookingEmail() {
             l += ' - $' + it.subtotalUSD + ' USD';
             return l;
         }).join('\n');
-        
+
         var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0);
-        
-        // Save to DB
+
         await fetch('/api/bookings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -341,7 +306,7 @@ async function sendBookingEmail() {
                 total: t
             })
         });
-        
+
         await emailjs.send(
             CONFIG.emailjs.serviceId,
             CONFIG.emailjs.templateId,
@@ -357,7 +322,7 @@ async function sendBookingEmail() {
                 total_amount: '$' + t + ' USD'
             }
         );
-        
+
         showToast('success', lang === 'es' ? 'Reservacion Enviada' : 'Booking Sent', '');
         state.cart = [];
         saveState();
@@ -372,32 +337,29 @@ async function sendBookingEmail() {
     }
 }
 
-// Enhanced send to WhatsApp
 function sendToWhatsApp() {
     var lang = state.language, form = document.getElementById('booking-form');
     if (!form.checkValidity()) { form.reportValidity(); return; }
-    
-    // Update to step 3
+
     updateProgressIndicator(3);
-    
+
     var m = lang === 'es' ? '*NUEVA RESERVACION*\n\n' : '*NEW BOOKING*\n\n';
     m += '*' + document.getElementById('customer-name').value + '*\n';
     m += document.getElementById('tour-date').value + '\n';
     m += (document.getElementById('pickup-time').value ? document.getElementById('pickup-time').value + ' (MX Time)\n' : '');
     m += document.getElementById('customer-phone').value + '\n\n*Tours:*\n';
-    
+
     state.cart.forEach(function (it) {
         m += '- ' + it.name + ' (' + it.adults + 'ad, ' + it.children + 'ch)';
         if (it.addOns && it.addOns.length > 0) m += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', ');
         m += ' - $' + it.subtotalUSD + ' USD\n';
     });
-    
+
     var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0);
     m += '\n*TOTAL: $' + t + ' USD*';
     var c = document.getElementById('customer-comments').value;
     if (c) m += '\n\n' + c;
-    
-    // Save to DB
+
     fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -413,9 +375,9 @@ function sendToWhatsApp() {
             total: t
         })
     });
-    
+
     window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(m), '_blank');
-    
+
     setTimeout(function () {
         state.cart = [];
         saveState();
@@ -424,20 +386,19 @@ function sendToWhatsApp() {
     }, 2000);
 }
 
-// Enhanced updateCartUI with preview updates
 function updateCartUI() {
     var cc = document.getElementById('cart-count'),
         ci = document.getElementById('cart-items'),
         ts = document.getElementById('cart-total-section'),
         cb = document.getElementById('checkout-btn'),
         lang = state.language;
-    
+
     var total = 0;
     state.cart.forEach(function (it) { total += (it.adults || 0) + (it.children || 0); });
-    
+
     cc.textContent = total;
     cc.classList.toggle('empty', total === 0);
-    
+
     if (state.cart.length === 0) {
         ci.innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><p>' + (lang === 'es' ? 'Tu carrito esta vacio' : 'Your cart is empty') + '</p></div>';
         ts.style.display = 'none';
@@ -463,7 +424,7 @@ function updateCartUI() {
         ci.innerHTML = html;
         ts.style.display = 'flex';
         if (cb) cb.style.display = state.checkoutMode ? 'none' : 'flex';
-        
+
         if (state.checkoutMode) {
             document.getElementById('checkout-form').classList.add('active');
             document.getElementById('send-email-btn').style.display = 'flex';
@@ -474,7 +435,6 @@ function updateCartUI() {
     updateCartTotal();
 }
 
-// Enhanced closeCartModal
 function closeCartModal() {
     document.getElementById('cart-modal').classList.remove('active');
     document.body.style.overflow = '';
@@ -484,17 +444,16 @@ function closeCartModal() {
     document.getElementById('email-preview').style.display = 'none';
     document.getElementById('trust-badges').style.display = 'flex';
     updateProgressIndicator(1);
-    
+
     var cb = document.getElementById('checkout-btn');
     if (cb) cb.style.display = state.cart.length > 0 ? 'flex' : 'none';
     document.getElementById('send-email-btn').style.display = 'none';
     document.getElementById('send-whatsapp-btn').style.display = 'none';
 }
 
-// Add form input listeners for live preview updates
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     var formInputs = document.querySelectorAll('#booking-form input, #booking-form textarea');
-    formInputs.forEach(function(input) {
+    formInputs.forEach(function (input) {
         input.addEventListener('input', updatePreviews);
         input.addEventListener('change', updatePreviews);
     });
