@@ -1,4 +1,5 @@
 const express = require('express'), cors = require('cors'), path = require('path'), Database = require('better-sqlite3');
+const multer = require('multer');
 const app = express(), PORT = process.env.PORT || 3000;
 const db = new Database(path.join(__dirname, 'db', 'lindotours.db'));
 db.pragma('journal_mode=WAL'); db.pragma('foreign_keys=ON');
@@ -14,6 +15,18 @@ app.use(cors()); app.use(express.json()); app.use(express.static(path.join(__dir
 
 // ---- API ROUTES ----
 
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const slug = req.body.slug || 'new-tour-' + Date.now();
+        const dir = path.join(__dirname, 'public', 'imagenes', slug);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, file.originalname);
+    }
+});
+const upload = multer({ storage });
 // GET all tours (catalog)
 app.get('/api/tours', (req, res) => {
     const tours = db.prepare(`SELECT t.*,GROUP_CONCAT(DISTINCT g.image_num) as gallery_images FROM tours t LEFT JOIN gallery_images g ON g.tour_id=t.id GROUP BY t.id`).all();
@@ -70,6 +83,89 @@ app.get('/api/tours/:slug', (req, res) => {
     const t = db.prepare('SELECT * FROM tours WHERE slug=?').get(req.params.slug);
     if (!t) return res.status(404).json({ error: 'Tour not found' });
     res.json(t);
+});
+
+// POST new tour (Admin)
+app.post('/api/tours', upload.any(), (req, res) => {
+    try {
+        const data = JSON.parse(req.body.data);
+        const slug = req.body.slug || data.slug;
+        const imageFolder = `imagenes/${slug}`;
+
+        const insertTour = db.prepare(`INSERT INTO tours(
+            slug, image_folder, card_thumbnail, title_en, title_es, short_desc_en, short_desc_es, price_from,
+            subtitle_en, subtitle_es, description_en, description_es, hero_image,
+            price_adults_label_en, price_adults_label_es, price_adult_price_label_en, price_adult_price_label_es,
+            price_child_price_label_en, price_child_price_label_es, child_price_flat,
+            free_child_note_en, free_child_note_es, group_note_en, group_note_es, pricing_note_en, pricing_note_es,
+            itinerary_title_en, itinerary_title_es, itinerary_warning_en, itinerary_warning_es, combo_note_en, combo_note_es,
+            booking_desc_en, booking_desc_es
+        ) VALUES(
+            ?,?,?,?,?,?,?,?,
+            ?,?,?,?,?,
+            ?,?,?,?,
+            ?,?,?,
+            ?,?,?,?,?,
+            ?,?,?,?,?,
+            ?,?
+        )`);
+
+        let tourId;
+        db.transaction(() => {
+            const r = insertTour.run(
+                slug, imageFolder, data.card_thumbnail || 1, data.title_en, data.title_es, data.short_desc_en, data.short_desc_es, data.price_from,
+                data.subtitle_en, data.subtitle_es, data.description_en, data.description_es, data.hero_image || 1,
+                data.price_adults_label_en || '', data.price_adults_label_es || '', data.price_adult_price_label_en || '', data.price_adult_price_label_es || '',
+                data.price_child_price_label_en || '', data.price_child_price_label_es || '', data.child_price_flat || 0,
+                data.free_child_note_en || '', data.free_child_note_es || '', data.group_note_en || '', data.group_note_es || '', data.pricing_note_en || '', data.pricing_note_es || '',
+                data.itinerary_title_en || 'Itinerary', data.itinerary_title_es || 'Itinerario', data.itinerary_warning_en || '', data.itinerary_warning_es || '', data.combo_note_en || null, data.combo_note_es || null,
+                data.booking_desc_en || '', data.booking_desc_es || ''
+            );
+            tourId = r.lastInsertRowid;
+
+            // Pricing
+            if (data.pricing_tiers) {
+                const insPrice = db.prepare('INSERT INTO pricing_tiers(tour_id, adults, adult_price) VALUES(?,?,?)');
+                data.pricing_tiers.forEach(p => insPrice.run(tourId, p.adults, p.adult_price));
+            }
+            // Includes
+            if (data.includes) {
+                const insInc = db.prepare('INSERT INTO tour_includes(tour_id, text_en, text_es) VALUES(?,?,?)');
+                data.includes.forEach(i => insInc.run(tourId, i.en, i.es));
+            }
+            // Excludes
+            if (data.excludes) {
+                const insExc = db.prepare('INSERT INTO tour_excludes(tour_id, text_en, text_es) VALUES(?,?,?)');
+                data.excludes.forEach(e => insExc.run(tourId, e.en, e.es));
+            }
+            // Itinerary
+            if (data.itinerary) {
+                const insIt = db.prepare('INSERT INTO itinerary_steps(tour_id, step_order, text_en, text_es) VALUES(?,?,?,?)');
+                data.itinerary.forEach((it, idx) => insIt.run(tourId, idx + 1, it.en, it.es));
+            }
+            // Addons
+            if (data.addons) {
+                const insAdd = db.prepare('INSERT INTO addons(tour_id, slug, title_en, title_es, desc_en, desc_es, price_per_person) VALUES(?,?,?,?,?,?,?)');
+                data.addons.forEach(a => insAdd.run(tourId, a.slug, a.title_en, a.title_es, a.desc_en, a.desc_es, a.price_per_person));
+            }
+            // Packing
+            if (data.packing) {
+                const insPack = db.prepare('INSERT INTO packing_items(tour_id, text_en, text_es, icon) VALUES(?,?,?,?)');
+                data.packing.forEach(p => insPack.run(tourId, p.en, p.es, p.icon));
+            }
+            // Gallery
+            if (data.gallery_images) {
+                // e.g. [1, 2, 3] integers mapping to 1.jpg, 2.jpg
+                const insGal = db.prepare('INSERT INTO gallery_images(tour_id, image_num) VALUES(?,?)');
+                data.gallery_images.forEach(g => insGal.run(tourId, g));
+            }
+        })();
+
+        res.json({ status: 'ok', id: tourId, slug });
+    } catch (e) {
+        console.error('Error saving tour:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // GET hotels

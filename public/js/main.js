@@ -458,3 +458,135 @@ document.addEventListener('DOMContentLoaded', function () {
         input.addEventListener('change', updatePreviews);
     });
 });
+
+// --- ADMIN DASHBOARD ---
+function addAdminPricingRow() {
+    const container = document.getElementById('admin-pricing-container');
+    const div = document.createElement('div');
+    div.className = 'admin-dynamic-row pricing-row';
+    div.innerHTML = '<input type="number" placeholder="Adults (e.g. 1)" class="p-adults" required><input type="number" placeholder="Price (e.g. 150)" class="p-price" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
+    container.appendChild(div);
+}
+
+function addAdminItineraryRow() {
+    const container = document.getElementById('admin-itinerary-container');
+    const div = document.createElement('div');
+    div.className = 'admin-dynamic-row itinerary-row';
+    div.innerHTML = '<input type="text" placeholder="EN Step" class="i-en" required><input type="text" placeholder="ES Step" class="i-es" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
+    container.appendChild(div);
+}
+
+function addAdminInclRow(type) {
+    const container = document.getElementById('admin-' + type + '-container');
+    const div = document.createElement('div');
+    div.className = 'admin-dynamic-row ' + type + '-row';
+    div.innerHTML = '<input type="text" placeholder="EN" class="inc-en" required><input type="text" placeholder="ES" class="inc-es" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
+    container.appendChild(div);
+}
+
+async function handleAdminAddTour(e) {
+    e.preventDefault();
+    const btn = document.getElementById('admin-submit-tour-btn');
+    btn.disabled = true;
+
+    try {
+        const slug = document.getElementById('admin-tour-slug').value.trim();
+        const data = {
+            slug: slug,
+            price_from: parseInt(document.getElementById('admin-tour-price-from').value),
+            child_price_flat: parseInt(document.getElementById('admin-tour-child-price').value),
+            title_en: document.getElementById('admin-tour-title-en').value,
+            title_es: document.getElementById('admin-tour-title-es').value,
+            subtitle_en: document.getElementById('admin-tour-subtitle-en').value,
+            subtitle_es: document.getElementById('admin-tour-subtitle-es').value,
+            short_desc_en: document.getElementById('admin-tour-short-en').value,
+            short_desc_es: document.getElementById('admin-tour-short-es').value,
+            description_en: document.getElementById('admin-tour-desc-en').value,
+            description_es: document.getElementById('admin-tour-desc-es').value,
+            card_thumbnail: 2,
+            hero_image: 1,
+            pricing_tiers: [],
+            itinerary: [],
+            includes: [],
+            excludes: [],
+            gallery_images: []
+        };
+
+        // gather pricing
+        document.querySelectorAll('.pricing-row').forEach(row => {
+            data.pricing_tiers.push({
+                adults: parseInt(row.querySelector('.p-adults').value) || 0,
+                adult_price: parseInt(row.querySelector('.p-price').value) || 0
+            });
+        });
+
+        // gather itinerary
+        document.querySelectorAll('.itinerary-row').forEach(row => {
+            data.itinerary.push({
+                en: row.querySelector('.i-en').value,
+                es: row.querySelector('.i-es').value
+            });
+        });
+
+        // gather includes
+        document.querySelectorAll('.includes-row').forEach(row => {
+            data.includes.push({
+                en: row.querySelector('.inc-en').value,
+                es: row.querySelector('.inc-es').value
+            });
+        });
+
+        document.querySelectorAll('.excludes-row').forEach(row => {
+            data.excludes.push({
+                en: row.querySelector('.inc-en').value,
+                es: row.querySelector('.inc-es').value
+            });
+        });
+
+        const formData = new FormData();
+        formData.append('slug', slug);
+
+        const heroFile = document.getElementById('admin-img-hero').files[0];
+        const cardFile = document.getElementById('admin-img-card').files[0];
+        const galleryFiles = document.getElementById('admin-img-gallery').files;
+
+        if (heroFile) formData.append('images', heroFile, '1.jpg');
+        if (cardFile) formData.append('images', cardFile, '2.jpg');
+
+        for (let i = 0; i < galleryFiles.length; i++) {
+            const num = i + 3; // start from 3
+            data.gallery_images.push(num);
+            formData.append('images', galleryFiles[i], num + '.' + galleryFiles[i].name.split('.').pop());
+        }
+
+        formData.append('data', JSON.stringify(data));
+
+        const res = await fetch('/api/tours', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await res.json();
+
+        if (result.status === 'ok') {
+            showToast('success', 'Exito', 'Tour guardado correctamente');
+            document.getElementById('admin-add-tour-form').reset();
+            document.getElementById('admin-itinerary-container').innerHTML = '';
+            document.getElementById('admin-pricing-container').innerHTML = '';
+            document.getElementById('admin-includes-container').innerHTML = '';
+            document.getElementById('admin-excludes-container').innerHTML = '';
+            try {
+                const refreshed = await fetch('/api/tours').then(r => r.json());
+                TOURS = {};
+                refreshed.forEach(t => { TOURS[t.id] = t });
+                if (state.currentView === 'catalog') renderCatalog();
+            } catch (e) { }
+        } else {
+            showToast('error', 'Error', result.error || 'Failed to save');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('error', 'Error', 'Error: ' + err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
