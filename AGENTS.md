@@ -1,49 +1,46 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `server.js`: Express 5 API and static file server entrypoint.
-- `public/`: frontend SPA assets.
-- `public/index.html`: base markup.
-- `public/js/main.js`: client logic (catalog, detail, cart, checkout, admin view).
-- `public/css/styles.css`: all site styles.
-- `public/imagenes/`: media files, organized by tour slug.
-- `db/schema.sql`: SQLite schema.
-- `db/seed.sql`: initial tour/hotel seed data.
-- `db/lindotours.db*`: local runtime database files; avoid committing binary DB changes unless required.
+- `server.js`: Express API + static server, including SQLite bootstrap (`db/schema.sql` and optional `db/seed.sql`).
+- `public/`: Frontend files (`index.html`, `css/styles.css`, `js/main.js`, `js/hotels.js`) plus images in `public/imagenes/`.
+- `db/`: Database schema, seed data, and local SQLite files (`lindotours.db`, `-wal`, `-shm`).
+- Keep new tour media under `public/imagenes/servicios/<tour_slug>/` and keep filenames numeric (`1.jpg`, `2.jpg`, ...).
 
 ## Build, Test, and Development Commands
-- `npm install`: install dependencies.
-- `npm start`: run the app at `http://localhost:3000`.
-- `PORT=4000 npm start`: run on a different local port.
-- `curl http://localhost:3000/api/tours`: quick API smoke check.
-- `npm test`: currently a placeholder that exits with an error; not a valid test signal yet.
+```bash
+npm install          # Install dependencies
+npm start            # Start server on http://localhost:3000
+PORT=4000 npm start  # Start server on a custom port
+```
+- There is no build step in this repository.
+- `npm test` is currently a placeholder and exits with an error by design.
 
 ## Coding Style & Naming Conventions
-- Use 4-space indentation, semicolons, and camelCase in JavaScript.
-- Keep backend code in CommonJS style (`require(...)`).
-- Keep bilingual fields paired (`*_en` and `*_es`) in SQL/data objects.
-- Keep translatable UI text in `data-es` and `data-en` attributes.
-- Tour slugs should stay stable and map to image folders (for example: `public/imagenes/tulumAkumal/1.jpg`).
+- Stack: Node.js (CommonJS) + vanilla JS/CSS/HTML.
+- Match existing formatting: 4 spaces in JS (`server.js`, `public/js/*.js`) and 2 spaces in CSS.
+- Use semicolons in JavaScript.
+- Naming:
+  - `camelCase` for functions/variables.
+  - `UPPER_SNAKE_CASE` for constants/env defaults.
+  - `snake_case` for tour slugs and service image folders (for consistency with current assets).
+- No ESLint/Prettier is configured; keep changes style-consistent with surrounding code.
 
 ## Testing Guidelines
 - No automated test suite is configured yet.
-- Before opening a PR, run manual checks:
-- load catalog/detail/about/admin/cart flows in the browser;
-- verify `/api/tours`, `/api/hotels`, and `/api/config` responses;
-- submit a booking and confirm persistence through `/api/bookings`.
-- If you add automated tests, create a `tests/` directory and add the corresponding npm script in `package.json`.
+- For each change, run a manual smoke test:
+  1. Start app with `npm start` and confirm boot without errors.
+  2. Verify key endpoints: `GET /api/tours`, `GET /api/hotels`, `POST /api/bookings`.
+  3. If admin-related, validate `POST /api/admin/login` and protected booking routes.
+  4. Check UI flows in both languages and on mobile/desktop widths.
 
 ## Commit & Pull Request Guidelines
-- Prefer Conventional Commit prefixes (`feat:`, `fix:`, `refactor:`, `chore:`).
-- Keep messages short, imperative, and specific (avoid vague titles like "NEW ERA").
-- Keep commits focused by concern (API, UI, SQL).
-- PRs should include:
-- change summary and scope;
-- screenshots/GIFs for UI changes;
-- schema/seed impact notes;
-- manual validation steps and results.
+- Git history mostly uses Conventional Commit prefixes (`feat:`, `refactor:`), with some inconsistent legacy messages.
+- Preferred format: `<type>: <short imperative summary>` (example: `feat: add booking status filter`).
+- Keep commits focused by concern (API, UI, DB).
+- PRs should include: purpose, impacted files, manual test evidence, and screenshots for UI changes.
+- If schema/seed changes are included, call them out explicitly in the PR description.
 
 ## Security & Configuration Tips
-- Do not commit real secrets or production credentials.
-- Move sensitive values (admin credentials, third-party keys) to environment variables in deployed environments.
-- Review large SQL seed edits carefully to avoid accidental bulk data changes.
+- Configure runtime values via environment variables: `PORT`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_TOKEN_TTL_MS`.
+- Do not commit secrets or sensitive production data.
+- Override default admin credentials outside local development.

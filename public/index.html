@@ -248,6 +248,11 @@
                             <span data-es="Datos para tu Reservación" data-en="Reservation Details">Reservation
                                 Details</span>
                         </h4>
+                        <p class="checkout-form-intro"
+                            data-es="Completa tus datos para confirmar disponibilidad y coordinar tu recogida."
+                            data-en="Complete your details to confirm availability and coordinate your pickup.">
+                            Complete your details to confirm availability and coordinate your pickup.
+                        </p>
                         <form id="booking-form">
                             <div class="form-grid">
                                 <div class="form-group">
@@ -287,6 +292,8 @@
                                     <div class="time-picker-custom">
                                         <select id="pickup-hour" name="pickup_hour" required>
                                             <option value="" disabled selected>--</option>
+                                            <option value="5">5</option>
+                                            <option value="6">6</option>
                                             <option value="7">7</option>
                                             <option value="8">8</option>
                                             <option value="9">9</option>
@@ -294,26 +301,22 @@
                                             <option value="11">11</option>
                                             <option value="12">12</option>
                                             <option value="1">1</option>
-                                            <option value="2">2</option>
-                                            <option value="3">3</option>
-                                            <option value="4">4</option>
-                                            <option value="5">5</option>
                                         </select>
                                         <span class="time-sep">:</span>
                                         <select id="pickup-min" name="pickup_min" required>
                                             <option value="" disabled selected>--</option>
                                             <option value="00">00</option>
-                                            <option value="10">10</option>
-                                            <option value="20">20</option>
+                                            <option value="15">15</option>
                                             <option value="30">30</option>
-                                            <option value="40">40</option>
-                                            <option value="50">50</option>
+                                            <option value="45">45</option>
                                         </select>
-                                        <select id="pickup-ampm" name="pickup_ampm" required>
-                                            <option value="AM">AM</option>
-                                            <option value="PM">PM</option>
-                                        </select>
+                                        <span class="time-meridian" id="pickup-meridian">--</span>
                                     </div>
+                                    <p class="field-hint pickup-window"
+                                        data-es="Horario disponible de 5:00 AM a 1:45 PM (hora de Mexico)."
+                                        data-en="Available schedule from 5:00 AM to 1:45 PM (Mexico time).">
+                                        Available schedule from 5:00 AM to 1:45 PM (Mexico time).
+                                    </p>
                                     <input type="hidden" id="pickup-time" name="pickup_time">
                                 </div>
                                 <div class="form-group"></div>
@@ -324,7 +327,7 @@
                                 <input type="text" id="customer-hotel" data-placeholder-es="Nombre del hotel o dirección"
                                     data-placeholder-en="Hotel name or address" placeholder="Hotel name or address"
                                     name="customer_hotel" autocomplete="off">
-                                <p class="hotel-hint"
+                                <p class="hotel-hint" id="hotel-no-match-hint" hidden
                                     data-es="Si tu hotel no aparece en la lista, puedes escribir el nombre completo manualmente."
                                     data-en="If your hotel does not appear in the list, you can type the full name manually.">
                                     If your hotel doesn't appear in the list, you can type the full name manually.</p>

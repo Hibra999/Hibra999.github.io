@@ -88,12 +88,6 @@ const I18N = {
         totalToPay: 'Total a pagar',
         closeCart: 'Cerrar carrito',
         removeFromCartAria: 'Eliminar tour del carrito',
-        cartMinTravelers: 'Cada tour debe incluir al menos 1 viajero.',
-        invalidAdultsTier: 'No hay tarifa para esa cantidad de adultos.',
-        decreaseAdults: 'Disminuir adultos',
-        increaseAdults: 'Aumentar adultos',
-        decreaseChildren: 'Disminuir niños',
-        increaseChildren: 'Aumentar niños',
         confirmStepInvalid: 'Completa los campos obligatorios antes de confirmar.',
         confirmCustomerDetails: 'Datos del Cliente',
         confirmToursAndTotal: 'Tours y Total',
@@ -165,12 +159,6 @@ const I18N = {
         totalToPay: 'Total to pay',
         closeCart: 'Close cart',
         removeFromCartAria: 'Remove tour from cart',
-        cartMinTravelers: 'Each tour must include at least 1 traveler.',
-        invalidAdultsTier: 'No pricing tier exists for that number of adults.',
-        decreaseAdults: 'Decrease adults',
-        increaseAdults: 'Increase adults',
-        decreaseChildren: 'Decrease children',
-        increaseChildren: 'Increase children',
         confirmStepInvalid: 'Complete required fields before confirming.',
         confirmCustomerDetails: 'Customer Details',
         confirmToursAndTotal: 'Tours and Total',
@@ -359,48 +347,6 @@ function getCartItemAddonNames(item) {
     });
 
     return names;
-}
-
-function calculateCartItemPricing(item, adults, children) {
-    var tour = getTourForCartItem(item);
-    var adultPriceUSD = safeInt(item && item.adultPriceUSD, 0);
-    var childPriceUSD = safeInt(item && item.childPriceUSD, 0);
-
-    if (tour && tour.pricing) {
-        if (adults > 0) {
-            var tier = (tour.pricing.tiers || []).find(function (priceTier) {
-                return safeInt(priceTier.adults, -1) === adults;
-            });
-            if (!tier) return null;
-            adultPriceUSD = safeInt(tier.adultPrice, 0);
-        } else {
-            adultPriceUSD = 0;
-        }
-        childPriceUSD = safeInt(tour.pricing.childPriceFlat, childPriceUSD);
-    }
-
-    var persons = adults + children;
-    var addOnsSubtotalUSD = 0;
-    if (Array.isArray(item && item.addOns)) {
-        item.addOns.forEach(function (addon) {
-            if (!addon) return;
-            var addonPrice = safeInt(addon.pricePerPerson, 0);
-            if (tour && tour.addOns && Array.isArray(tour.addOns.options) && addon.id) {
-                var option = tour.addOns.options.find(function (opt) {
-                    return opt.id === addon.id;
-                });
-                if (option) addonPrice = safeInt(option.pricePerPerson, addonPrice);
-            }
-            addon.pricePerPerson = addonPrice;
-            addOnsSubtotalUSD += addonPrice * persons;
-        });
-    }
-
-    return {
-        adultPriceUSD: adultPriceUSD,
-        childPriceUSD: childPriceUSD,
-        subtotalUSD: adults * adultPriceUSD + children * childPriceUSD + addOnsSubtotalUSD
-    };
 }
 
 function safePathSegment(segment) {
@@ -1378,42 +1324,6 @@ function removeFromCart(index) {
     showToast('info', t('removed'), t('removedMessage'));
 }
 
-function updateCartItemQuantity(index, type, change) {
-    var item = state.cart[index];
-    if (!item) return;
-
-    var adults = safeInt(item.adults, 0);
-    var children = safeInt(item.children, 0);
-
-    if (type === 'adults') {
-        adults = Math.max(0, Math.min(10, adults + change));
-    } else if (type === 'children') {
-        children = Math.max(0, Math.min(10, children + change));
-    } else {
-        return;
-    }
-
-    if (adults + children === 0) {
-        showToast('info', t('removed'), t('cartMinTravelers'));
-        return;
-    }
-
-    var recalculated = calculateCartItemPricing(item, adults, children);
-    if (!recalculated) {
-        showToast('error', t('whatsappErrorTitle'), t('invalidAdultsTier'));
-        return;
-    }
-
-    item.adults = adults;
-    item.children = children;
-    item.adultPriceUSD = recalculated.adultPriceUSD;
-    item.childPriceUSD = recalculated.childPriceUSD;
-    item.subtotalUSD = recalculated.subtotalUSD;
-
-    saveState();
-    updateCartUI();
-}
-
 function getCartTotalUSD() {
     return state.cart.reduce(function (sum, item) {
         return sum + safeInt(item.subtotalUSD, 0);
@@ -1555,24 +1465,6 @@ function updateCartUI() {
             html += '<div class="cart-item-details">';
             html += '<div class="cart-item-name">' + escapeHtml(getCartItemName(item)) + '</div>';
             html += '<div class="cart-item-qty">' + escapeHtml(qtyText) + '</div>';
-            html += '<div class="cart-item-editors">';
-            html += '<div class="cart-item-editor">';
-            html += '<span class="cart-editor-label">' + escapeHtml(t('adultsLabel')) + '</span>';
-            html += '<div class="cart-qty-controls">';
-            html += '<button type="button" class="cart-qty-btn" onclick="updateCartItemQuantity(' + index + ',\'adults\',-1)" aria-label="' + escapeAttr(t('decreaseAdults')) + '"' + (adults === 0 ? ' disabled' : '') + '>-</button>';
-            html += '<span class="cart-qty-value">' + adults + '</span>';
-            html += '<button type="button" class="cart-qty-btn" onclick="updateCartItemQuantity(' + index + ',\'adults\',1)" aria-label="' + escapeAttr(t('increaseAdults')) + '"' + (adults >= 10 ? ' disabled' : '') + '>+</button>';
-            html += '</div>';
-            html += '</div>';
-            html += '<div class="cart-item-editor">';
-            html += '<span class="cart-editor-label">' + escapeHtml(t('childrenLabel')) + '</span>';
-            html += '<div class="cart-qty-controls">';
-            html += '<button type="button" class="cart-qty-btn" onclick="updateCartItemQuantity(' + index + ',\'children\',-1)" aria-label="' + escapeAttr(t('decreaseChildren')) + '"' + (children === 0 ? ' disabled' : '') + '>-</button>';
-            html += '<span class="cart-qty-value">' + children + '</span>';
-            html += '<button type="button" class="cart-qty-btn" onclick="updateCartItemQuantity(' + index + ',\'children\',1)" aria-label="' + escapeAttr(t('increaseChildren')) + '"' + (children >= 10 ? ' disabled' : '') + '>+</button>';
-            html += '</div>';
-            html += '</div>';
-            html += '</div>';
             html += '</div>';
             html += '<div class="cart-item-price">$' + safeInt(item.subtotalUSD, 0) + ' USD</div>';
             html += '<button type="button" class="cart-item-remove" onclick="removeFromCart(' + index + ')" aria-label="' + escapeAttr(t('removeFromCartAria')) + '">&times;</button>';
@@ -1648,6 +1540,7 @@ function initDatePicker() {
         locale: state.language === 'es' ? 'es' : 'default',
         minDate: 'today',
         dateFormat: getDateFormatByLanguage(),
+        position: 'auto center',
         disableMobile: false,
         allowInput: false
     });
@@ -1656,30 +1549,32 @@ function initDatePicker() {
 function initTimePicker() {
     var hour = document.getElementById('pickup-hour');
     var minute = document.getElementById('pickup-min');
-    var ampm = document.getElementById('pickup-ampm');
+    var meridian = document.getElementById('pickup-meridian');
     var hidden = document.getElementById('pickup-time');
-    if (!hour || !minute || !ampm || !hidden) return;
+    if (!hour || !minute || !hidden) return;
+
+    function getMeridian(hourValue) {
+        var hr = safeInt(hourValue, 0);
+        if (hr >= 5 && hr <= 11) return 'AM';
+        if (hr === 12 || hr === 1) return 'PM';
+        return '';
+    }
 
     function sync() {
-        if (hour.value && minute.value) {
-            hidden.value = hour.value + ':' + minute.value + ' ' + ampm.value;
+        var currentMeridian = getMeridian(hour.value);
+        if (meridian) meridian.textContent = currentMeridian || '--';
+
+        if (hour.value && minute.value && currentMeridian) {
+            hidden.value = hour.value + ':' + minute.value + ' ' + currentMeridian;
         } else {
             hidden.value = '';
         }
         updatePreviews();
     }
 
-    function updateAMPM() {
-        var hr = safeInt(hour.value, 0);
-        if (!hr) return;
-        if (hr >= 7 && hr <= 11) ampm.value = 'AM';
-        else if (hr === 12 || (hr >= 1 && hr <= 5)) ampm.value = 'PM';
-        sync();
-    }
-
-    hour.addEventListener('change', updateAMPM);
+    hour.addEventListener('change', sync);
     minute.addEventListener('change', sync);
-    ampm.addEventListener('change', sync);
+    sync();
 }
 
 function toggleOrderSummary() {
@@ -2065,6 +1960,9 @@ function resetBookingForm() {
     var pickupTime = document.getElementById('pickup-time');
     if (pickupTime) pickupTime.value = '';
 
+    var pickupMeridian = document.getElementById('pickup-meridian');
+    if (pickupMeridian) pickupMeridian.textContent = '--';
+
     var hotelInput = document.getElementById('customer-hotel');
     if (hotelInput) {
         delete hotelInput.dataset.hotel;
@@ -2073,6 +1971,7 @@ function resetBookingForm() {
 
     hideMapBtn();
     closeAC();
+    setHotelNoMatchHint(false);
     hideBookingPreviews();
 }
 
@@ -2190,7 +2089,20 @@ async function sendToWhatsApp() {
     }
 }
 
-var hotelAC = { wrap: null, list: null, idx: -1, open: false };
+var hotelAC = { wrap: null, list: null, hint: null, idx: -1, open: false };
+
+function setHotelNoMatchHint(visible) {
+    if (!hotelAC.hint) {
+        hotelAC.hint = document.getElementById('hotel-no-match-hint');
+    }
+    if (!hotelAC.hint) return;
+
+    if (visible) {
+        hotelAC.hint.removeAttribute('hidden');
+    } else {
+        hotelAC.hint.setAttribute('hidden', '');
+    }
+}
 
 function initHotelAutocomplete() {
     var input = document.getElementById('customer-hotel');
@@ -2208,9 +2120,13 @@ function initHotelAutocomplete() {
 
     hotelAC.wrap = wrap;
     hotelAC.list = list;
+    hotelAC.hint = document.getElementById('hotel-no-match-hint');
     input.setAttribute('autocomplete', 'off');
+    setHotelNoMatchHint(false);
 
     input.addEventListener('input', function () {
+        delete this.dataset.hotel;
+        delete this.dataset.zone;
         filterHotels(this.value);
         hideMapBtn();
     });
@@ -2221,6 +2137,10 @@ function initHotelAutocomplete() {
 
     input.addEventListener('blur', function () {
         var value = this.value.trim();
+        setHotelNoMatchHint(false);
+        setTimeout(function () {
+            closeAC();
+        }, 120);
         if (value.length > 2) {
             setTimeout(function () {
                 showMapBtn(value);
@@ -2275,22 +2195,26 @@ function createHighlightedName(text, query) {
 function filterHotels(query) {
     var list = hotelAC.list;
     hotelAC.idx = -1;
+    var normalized = safeText(query).trim();
 
-    if (!list || query.length < 2) {
+    if (!list || normalized.length < 2) {
         closeAC();
+        setHotelNoMatchHint(false);
         return;
     }
 
-    var lower = query.toLowerCase();
+    var lower = normalized.toLowerCase();
     var results = HOTELS.filter(function (hotel) {
         return hotel.n.toLowerCase().indexOf(lower) !== -1 || hotel.z.toLowerCase().indexOf(lower) !== -1;
     }).slice(0, 12);
 
     if (results.length === 0) {
         closeAC();
+        setHotelNoMatchHint(true);
         return;
     }
 
+    setHotelNoMatchHint(false);
     list.innerHTML = '';
 
     results.forEach(function (hotel) {
@@ -2338,6 +2262,7 @@ function selectHotel(name, zone) {
     input.dataset.zone = zone;
 
     closeAC();
+    setHotelNoMatchHint(false);
     showMapBtn(name);
     updatePreviews();
 }

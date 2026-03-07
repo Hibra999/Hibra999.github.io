@@ -65,17 +65,39 @@ INSERT INTO tours(slug,image_folder,card_thumbnail,title_en,title_es,short_desc_
 'Once you book online and complete the deposit payment, we will send you the confirmation voucher by email with all meeting point and schedule details.',
 'Una vez que reserve en linea y complete el pago del deposito, le enviaremos por correo electronico el voucher de confirmacion con todos los detalles del punto de encuentro y horarios.');
 
+-- Tour 5: Isla Mujeres Catamaran Day Trip
+INSERT INTO tours(slug,image_folder,card_thumbnail,title_en,title_es,short_desc_en,short_desc_es,price_from,subtitle_en,subtitle_es,description_en,description_es,hero_image,price_adults_label_en,price_adults_label_es,price_adult_price_label_en,price_adult_price_label_es,price_child_price_label_en,price_child_price_label_es,child_price_flat,free_child_note_en,free_child_note_es,group_note_en,group_note_es,pricing_note_en,pricing_note_es,itinerary_title_en,itinerary_title_es,itinerary_warning_en,itinerary_warning_es,booking_desc_en,booking_desc_es)VALUES(
+'isla_mujeres_catamaran_day_trip','imagenes/servicios/isla_mujeres_catamaran_day_trip',1,
+'Isla Mujeres Catamaran Day Trip','Tour de Dia en Catamaran a Isla Mujeres',
+'Enjoy a full day from Cancun with reef snorkeling, open bar on board, buffet lunch, beach club time, and free time in Isla Mujeres.',
+'Disfruta un dia completo desde Cancun con snorkel en arrecife, barra libre a bordo, almuerzo buffet, tiempo en club de playa y tiempo libre en Isla Mujeres.',0,
+'Catamaran Sailing to Isla Mujeres','Navegacion en Catamaran a Isla Mujeres',
+'Sail across the Caribbean aboard a catamaran from Cancun and spend the day between sea and beach. Snorkel on a reef with certified guide support, relax at Parayo beach club, explore Isla Mujeres, and return with open bar and spinnaker activity when weather allows.',
+'Navega por el Caribe en catamaran desde Cancun y pasa el dia entre mar y playa. Haz snorkel en arrecife con guia certificado, relajate en el club de playa Parayo, explora Isla Mujeres y regresa con barra libre y actividad de spinnaker cuando el clima lo permita.',
+1,'Number of Adults','Numero de Adultos','Price per Adult','Precio por Adulto','Price per Child','Precio por Nino',
+0,'This tour is not appropriate for children.','Este tour no es apropiado para ninos.',
+'','',
+'A mandatory USD 20.00 Sea Life Conservation / Dock Fee must be paid at boarding. Optional round-trip transportation from Riviera Maya is available for USD 15 per person.',
+'Se debe pagar en abordaje una cuota obligatoria de conservacion marina / muelle de USD 20.00. El transporte redondo desde Riviera Maya es opcional por USD 15 por persona.',
+'Itinerary','Itinerario',
+'Activities on Isla Mujeres and spinnaker use are subject to weather conditions. Snorkeling is optional and at your own risk. Do not snorkel if you have heart conditions, a pacemaker, asthma, poor circulation, or high blood pressure.',
+'Las actividades en Isla Mujeres y el uso de spinnaker dependen del clima. El snorkel es opcional y bajo su propio riesgo. No debe hacer snorkel si tiene problemas cardiacos, marcapasos, asma, mala circulacion o presion alta.',
+'Book online, complete the deposit payment, and we will send your confirmation voucher by email. Print your voucher and bring it to Cancun. It includes all tour details and our contact information in case you need changes.',
+'Reserva en linea, completa el pago del deposito y te enviaremos por correo tu voucher de confirmacion. Imprime tu voucher y llevalo a Cancun. Incluye todos los detalles del tour y nuestra informacion de contacto por si necesitas cambios.');
+
 -- Gallery images
 INSERT INTO gallery_images(tour_id,image_num)VALUES(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19),(1,20),(1,21);
 INSERT INTO gallery_images(tour_id,image_num)VALUES(2,1),(2,2),(2,3),(2,4),(2,5),(2,6),(2,7),(2,8),(2,9),(2,10),(2,11);
 INSERT INTO gallery_images(tour_id,image_num)VALUES(3,1),(3,2),(3,3),(3,4),(3,5),(3,6),(3,7),(3,8);
 INSERT INTO gallery_images(tour_id,image_num)VALUES(4,1),(4,2),(4,3),(4,4),(4,5);
+INSERT INTO gallery_images(tour_id,image_num)VALUES(5,1),(5,2),(5,3),(5,4),(5,5);
 
 -- Pricing tiers
 INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(1,1,269),(1,2,169),(1,3,139),(1,4,99),(1,5,89),(1,6,79),(1,7,69),(1,8,69),(1,9,59),(1,10,49);
 INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(2,1,299),(2,2,199),(2,3,169),(2,4,139),(2,5,119),(2,6,109),(2,7,99),(2,8,89),(2,9,79),(2,10,69);
 INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(3,1,129),(3,2,119),(3,3,109),(3,4,99),(3,5,99),(3,6,99),(3,7,99),(3,8,99),(3,9,99),(3,10,99);
 INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(4,1,76),(4,2,76),(4,3,76),(4,4,76),(4,5,76),(4,6,76),(4,7,76),(4,8,76),(4,9,76),(4,10,76);
+INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(5,1,0),(5,2,0),(5,3,0),(5,4,0),(5,5,0),(5,6,0),(5,7,0),(5,8,0),(5,9,0),(5,10,0);
 
 -- Includes Tour 1
 INSERT INTO tour_includes(tour_id,text_en,text_es)VALUES
@@ -125,6 +147,23 @@ INSERT INTO tour_excludes(tour_id,text_en,text_es)VALUES
 (4,'Personal expenses','Gastos personales'),
 (4,'60 pesos cell phone fee at ruins','Cargo de 60 pesos por celular en las ruinas');
 
+-- Includes Tour 5
+INSERT INTO tour_includes(tour_id,text_en,text_es)VALUES
+(5,'Bilingual tour guides','Guias bilingues'),
+(5,'Snorkel equipment','Equipo de snorkel'),
+(5,'Life jackets','Chalecos salvavidas'),
+(5,'New souvenir snorkel tube','Tubo de snorkel souvenir nuevo'),
+(5,'Certified snorkel guide','Guia certificado de snorkel'),
+(5,'Open bar on board the trimaran both ways','Barra libre a bordo del trimaran en ida y regreso'),
+(5,'Spinnaker activity (weather permitting)','Actividad de spinnaker (si el clima lo permite)'),
+(5,'Buffet lunch','Almuerzo buffet'),
+(5,'Free time on the island with hammocks and lounge chairs','Tiempo libre en la isla con hamacas y camastros');
+INSERT INTO tour_excludes(tour_id,text_en,text_es)VALUES
+(5,'USD 20.00 Sea Life Conservation / Dock Fee (mandatory at boarding)','Cuota de conservacion marina / muelle de USD 20.00 (obligatoria al abordar)'),
+(5,'Drinks during buffet lunch (open bar only on the trimaran)','Bebidas durante el almuerzo buffet (barra libre solo en el trimaran)'),
+(5,'Transportation to and from the marina','Transporte hacia y desde la marina'),
+(5,'Round-trip transportation from Riviera Maya is not included unless added separately','El transporte redondo desde Riviera Maya no esta incluido a menos que se agregue por separado');
+
 -- Itinerary Tour 1
 INSERT INTO itinerary_steps(tour_id,step_order,text_en,text_es)VALUES
 (1,1,'Hotel pickup at the time you choose (we suggest 7-8 AM)','Recogida en su hotel a la hora que elija (sugerimos 7-8 AM)'),
@@ -156,6 +195,16 @@ INSERT INTO itinerary_steps(tour_id,step_order,text_en,text_es)VALUES
 (4,5,'Swimming in sacred cenote','Nado en cenote sagrado'),
 (4,6,'Return to hotel','Regreso al hotel');
 
+-- Itinerary Tour 5
+INSERT INTO itinerary_steps(tour_id,step_order,text_en,text_es)VALUES
+(5,1,'Check in at Cancun Bay Resort Marina KM 3.5 (next to Temptation Resort) by 9:30 AM.','Registro en Cancun Bay Resort Marina KM 3.5 (junto a Temptation Resort) antes de las 9:30 AM.'),
+(5,2,'Snorkeling on the reef for 45 minutes.','Snorkel en el arrecife durante 45 minutos.'),
+(5,3,'1 hour free time on Isla Mujeres for shopping and exploring.','1 hora de tiempo libre en Isla Mujeres para compras y exploracion.'),
+(5,4,'Buffet lunch with pasta, fish, chicken, beef, salads, rice, beans, and dessert.','Almuerzo buffet con pasta, pescado, pollo, carne, ensaladas, arroz, frijoles y postre.'),
+(5,5,'Enjoy Parayo beach club: relax in hammocks and lounge chairs, swim in the ocean, or interact with the shark area.','Disfruta el club de playa Parayo: relajate en hamacas y camastros, nada en el mar o interactua con el area de tiburon.'),
+(5,6,'On the way back to Cancun, the boat anchors so everyone can try the spinnaker (weather permitting), with open bar on board.','En el regreso a Cancun, la embarcacion ancla para probar el spinnaker (si el clima lo permite), con barra libre a bordo.'),
+(5,7,'Arrive back at the marina between 5:00 PM and 5:30 PM.','Regreso a la marina entre 5:00 PM y 5:30 PM.');
+
 -- Addons Tour 1
 INSERT INTO addons(tour_id,slug,title_en,title_es,desc_en,desc_es,price_per_person)VALUES
 (1,'reef-snorkel','Reef Snorkeling in Puerto Morelos','Snorkel en Arrecife en Puerto Morelos','Our favorite spot to snorkel on the coral reef. Includes gear and guide.','Nuestro lugar favorito para hacer snorkel en el arrecife de coral. Incluye equipo y guia.',30),
@@ -164,6 +213,10 @@ INSERT INTO addons(tour_id,slug,title_en,title_es,desc_en,desc_es,price_per_pers
 -- Addons Tour 2
 INSERT INTO addons(tour_id,slug,title_en,title_es,desc_en,desc_es,price_per_person)VALUES
 (2,'reef-snorkel-pm','Reef Snorkeling in Puerto Morelos','Snorkel en Arrecife en Puerto Morelos','Our favorite spot to snorkel on the coral reef. Includes gear and guide.','Nuestro lugar favorito para hacer snorkel en el arrecife de coral. Incluye equipo y guia.',30);
+
+-- Addons Tour 5
+INSERT INTO addons(tour_id,slug,title_en,title_es,desc_en,desc_es,price_per_person)VALUES
+(5,'riviera_maya_roundtrip_transport','Round-Trip Transportation from Riviera Maya','Transporte Redondo desde Riviera Maya','Optional add-on for round-trip transportation between Riviera Maya and the marina.','Adicional opcional de transporte redondo entre Riviera Maya y la marina.',15);
 
 -- Packing items Tour 1
 INSERT INTO packing_items(tour_id,text_en,text_es,icon)VALUES
@@ -192,6 +245,15 @@ INSERT INTO packing_items(tour_id,text_en,text_es,icon)VALUES
 (4,'Camera','Camara','camera'),
 (4,'Towel and swimsuit','Toalla y traje de bano','swim'),
 (4,'Extra cash for souvenirs and tips','Dinero extra para recuerdos y propinas','water');
+
+-- Packing items Tour 5
+INSERT INTO packing_items(tour_id,text_en,text_es,icon)VALUES
+(5,'Sunscreen and SPF lip balm','Bloqueador solar y balsamo labial con SPF','sun'),
+(5,'Sunglasses','Lentes de sol','glasses'),
+(5,'Swimsuit and towel','Traje de bano y toalla','swim'),
+(5,'Comfortable walking clothes for Isla Mujeres','Ropa comoda para caminar en Isla Mujeres','sun'),
+(5,'Camera','Camara','camera'),
+(5,'Hat','Sombrero','hat');
 
 -- Hotels
 INSERT INTO hotels(name,zone)VALUES
