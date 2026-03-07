@@ -37,7 +37,7 @@
                         <path d="M1 1l4 4 4-4" />
                     </svg>
                 </div>
-                <select id="language-selector" onchange="changeLanguage(this.value)">
+                <select id="language-selector">
                     <option value="es" selected>Español</option>
                     <option value="en">English</option>
                 </select>
@@ -70,10 +70,17 @@
         </div>
     </header>
     <section class="catalog-hero" id="catalog-hero">
+        <div class="catalog-hero-bg active" id="catalog-hero-bg-a"></div>
+        <div class="catalog-hero-bg" id="catalog-hero-bg-b"></div>
         <div class="catalog-hero-content">
             <h2 data-es="Tours privados y experiencias exclusivas en la Riviera Maya"
                 data-en="Private tours and exclusive experiences in the Riviera Maya">Private tours and exclusive
                 experiences in the Riviera Maya</h2>
+            <p data-es="Reserva en minutos con atención personalizada y confirmación rápida."
+                data-en="Book in minutes with personalized support and fast confirmation.">
+                Book in minutes with personalized support and fast confirmation.
+            </p>
+            <button type="button" class="hero-cta-btn" onclick="scrollToTopTours()" data-i18n="heroCta">Explore Tours</button>
         </div>
     </section>
     <main id="main-view">
@@ -191,14 +198,18 @@
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </div>
-                <div class="order-summary-content" id="order-summary-content">
-                    <div class="cart-items" id="cart-items"></div>
-                    <div class="cart-total" id="cart-total-section" style="display:none;">
-                        <span class="cart-total-label" data-es="Total a Pagar:" data-en="Total to Pay:">Total to
-                            Pay:</span>
-                        <span class="cart-total-amount" id="cart-total-amount">$0</span>
+                    <div class="order-summary-content" id="order-summary-content">
+                        <div class="cart-items" id="cart-items"></div>
+                        <div class="cart-total" id="cart-total-section" style="display:none;">
+                            <span class="cart-total-label" data-es="Total a Pagar:" data-en="Total to Pay:">Total to
+                                Pay:</span>
+                            <span class="cart-total-amount" id="cart-total-amount">$0</span>
+                        </div>
                     </div>
-                </div>
+                    <div class="mobile-summary-bar" id="mobile-summary-bar">
+                        <span class="mobile-summary-label" id="mobile-summary-label" data-i18n="totalToPay">Total to pay</span>
+                        <span class="mobile-summary-total" id="mobile-summary-total">$0 USD</span>
+                    </div>
 
                 <div class="trust-badges" id="trust-badges">
                     <div class="trust-badge">
@@ -229,7 +240,7 @@
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                         </svg>
-                        <span data-es="Datos para tu Reservacion" data-en="Reservation Details">Reservation
+                        <span data-es="Datos para tu Reservación" data-en="Reservation Details">Reservation
                             Details</span>
                     </h4>
                     <form id="booking-form">
@@ -305,7 +316,7 @@
                                 data-placeholder-en="Hotel name or address" placeholder="Hotel name or address">
                             <p class="hotel-hint"
                                 data-es="Si tu hotel no aparece en la lista, puedes escribir el nombre completo manualmente."
-                                data-en="Si tu hotel no aparece en la lista, puedes escribir el nombre completo manualmente.">
+                                data-en="If your hotel does not appear in the list, you can type the full name manually.">
                                 If your hotel doesn't appear in the list, you can type the full name manually.</p>
                         </div>
                         <div class="form-group">
@@ -341,6 +352,7 @@
                         <div class="email-preview-content" id="email-preview-content"></div>
                     </div>
                 </div>
+                <div class="booking-status" id="booking-status" aria-live="polite"></div>
                 <div class="form-buttons" id="cart-buttons">
                     <button class="btn btn-secondary" onclick="closeCartModal()"><span data-es="Seguir Comprando"
                             data-en="Continue Shopping">Continue Shopping</span></button>
@@ -354,7 +366,7 @@
                             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                             <polyline points="22,6 12,13 2,6" />
                         </svg>
-                        <span data-es="Enviar Reservacion" data-en="Send Booking">Send Booking</span>
+                        <span data-es="Enviar Reservación" data-en="Send Booking">Send Booking</span>
                     </button>
                     <button class="btn btn-whatsapp" id="send-whatsapp-btn" onclick="sendToWhatsApp()"
                         style="display:none;">
@@ -798,21 +810,21 @@
                                     <div class="form-group">
                                         <label>Hero (Principal) *</label>
                                         <div class="file-upload-wrapper">
-                                            <input type="file" id="admin-img-hero" name="1.jpg" accept="image/*"
+                                            <input type="file" id="admin-img-hero" name="1.jpg" accept="image/jpeg,image/jpg"
                                                 required class="file-input">
                                         </div>
                                     </div>
                                     <div class="form-group" style="margin-top: 16px;">
                                         <label>Card (Catálogo) *</label>
                                         <div class="file-upload-wrapper">
-                                            <input type="file" id="admin-img-card" name="2.jpg" accept="image/*"
+                                            <input type="file" id="admin-img-card" name="2.jpg" accept="image/jpeg,image/jpg"
                                                 required class="file-input">
                                         </div>
                                     </div>
                                     <div class="form-group" style="margin-top: 16px;">
                                         <label>Galería Múltiple *</label>
                                         <div class="file-upload-wrapper">
-                                            <input type="file" id="admin-img-gallery" accept="image/*" multiple required
+                                            <input type="file" id="admin-img-gallery" accept="image/jpeg,image/jpg" multiple required
                                                 class="file-input">
                                         </div>
                                     </div>

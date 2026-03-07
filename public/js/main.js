@@ -1,429 +1,1296 @@
-let state = { language: 'es', currentView: 'catalog', currentTour: null, adults: 0, children: 0, addOns: {}, cart: [], checkoutMode: false };
-let TOURS = {}, HOTELS = [], CONFIG = { emailjs: {}, whatsapp: {} };
-document.addEventListener('DOMContentLoaded', async function () {
-    try { loadState(); } catch (e) { console.warn('loadState error', e); }
-    try { initLanguage(); } catch (e) { console.warn('initLanguage error', e); }
-    try { initDatePicker(); } catch (e) { console.warn('initDatePicker error', e); }
-    try { initTimePicker(); } catch (e) { console.warn('initTimePicker error', e); }
-    try {
-        const [tours, hotels, config] = await Promise.all([fetch('/api/tours').then(r => r.json()), fetch('/api/hotels').then(r => r.json()), fetch('/api/config').then(r => r.json())]);
-        tours.forEach(t => { TOURS[t.id] = t }); HOTELS = hotels; CONFIG = config;
-        try { if (CONFIG.emailjs && CONFIG.emailjs.publicKey && typeof emailjs !== 'undefined') emailjs.init(CONFIG.emailjs.publicKey); } catch (e2) { console.warn('EmailJS init error', e2); }
-    } catch (e) { console.error('API error', e) }
-    try { initHotelAutocomplete(); } catch (e) { console.warn('initHotelAutocomplete error', e); }
-    updateCartUI(); window.addEventListener('hashchange', handleHash); handleHash();
-});
-function handleHash() { var hash = window.location.hash.slice(1); if (hash === 'about') showAbout(); else if (hash === 'admin') showAdminLogin(); else if (hash === 'dashboard' && sessionStorage.getItem('admin_auth')) showAdminDashboard(); else if (hash && TOURS[hash]) showDetail(hash); else showCatalog(); }
-var SVG = { check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>', cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>', cart: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>', warning: '<svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>', arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>', sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/></svg>', glasses: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="15" r="4"/><circle cx="18" cy="15" r="4"/><path d="M10 15h4"/></svg>', hat: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20"/><path d="M4 18v-4a8 8 0 0 1 16 0v4"/></svg>', water: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l5 10a5 5 0 0 1-10 0z"/></svg>', camera: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>', swim: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/><circle cx="12" cy="7" r="3"/></svg>', back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>' };
-function navigateTo(view, tourId) { if (view === 'catalog') window.location.hash = ''; else if (view === 'detail' && tourId) window.location.hash = tourId; else if (view === 'about') window.location.hash = 'about'; else if (view === 'admin') window.location.hash = 'admin'; else if (view === 'dashboard') window.location.hash = 'dashboard'; }
-function hideAllViews() { document.getElementById('catalog-hero').style.display = 'none'; document.getElementById('main-view').style.display = 'none'; document.getElementById('detail-view').style.display = 'none'; document.getElementById('about-view').style.display = 'none'; document.getElementById('admin-login-view').style.display = 'none'; document.getElementById('admin-dashboard-view').style.display = 'none'; document.getElementById('testimonials').style.display = 'none'; var fb = document.getElementById('floating-back'); if (fb) fb.remove(); }
-function showCatalog() { state.currentView = 'catalog'; state.currentTour = null; hideAllViews(); document.getElementById('catalog-hero').style.display = ''; document.getElementById('main-view').style.display = ''; document.getElementById('testimonials').style.display = ''; renderCatalog(); window.scrollTo(0, 0); }
-function showDetail(tourId) { var tour = TOURS[tourId]; if (!tour) return showCatalog(); state.currentView = 'detail'; state.currentTour = tourId; state.adults = 0; state.children = 0; state.addOns = {}; hideAllViews(); document.getElementById('detail-view').style.display = ''; renderTourDetail(tour); window.scrollTo(0, 0); }
-function showAbout() { state.currentView = 'about'; hideAllViews(); document.getElementById('about-view').style.display = ''; applyLanguage(); window.scrollTo(0, 0); }
-function showAdminLogin() { state.currentView = 'admin'; hideAllViews(); document.getElementById('admin-login-view').style.display = ''; document.getElementById('admin-login-error').style.display = 'none'; applyLanguage(); window.scrollTo(0, 0); }
-function showAdminDashboard() { state.currentView = 'dashboard'; hideAllViews(); document.getElementById('admin-dashboard-view').style.display = ''; applyLanguage(); window.scrollTo(0, 0); }
-function handleAdminLogin(e) { e.preventDefault(); var u = document.getElementById('admin-username').value, p = document.getElementById('admin-password').value; if (u === 'hibraim' && p === 'hibraim999') { sessionStorage.setItem('admin_auth', '1'); document.getElementById('admin-login-form').reset(); navigateTo('dashboard'); } else { document.getElementById('admin-login-error').style.display = 'flex'; setTimeout(function () { document.getElementById('admin-login-error').style.display = 'none'; }, 3000); } }
-function adminLogout() { sessionStorage.removeItem('admin_auth'); navigateTo('catalog'); showToast('info', state.language === 'es' ? 'Sesión cerrada' : 'Signed out', ''); }
-function renderCatalog() {
-    var grid = document.getElementById('catalog-grid'), lang = state.language; if (Object.keys(TOURS).length === 0) { grid.innerHTML = '<div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>'; return; }
-    var html = ''; Object.values(TOURS).forEach(function (tour) { html += '<article class="tour-card fade-in" onclick="navigateTo(\'detail\',\'' + tour.id + '\')">' + '<div class="tour-card-image" style="background-image:url(\'' + tour.imageFolder + '/' + tour.card.thumbnail + '.jpg\');"></div>' + '<div class="tour-card-body">' + '<h3 class="tour-card-title" data-es="' + tour.card.title.es + '" data-en="' + tour.card.title.en + '">' + tour.card.title[lang] + '</h3>' + '<p class="tour-card-desc" data-es="' + tour.card.shortDescription.es + '" data-en="' + tour.card.shortDescription.en + '">' + tour.card.shortDescription[lang] + '</p>' + '<div class="tour-card-footer">' + '<span class="tour-card-price">' + (lang === 'es' ? 'Desde' : 'From') + ' $' + tour.card.priceFrom + ' USD</span>' + '<span class="tour-card-cta">' + (lang === 'es' ? 'Ver Detalles' : 'View Details') + ' &rarr;</span>' + '</div></div></article>'; }); grid.innerHTML = html; requestAnimationFrame(() => { document.querySelectorAll('.fade-in').forEach((el, i) => { setTimeout(() => el.classList.add('visible'), i * 100) }) });
-}
-function renderTourDetail(tour) {
-    var c = document.getElementById('detail-view'), lang = state.language, d = tour, ib = d.imageFolder; if (d.addOns && d.addOns.options) d.addOns.options.forEach(function (o) { if (state.addOns[o.id] === undefined) state.addOns[o.id] = false; }); var h = '';
-    h += '<div class="detail-nav"><button class="back-btn" onclick="navigateTo(\'catalog\')">' + SVG.back + ' <span data-es="Volver a Inicio" data-en="Back to Home">' + (lang === 'es' ? 'Volver a Inicio' : 'Back to Home') + '</span></button></div>';
-    h += '<section class="tour-hero" style="background-image:url(\'' + ib + '/' + d.hero.heroImage + '.jpg\')"><div class="tour-hero-overlay"><div class="tour-hero-content"><h2 data-es="' + d.hero.title.es + '" data-en="' + d.hero.title.en + '">' + d.hero.title[lang] + '</h2><h3 data-es="' + d.hero.subtitle.es + '" data-en="' + d.hero.subtitle.en + '">' + d.hero.subtitle[lang] + '</h3></div></div></section>';
-    h += '<section class="tour-section"><div class="section-divider"></div><p class="tour-description-text" data-es="' + d.hero.description.es + '" data-en="' + d.hero.description.en + '">' + d.hero.description[lang] + '</p></section>';
-    var gs = '', gd = ''; d.gallery.images.forEach(function (n, i) { gs += '<div class="gallery-slide" style="background-image:url(\'' + ib + '/' + n + '.jpg\')"></div>'; gd += '<button class="gallery-dot' + (i === 0 ? ' active' : '') + '" onclick="goToGallerySlide(' + i + ')"></button>'; });
-    h += '<section class="tour-gallery"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.gallery.title.es + '" data-en="' + d.gallery.title.en + '">' + d.gallery.title[lang] + '</h2><div style="height:16px"></div><div class="gallery-container"><div class="gallery-slider" id="gallery-slider">' + gs + '</div><button class="gallery-btn prev" onclick="moveGallery(-1)">' + SVG.arrowLeft + '</button><button class="gallery-btn next" onclick="moveGallery(1)">' + SVG.arrowRight + '</button></div><div class="gallery-dots" id="gallery-dots">' + gd + '</div></div></section>';
-    var tr = ''; d.pricing.tiers.forEach(function (t) { tr += '<tr data-adults="' + t.adults + '" onclick="selectTier(' + t.adults + ')"><td>' + t.adults + '</td><td>$' + t.adultPrice + ' USD</td><td>$' + d.pricing.childPriceFlat + ' USD</td></tr>'; });
-    h += '<section class="pricing-section"><div class="tour-section"><div class="section-divider"></div>';
-    h += '<h2 class="section-title" data-es="' + d.pricing.sectionTitle.es + '" data-en="' + d.pricing.sectionTitle.en + '">' + d.pricing.sectionTitle[lang] + '</h2>';
-    h += '<div style="height:8px"></div><p class="pricing-note" data-es="' + d.pricing.pricingNote.es + '" data-en="' + d.pricing.pricingNote.en + '">' + d.pricing.pricingNote[lang] + '</p>';
-    h += '<div class="pricing-table-wrapper"><table class="pricing-table" id="pricing-table"><thead><tr>';
-    h += '<th data-es="' + d.pricing.tableHeader.adults.es + '" data-en="' + d.pricing.tableHeader.adults.en + '">' + d.pricing.tableHeader.adults[lang] + '</th>';
-    h += '<th data-es="' + d.pricing.tableHeader.adultPrice.es + '" data-en="' + d.pricing.tableHeader.adultPrice.en + '">' + d.pricing.tableHeader.adultPrice[lang] + '</th>';
-    h += '<th data-es="' + d.pricing.tableHeader.childPrice.es + '" data-en="' + d.pricing.tableHeader.childPrice.en + '">' + d.pricing.tableHeader.childPrice[lang] + '</th>';
-    h += '</tr></thead><tbody>' + tr + '</tbody></table></div>';
-    h += '<p class="pricing-note" data-es="' + d.pricing.freeChildNote.es + '" data-en="' + d.pricing.freeChildNote.en + '">' + d.pricing.freeChildNote[lang] + '</p>';
-    h += '<p class="pricing-note-highlight" data-es="' + d.pricing.groupNote.es + '" data-en="' + d.pricing.groupNote.en + '">' + d.pricing.groupNote[lang] + '</p>';
-    h += '<div class="booking-configurator"><h3 class="configurator-title" data-es="Configura tu Reservacion" data-en="Configure Your Booking">' + (lang === 'es' ? 'Configura tu Reservacion' : 'Configure Your Booking') + '</h3>';
-    h += '<div class="configurator-row"><div class="configurator-label"><span class="configurator-label-main" data-es="Adultos (13+)" data-en="Adults (13+)">' + (lang === 'es' ? 'Adultos (13+)' : 'Adults (13+)') + '</span><span class="configurator-label-sub" id="adult-price-label">' + (lang === 'es' ? 'Seleccione cantidad' : 'Select quantity') + '</span></div><div class="quantity-selector"><button class="qty-btn" onclick="updateAdults(-1)">-</button><span class="qty-value" id="qty-adults">0</span><button class="qty-btn" onclick="updateAdults(1)">+</button></div></div>';
-    h += '<div class="configurator-row"><div class="configurator-label"><span class="configurator-label-main" data-es="Ninos (5-12)" data-en="Children (5-12)">' + (lang === 'es' ? 'Ninos (5-12)' : 'Children (5-12)') + '</span><span class="configurator-label-sub">$' + d.pricing.childPriceFlat + ' USD ' + (lang === 'es' ? 'por nino' : 'per child') + '</span></div><div class="quantity-selector"><button class="qty-btn" onclick="updateChildren(-1)">-</button><span class="qty-value" id="qty-children">0</span><button class="qty-btn" onclick="updateChildren(1)">+</button></div></div>';
-    h += '<div class="configurator-total"><span class="configurator-total-label">Total:</span><span class="configurator-total-amount" id="configurator-total">$0 USD</span></div>';
-    h += '<button class="add-to-cart-btn" id="btn-add-tour" onclick="addTourToCart()" disabled>' + SVG.cart + ' <span data-es="Agregar al Carrito" data-en="Add to Cart">' + (lang === 'es' ? 'Agregar al Carrito' : 'Add to Cart') + '</span></button>';
-    h += '</div></div></section>';
-    var incl = '', excl = ''; d.includes.items.forEach(function (it) { incl += '<li><span class="check-icon">' + SVG.check + '</span><span data-es="' + it.es + '" data-en="' + it.en + '">' + it[lang] + '</span></li>'; }); d.includes.excludes.forEach(function (it) { excl += '<li><span class="cross-icon">' + SVG.cross + '</span><span data-es="' + it.es + '" data-en="' + it.en + '">' + it[lang] + '</span></li>'; });
-    h += '<section class="includes-excludes-section"><div class="tour-section"><div class="section-divider"></div><div class="includes-grid"><div class="includes-col"><h4 data-es="' + d.includes.sectionTitle.es + '" data-en="' + d.includes.sectionTitle.en + '">' + d.includes.sectionTitle[lang] + '</h4><ul>' + incl + '</ul></div><div class="includes-col"><h4 data-es="' + d.includes.excludesTitle.es + '" data-en="' + d.includes.excludesTitle.en + '">' + d.includes.excludesTitle[lang] + '</h4><ul>' + excl + '</ul></div></div></div></section>';
-    var itin = ''; d.itinerary.steps.forEach(function (s, i) { itin += '<li class="itinerary-item"><span class="itinerary-number">' + (i + 1) + '.</span> <span data-es="' + s.es + '" data-en="' + s.en + '">' + s[lang] + '</span></li>'; });
-    h += '<section class="itinerary-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.itinerary.sectionTitle.es + '" data-en="' + d.itinerary.sectionTitle.en + '">' + d.itinerary.sectionTitle[lang] + '</h2><div style="height:16px"></div><ul class="itinerary-list">' + itin + '</ul><div class="itinerary-warning">' + SVG.warning + ' <span data-es="' + d.itinerary.warning.es + '" data-en="' + d.itinerary.warning.en + '">' + d.itinerary.warning[lang] + '</span></div>';
-    if (d.itinerary.comboNote) { h += '<p class="itinerary-combo" data-es="' + d.itinerary.comboNote.es + '" data-en="' + d.itinerary.comboNote.en + '">' + d.itinerary.comboNote[lang] + '</p>'; }
-    h += '</div></section>';
-    if (d.addOns && d.addOns.options.length > 0) {
-        var ac = ''; d.addOns.options.forEach(function (opt) { var sel = state.addOns[opt.id] ? ' selected' : ''; var selTxt = state.addOns[opt.id] ? (lang === 'es' ? 'Seleccionado' : 'Selected') : (lang === 'es' ? 'Seleccionar' : 'Select'); ac += '<div class="addon-card' + sel + '" id="addon-' + opt.id + '" onclick="toggleAddon(\'' + opt.id + '\')"><div class="addon-content"><div class="addon-header"><span class="addon-title" data-es="' + opt.title.es + '" data-en="' + opt.title.en + '">' + opt.title[lang] + '</span><span class="addon-price">+$' + opt.pricePerPerson + ' USD / ' + (lang === 'es' ? 'persona' : 'person') + '</span></div><p class="addon-description" data-es="' + opt.description.es + '" data-en="' + opt.description.en + '">' + opt.description[lang] + '</p><div class="addon-toggle"><span class="addon-checkbox">' + SVG.check + '</span><span>' + selTxt + '</span></div></div></div>'; });
-        h += '<section class="addons-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.addOns.sectionTitle.es + '" data-en="' + d.addOns.sectionTitle.en + '">' + d.addOns.sectionTitle[lang] + '</h2><div style="height:16px"></div><div class="addons-grid">' + ac + '</div></div></section>';
-    }
-    var pk = ''; d.packingList.items.forEach(function (it) { pk += '<div class="packing-item"><span class="packing-icon">' + (SVG[it.icon] || '') + '</span><span data-es="' + it.es + '" data-en="' + it.en + '">' + it[lang] + '</span></div>'; });
-    h += '<section class="packing-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.packingList.sectionTitle.es + '" data-en="' + d.packingList.sectionTitle.en + '">' + d.packingList.sectionTitle[lang] + '</h2><div style="height:16px"></div><div class="packing-grid">' + pk + '</div></div></section>';
-    h += '<section class="booking-section"><div class="tour-section"><div class="section-divider"></div><h2 class="section-title" data-es="' + d.booking.sectionTitle.es + '" data-en="' + d.booking.sectionTitle.en + '">' + d.booking.sectionTitle[lang] + '</h2><div style="height:16px"></div><p class="booking-text" data-es="' + d.booking.description.es + '" data-en="' + d.booking.description.en + '">' + d.booking.description[lang] + '</p></div></section>';
-    c.innerHTML = h; initGallerySlider(); updateConfigurator();
-    var fb = document.createElement('button'); fb.id = 'floating-back'; fb.className = 'floating-back-btn'; fb.onclick = function () { navigateTo('catalog'); }; fb.innerHTML = SVG.back + ' <span>' + (lang === 'es' ? 'Volver' : 'Back') + '</span>'; document.body.appendChild(fb);
-}
-var galleryState = { current: 0, total: 0 }, galleryAutoSlide;
-function initGallerySlider() { if (!state.currentTour) return; galleryState = { current: 0, total: TOURS[state.currentTour].gallery.images.length }; clearInterval(galleryAutoSlide); galleryAutoSlide = setInterval(function () { moveGallery(1); }, 5000); }
-function goToGallerySlide(i) { galleryState.current = i; var s = document.getElementById('gallery-slider'); if (s) s.style.transform = 'translateX(-' + (i * 100) + '%)'; document.querySelectorAll('.gallery-dot').forEach(function (d, j) { d.classList.toggle('active', j === i); }); }
-function moveGallery(dir) { var n = galleryState.current + dir; if (n < 0) n = galleryState.total - 1; if (n >= galleryState.total) n = 0; goToGallerySlide(n); }
-function getCurrentTour() { return state.currentTour ? TOURS[state.currentTour] : null; }
-function selectTier(a) { state.adults = a; document.getElementById('qty-adults').textContent = a; highlightTier(); updateConfigurator(); }
-function updateAdults(ch) { state.adults = Math.max(0, Math.min(10, state.adults + ch)); document.getElementById('qty-adults').textContent = state.adults; highlightTier(); updateConfigurator(); }
-function updateChildren(ch) { state.children = Math.max(0, Math.min(10, state.children + ch)); document.getElementById('qty-children').textContent = state.children; updateConfigurator(); }
-function highlightTier() { document.querySelectorAll('#pricing-table tbody tr').forEach(function (r) { r.classList.toggle('selected', parseInt(r.dataset.adults) === state.adults); }); }
-function getAdultPrice() { var tour = getCurrentTour(); if (!tour || state.adults === 0) return 0; var tier = tour.pricing.tiers.find(function (t) { return t.adults === state.adults; }); return tier ? tier.adultPrice : 0; }
-function calculateTotal() { var tour = getCurrentTour(); if (!tour) return 0; var total = state.adults * getAdultPrice() + state.children * tour.pricing.childPriceFlat; var persons = state.adults + state.children; if (tour.addOns) tour.addOns.options.forEach(function (o) { if (state.addOns[o.id]) total += o.pricePerPerson * persons; }); return total; }
-function updateConfigurator() { var lang = state.language, ap = getAdultPrice(); var label = document.getElementById('adult-price-label'); if (label) label.textContent = state.adults > 0 ? ('$' + ap + ' USD ' + (lang === 'es' ? 'por adulto' : 'per adult')) : (lang === 'es' ? 'Seleccione cantidad' : 'Select quantity'); var el = document.getElementById('configurator-total'); if (el) el.textContent = '$' + calculateTotal() + ' USD'; var btn = document.getElementById('btn-add-tour'); if (btn) btn.disabled = (state.adults + state.children) === 0; }
-function toggleAddon(id) { state.addOns[id] = !state.addOns[id]; var card = document.getElementById('addon-' + id); if (card) { card.classList.toggle('selected', state.addOns[id]); var tl = card.querySelector('.addon-toggle span:last-child'); if (tl) tl.textContent = state.addOns[id] ? (state.language === 'es' ? 'Seleccionado' : 'Selected') : (state.language === 'es' ? 'Seleccionar' : 'Select'); } updateConfigurator(); }
-function addTourToCart() { var lang = state.language, tour = getCurrentTour(); if (!tour || state.adults + state.children === 0) return; var selectedAddOns = []; if (tour.addOns) tour.addOns.options.forEach(function (o) { if (state.addOns[o.id]) selectedAddOns.push({ id: o.id, name: o.title[lang], pricePerPerson: o.pricePerPerson }); }); state.cart.push({ id: tour.id + '-' + Date.now(), tourId: tour.id, name: tour.hero.title[lang], image: tour.imageFolder + '/1.jpg', adults: state.adults, children: state.children, adultPriceUSD: getAdultPrice(), childPriceUSD: tour.pricing.childPriceFlat, addOns: selectedAddOns, subtotalUSD: calculateTotal() }); state.adults = 0; state.children = 0; Object.keys(state.addOns).forEach(function (k) { state.addOns[k] = false; }); document.getElementById('qty-adults').textContent = '0'; document.getElementById('qty-children').textContent = '0'; highlightTier(); document.querySelectorAll('.addon-card').forEach(function (c) { c.classList.remove('selected'); var tl = c.querySelector('.addon-toggle span:last-child'); if (tl) tl.textContent = lang === 'es' ? 'Seleccionar' : 'Select'; }); updateConfigurator(); saveState(); updateCartUI(); showToast('success', lang === 'es' ? 'Agregado' : 'Added', lang === 'es' ? 'Tour agregado al carrito' : 'Tour added to cart'); var btn = document.getElementById('btn-add-tour'); if (btn) { btn.classList.add('added'); var orig = btn.innerHTML; btn.innerHTML = SVG.check + ' <span>' + (lang === 'es' ? 'Agregado' : 'Added') + '</span>'; setTimeout(function () { btn.classList.remove('added'); btn.innerHTML = orig; changeLanguage(state.language); }, 1500); } }
-function removeFromCart(i) { state.cart.splice(i, 1); saveState(); updateCartUI(); showToast('info', state.language === 'es' ? 'Eliminado' : 'Removed', state.language === 'es' ? 'Tour eliminado del carrito' : 'Tour removed from cart'); }
+let state = {
+    language: 'es',
+    currentView: 'catalog',
+    currentTour: null,
+    adults: 0,
+    children: 0,
+    addOns: {},
+    cart: [],
+    checkoutMode: false
+};
 
-function updateCartTotal() { var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0); var el = document.getElementById('cart-total-amount'); if (el) el.textContent = '$' + t + ' USD'; }
-function loadState() { try { var c = localStorage.getItem('lindotours_cart'), l = localStorage.getItem('lindotours_language'); if (c) state.cart = JSON.parse(c); if (l) state.language = l; } catch (e) { console.error(e); } }
-function saveState() { try { localStorage.setItem('lindotours_cart', JSON.stringify(state.cart)); localStorage.setItem('lindotours_language', state.language); } catch (e) { console.error(e); } }
+let TOURS = {};
+let HOTELS = [];
+let CONFIG = { emailjs: {}, whatsapp: {} };
+
+let galleryState = { current: 0, total: 0 };
+let galleryAutoSlide = null;
+let heroRotationTimer = null;
+let heroIndex = 0;
+let revealObserver = null;
+let bookingSubmissionInProgress = false;
+
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const I18N = {
+    es: {
+        from: 'Desde',
+        viewDetails: 'Ver Detalles',
+        backHome: 'Volver a Inicio',
+        back: 'Volver',
+        configureBooking: 'Configura tu Reservación',
+        adultsLabel: 'Adultos (13+)',
+        childrenLabel: 'Niños (5-12)',
+        selectQuantity: 'Selecciona cantidad',
+        perAdult: 'por adulto',
+        perChild: 'por niño',
+        addToCart: 'Agregar al Carrito',
+        added: 'Agregado',
+        select: 'Seleccionar',
+        selected: 'Seleccionado',
+        person: 'persona',
+        total: 'Total',
+        removed: 'Eliminado',
+        removedMessage: 'Tour eliminado del carrito',
+        addedMessage: 'Tour agregado al carrito',
+        signedOut: 'Sesión cerrada',
+        invalidCredentials: 'Credenciales incorrectas',
+        adminAuthRequired: 'Inicia sesión para usar el panel de administración',
+        sessionExpiredTitle: 'Sesión expirada',
+        sessionExpiredMessage: 'Vuelve a iniciar sesión para continuar',
+        cartEmpty: 'Tu carrito está vacío',
+        adultUnit: 'adulto(s)',
+        childUnit: 'niño(s)',
+        maps: 'Mapa',
+        mapsTitle: 'Ver en Google Maps',
+        newBooking: '*NUEVA RESERVACIÓN*',
+        tours: '*Tours:*',
+        bookingSummary: 'Resumen de Reservación',
+        name: 'Nombre',
+        email: 'Email',
+        phone: 'Teléfono',
+        tourDate: 'Fecha del Tour',
+        pickupTime: 'Hora de Recogida',
+        hotel: 'Hotel',
+        notSpecified: 'No especificado',
+        noComments: 'Sin comentarios',
+        sendingBooking: 'Enviando reservación...',
+        bookingSaved: 'Reservación guardada',
+        bookingFailed: 'No se pudo enviar la reservación',
+        bookingSentTitle: 'Reservación Enviada',
+        bookingSentMessage: 'Te contactaremos pronto para confirmar.',
+        bookingSavedForWhatsApp: 'Reservación guardada. Abriendo WhatsApp...',
+        whatsappErrorTitle: 'Error en envío',
+        whatsappErrorMessage: 'No se pudo guardar la reservación antes de abrir WhatsApp.',
+        emailFallbackError: 'Error. Usa WhatsApp.',
+        heroCta: 'Explorar Tours',
+        bookingStatusIdle: '',
+        bookingStatusLoading: 'Procesando y guardando tu reservación...',
+        bookingStatusSuccess: 'Reservación enviada con éxito.',
+        bookingStatusError: 'Ocurrió un error. Intenta nuevamente.',
+        onlyJpgError: 'Solo se permiten imágenes JPG/JPEG en hero, card y galería.',
+        invalidSlug: 'El slug del tour no es válido.',
+        tourSaved: 'Tour guardado correctamente',
+        saveError: 'No se pudo guardar el tour',
+        totalToPay: 'Total a pagar'
+    },
+    en: {
+        from: 'From',
+        viewDetails: 'View Details',
+        backHome: 'Back to Home',
+        back: 'Back',
+        configureBooking: 'Configure Your Booking',
+        adultsLabel: 'Adults (13+)',
+        childrenLabel: 'Children (5-12)',
+        selectQuantity: 'Select quantity',
+        perAdult: 'per adult',
+        perChild: 'per child',
+        addToCart: 'Add to Cart',
+        added: 'Added',
+        select: 'Select',
+        selected: 'Selected',
+        person: 'person',
+        total: 'Total',
+        removed: 'Removed',
+        removedMessage: 'Tour removed from cart',
+        addedMessage: 'Tour added to cart',
+        signedOut: 'Signed out',
+        invalidCredentials: 'Invalid credentials',
+        adminAuthRequired: 'Please sign in to use the admin dashboard',
+        sessionExpiredTitle: 'Session expired',
+        sessionExpiredMessage: 'Sign in again to continue',
+        cartEmpty: 'Your cart is empty',
+        adultUnit: 'adult(s)',
+        childUnit: 'child(ren)',
+        maps: 'Maps',
+        mapsTitle: 'Open in Google Maps',
+        newBooking: '*NEW BOOKING*',
+        tours: '*Tours:*',
+        bookingSummary: 'Booking Summary',
+        name: 'Name',
+        email: 'Email',
+        phone: 'Phone',
+        tourDate: 'Tour Date',
+        pickupTime: 'Pickup Time',
+        hotel: 'Hotel',
+        notSpecified: 'Not specified',
+        noComments: 'No comments',
+        sendingBooking: 'Sending booking...',
+        bookingSaved: 'Booking saved',
+        bookingFailed: 'Booking could not be sent',
+        bookingSentTitle: 'Booking Sent',
+        bookingSentMessage: 'We will contact you soon to confirm.',
+        bookingSavedForWhatsApp: 'Booking saved. Opening WhatsApp...',
+        whatsappErrorTitle: 'Send error',
+        whatsappErrorMessage: 'Booking could not be saved before opening WhatsApp.',
+        emailFallbackError: 'Error. Use WhatsApp.',
+        heroCta: 'Explore Tours',
+        bookingStatusIdle: '',
+        bookingStatusLoading: 'Processing and saving your booking...',
+        bookingStatusSuccess: 'Booking sent successfully.',
+        bookingStatusError: 'An error occurred. Please try again.',
+        onlyJpgError: 'Only JPG/JPEG images are allowed for hero, card, and gallery.',
+        invalidSlug: 'The tour slug is invalid.',
+        tourSaved: 'Tour saved successfully',
+        saveError: 'Tour could not be saved',
+        totalToPay: 'Total to pay'
+    }
+};
+
+var SVG = {
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
+    cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    cart: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>',
+    warning: '<svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>',
+    arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>',
+    sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/></svg>',
+    glasses: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="15" r="4"/><circle cx="18" cy="15" r="4"/><path d="M10 15h4"/></svg>',
+    hat: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20"/><path d="M4 18v-4a8 8 0 0 1 16 0v4"/></svg>',
+    water: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l5 10a5 5 0 0 1-10 0z"/></svg>',
+    camera: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+    swim: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/><circle cx="12" cy="7" r="3"/></svg>',
+    back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>'
+};
+
+function t(key) {
+    var dict = I18N[state.language] || I18N.es;
+    return dict[key] || key;
+}
+
+function normalizeLanguage(lang) {
+    return lang === 'en' ? 'en' : 'es';
+}
+
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeAttr(value) {
+    return escapeHtml(value);
+}
+
+function safeText(value) {
+    return String(value == null ? '' : value);
+}
+
+function safeInt(value, fallback) {
+    var n = Number(value);
+    return Number.isFinite(n) ? Math.round(n) : fallback;
+}
+
+function safePathSegment(segment) {
+    return encodeURIComponent(String(segment || '').replace(/\\/g, '/'));
+}
+
+function encodePath(pathValue) {
+    return String(pathValue || '')
+        .split('/')
+        .filter(function (segment) { return segment.length > 0; })
+        .map(safePathSegment)
+        .join('/');
+}
+
+function buildImageUrl(folder, imageRef) {
+    var safeFolder = encodePath(folder);
+    var ref = String(imageRef == null ? '' : imageRef).trim();
+    if (/^\d+$/.test(ref)) {
+        return safeFolder + '/' + ref + '.jpg';
+    }
+    return safeFolder + '/' + safePathSegment(ref);
+}
+
+function sanitizeImageUrl(url) {
+    return String(url || '').replace(/[^a-zA-Z0-9/_%.-]/g, '');
+}
+
+function getLocalized(localized, lang) {
+    if (!localized || typeof localized !== 'object') return safeText(localized);
+    if (lang === 'en') return safeText(localized.en || localized.es || '');
+    return safeText(localized.es || localized.en || '');
+}
+
+function getLocalizedPack(localized, lang) {
+    return {
+        es: escapeAttr(getLocalized(localized, 'es')),
+        en: escapeAttr(getLocalized(localized, 'en')),
+        text: escapeHtml(getLocalized(localized, lang))
+    };
+}
+
+function cssEscapeValue(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+        return window.CSS.escape(String(value));
+    }
+    return String(value).replace(/(["\\])/g, '\\$1');
+}
+
+function sanitizeSlugClient(input) {
+    return String(input || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9-_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
+function getAdminToken() {
+    return sessionStorage.getItem('admin_token') || '';
+}
+
+function clearAdminSession() {
+    sessionStorage.removeItem('admin_token');
+    sessionStorage.removeItem('admin_expires_at');
+    sessionStorage.removeItem('admin_auth');
+}
+
+function isAdminLoggedIn() {
+    return Boolean(getAdminToken());
+}
+
+async function adminFetch(url, options) {
+    var token = getAdminToken();
+    if (!token) {
+        throw new Error(t('adminAuthRequired'));
+    }
+
+    var init = options || {};
+    var headers = new Headers(init.headers || {});
+    headers.set('Authorization', 'Bearer ' + token);
+
+    var response = await fetch(url, Object.assign({}, init, { headers: headers }));
+    if (response.status === 401) {
+        clearAdminSession();
+        navigateTo('admin');
+        showToast('error', t('sessionExpiredTitle'), t('sessionExpiredMessage'));
+        throw new Error(t('sessionExpiredMessage'));
+    }
+    return response;
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
+
+async function initApp() {
+    try {
+        loadState();
+    } catch (e) {
+        console.warn('loadState error', e);
+    }
+
+    try {
+        initLanguage();
+    } catch (e2) {
+        console.warn('initLanguage error', e2);
+    }
+
+    try {
+        initDatePicker();
+    } catch (e3) {
+        console.warn('initDatePicker error', e3);
+    }
+
+    try {
+        initTimePicker();
+    } catch (e4) {
+        console.warn('initTimePicker error', e4);
+    }
+
+    try {
+        initCatalogHero();
+    } catch (e5) {
+        console.warn('initCatalogHero error', e5);
+    }
+
+    try {
+        var data = await Promise.all([
+            fetch('/api/tours').then(function (r) { return r.json(); }),
+            fetch('/api/hotels').then(function (r) { return r.json(); }),
+            fetch('/api/config').then(function (r) { return r.json(); })
+        ]);
+
+        var tours = data[0];
+        var hotels = data[1];
+        var config = data[2];
+
+        TOURS = {};
+        tours.forEach(function (tour) {
+            TOURS[tour.id] = tour;
+        });
+        HOTELS = hotels;
+        CONFIG = config;
+
+        if (CONFIG.emailjs && CONFIG.emailjs.publicKey && typeof emailjs !== 'undefined') {
+            emailjs.init(CONFIG.emailjs.publicKey);
+        }
+    } catch (e6) {
+        console.error('API error', e6);
+    }
+
+    try {
+        initHotelAutocomplete();
+    } catch (e7) {
+        console.warn('initHotelAutocomplete error', e7);
+    }
+
+    initRevealObserver();
+    bindBookingPreviewListeners();
+
+    var modal = document.getElementById('cart-modal');
+    if (modal) {
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeCartModal();
+        });
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeCartModal();
+    });
+
+    window.addEventListener('hashchange', handleHash);
+
+    updateCartUI();
+    setBookingStatus('idle');
+    handleHash();
+}
+
+function handleHash() {
+    var hash = window.location.hash.slice(1);
+
+    if (hash === 'about') {
+        showAbout();
+        return;
+    }
+
+    if (hash === 'admin') {
+        showAdminLogin();
+        return;
+    }
+
+    if (hash === 'dashboard') {
+        if (isAdminLoggedIn()) {
+            showAdminDashboard();
+        } else {
+            navigateTo('admin');
+        }
+        return;
+    }
+
+    if (hash && TOURS[hash]) {
+        showDetail(hash);
+        return;
+    }
+
+    showCatalog();
+}
+
+function navigateTo(view, tourId) {
+    if (view === 'catalog') window.location.hash = '';
+    else if (view === 'detail' && tourId) window.location.hash = tourId;
+    else if (view === 'about') window.location.hash = 'about';
+    else if (view === 'admin') window.location.hash = 'admin';
+    else if (view === 'dashboard') window.location.hash = 'dashboard';
+}
+
+function hideAllViews() {
+    stopGallerySlider();
+
+    var catalogHero = document.getElementById('catalog-hero');
+    var mainView = document.getElementById('main-view');
+    var detailView = document.getElementById('detail-view');
+    var aboutView = document.getElementById('about-view');
+    var adminLoginView = document.getElementById('admin-login-view');
+    var adminDashboardView = document.getElementById('admin-dashboard-view');
+    var testimonials = document.getElementById('testimonials');
+
+    if (catalogHero) catalogHero.style.display = 'none';
+    if (mainView) mainView.style.display = 'none';
+    if (detailView) detailView.style.display = 'none';
+    if (aboutView) aboutView.style.display = 'none';
+    if (adminLoginView) adminLoginView.style.display = 'none';
+    if (adminDashboardView) adminDashboardView.style.display = 'none';
+    if (testimonials) testimonials.style.display = 'none';
+
+    var floatingBack = document.getElementById('floating-back');
+    if (floatingBack) floatingBack.remove();
+}
+
+function showCatalog() {
+    state.currentView = 'catalog';
+    state.currentTour = null;
+    hideAllViews();
+
+    document.getElementById('catalog-hero').style.display = '';
+    document.getElementById('main-view').style.display = '';
+    document.getElementById('testimonials').style.display = '';
+
+    renderCatalog();
+    applyLanguage({ rerender: false, persist: false });
+
+    window.scrollTo(0, 0);
+}
+
+function showDetail(tourId) {
+    var tour = TOURS[tourId];
+    if (!tour) {
+        showCatalog();
+        return;
+    }
+
+    state.currentView = 'detail';
+    state.currentTour = tourId;
+    state.adults = 0;
+    state.children = 0;
+    state.addOns = {};
+
+    hideAllViews();
+    document.getElementById('detail-view').style.display = '';
+    renderTourDetail(tour);
+
+    window.scrollTo(0, 0);
+}
+
+function showAbout() {
+    state.currentView = 'about';
+    hideAllViews();
+    document.getElementById('about-view').style.display = '';
+    applyLanguage({ rerender: false, persist: false });
+    window.scrollTo(0, 0);
+}
+
+function showAdminLogin() {
+    state.currentView = 'admin';
+    hideAllViews();
+    document.getElementById('admin-login-view').style.display = '';
+    document.getElementById('admin-login-error').style.display = 'none';
+    applyLanguage({ rerender: false, persist: false });
+    window.scrollTo(0, 0);
+}
+
+function showAdminDashboard() {
+    if (!isAdminLoggedIn()) {
+        navigateTo('admin');
+        return;
+    }
+
+    state.currentView = 'dashboard';
+    hideAllViews();
+    document.getElementById('admin-dashboard-view').style.display = '';
+    applyLanguage({ rerender: false, persist: false });
+    window.scrollTo(0, 0);
+}
+
+async function handleAdminLogin(e) {
+    e.preventDefault();
+
+    var username = document.getElementById('admin-username').value.trim();
+    var password = document.getElementById('admin-password').value.trim();
+    var errorEl = document.getElementById('admin-login-error');
+    var submitBtn = document.querySelector('.admin-login-submit');
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+    }
+
+    try {
+        var response = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, password: password })
+        });
+
+        if (!response.ok) {
+            throw new Error(t('invalidCredentials'));
+        }
+
+        var result = await response.json();
+        sessionStorage.setItem('admin_token', result.token);
+        sessionStorage.setItem('admin_expires_at', String(result.expiresAt || ''));
+
+        document.getElementById('admin-login-form').reset();
+        errorEl.style.display = 'none';
+        navigateTo('dashboard');
+    } catch (err) {
+        console.error(err);
+        errorEl.style.display = 'flex';
+        errorEl.querySelector('span').textContent = t('invalidCredentials');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+    }
+}
+
+async function adminLogout() {
+    try {
+        await adminFetch('/api/admin/logout', { method: 'POST' });
+    } catch (_) {
+        // Session may already be expired.
+    }
+
+    clearAdminSession();
+    navigateTo('catalog');
+    showToast('info', t('signedOut'), '');
+}
+
 function initLanguage() {
-    var sel = document.getElementById('language-selector');
-    sel.value = state.language;
-    changeLanguage(state.language);
-    sel.addEventListener('change', function (e) {
-        state.language = e.target.value;
-        changeLanguage(state.language);
-        saveState();
-        if (state.currentView === 'catalog') renderCatalog();
-        else if (state.currentTour) renderTourDetail(TOURS[state.currentTour]);
+    var selector = document.getElementById('language-selector');
+    if (!selector) return;
+
+    selector.value = normalizeLanguage(state.language);
+    selector.addEventListener('change', function (e) {
+        changeLanguage(e.target.value, { rerender: true, persist: true });
     });
+
     document.addEventListener('click', function (e) {
-        var selector = document.getElementById('language-selector-container');
-        if (selector && !selector.contains(e.target)) selector.classList.remove('open');
+        var wrapper = document.getElementById('language-selector-container');
+        if (wrapper && !wrapper.contains(e.target)) {
+            wrapper.classList.remove('open');
+        }
     });
+
+    applyLanguage({ rerender: false, persist: false });
 }
 
 function toggleLanguageDropdown() {
     var selector = document.getElementById('language-selector-container');
+    if (!selector) return;
     selector.classList.toggle('open');
 }
 
-function applyLanguage() { changeLanguage(state.language); }
+function applyLanguage(options) {
+    changeLanguage(state.language, options || { rerender: false, persist: false });
+}
 
-function changeLanguage(lang) {
-    document.querySelectorAll('[data-es]').forEach(function (el) {
-        el.textContent = el.getAttribute('data-' + lang);
-    });
-    document.querySelectorAll('[data-placeholder-es]').forEach(function (el) {
-        el.setAttribute('placeholder', el.getAttribute('data-placeholder-' + lang));
-    });
-    document.documentElement.lang = lang;
-    if (window.tourDatePicker) window.tourDatePicker.set('locale', lang === 'es' ? 'es' : 'default');
+function changeLanguage(lang, options) {
+    var opts = Object.assign({ rerender: true, persist: true }, options || {});
+    state.language = normalizeLanguage(lang);
+
+    if (opts.persist) saveState();
+
+    var selector = document.getElementById('language-selector');
+    if (selector) selector.value = state.language;
+
     var flag = document.getElementById('lang-flag');
     var text = document.getElementById('lang-text');
-    if (flag) flag.src = 'imagenes/flags/' + (lang === 'es' ? 'es' : 'us') + '.jpg';
-    if (text) text.textContent = lang === 'es' ? 'Español' : 'English';
+    if (flag) flag.src = 'imagenes/flags/' + (state.language === 'es' ? 'es' : 'us') + '.jpg';
+    if (text) text.textContent = state.language === 'es' ? 'Español' : 'English';
+
     document.querySelectorAll('.selector-option').forEach(function (opt) {
-        opt.classList.toggle('active', opt.dataset.lang === lang);
+        opt.classList.toggle('active', opt.dataset.lang === state.language);
     });
-    var hotelHint = document.querySelector('.hotel-hint');
-    if (hotelHint) hotelHint.textContent = hotelHint.getAttribute('data-' + lang);
-    if (state.currentView === 'catalog') renderCatalog();
-    else if (state.currentTour) renderTourDetail(TOURS[state.currentTour]);
-}
-function openCartModal() { document.getElementById('cart-modal').classList.add('active'); document.body.style.overflow = 'hidden'; updateCartUI(); }
-document.getElementById('cart-modal').addEventListener('click', function (e) { if (e.target === this) closeCartModal(); });
-function initDatePicker() { window.tourDatePicker = flatpickr('#tour-date', { locale: state.language === 'es' ? 'es' : 'default', minDate: 'today', dateFormat: 'd/m/Y', disableMobile: false, allowInput: false }); }
-function showToast(type, title, message) { var c = document.getElementById('toast-container'), icons = { success: SVG.check, error: SVG.cross, info: SVG.cart }; var t = document.createElement('div'); t.className = 'toast ' + type; t.innerHTML = '<span class="toast-icon">' + icons[type] + '</span><div class="toast-content"><div class="toast-title">' + title + '</div><div class="toast-message">' + message + '</div></div>'; c.appendChild(t); setTimeout(function () { t.style.animation = 'toastSlide 0.25s ease reverse'; setTimeout(function () { t.remove(); }, 250); }, 4000); }
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCartModal(); });
-var hotelAC = { wrap: null, list: null, idx: -1, open: false };
-function initHotelAutocomplete() {
-    var inp = document.getElementById('customer-hotel'); if (!inp || hotelAC.wrap) return;
-    var w = document.createElement('div'); w.className = 'ac-wrap';
-    inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
-    var ul = document.createElement('ul'); ul.className = 'ac-list'; w.appendChild(ul);
-    hotelAC.wrap = w; hotelAC.list = ul; inp.setAttribute('autocomplete', 'off');
-    inp.addEventListener('input', function () { filterHotels(this.value); hideMapBtn(); });
-    inp.addEventListener('focus', function () { if (this.value.length >= 2) filterHotels(this.value); });
-    inp.addEventListener('blur', function () { var v = this.value.trim(); if (v.length > 2) { setTimeout(function () { showMapBtn(v); }, 300); } });
-    inp.addEventListener('keydown', function (e) {
-        var items = ul.querySelectorAll('.ac-item');
-        if (e.key === 'ArrowDown') { e.preventDefault(); hotelAC.idx = Math.min(hotelAC.idx + 1, items.length - 1); highlightAC(items); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); hotelAC.idx = Math.max(hotelAC.idx - 1, 0); highlightAC(items); }
-        else if (e.key === 'Enter' && hotelAC.open && hotelAC.idx >= 0) { e.preventDefault(); items[hotelAC.idx].click(); }
-        else if (e.key === 'Escape') { closeAC(); }
-    });
-    document.addEventListener('click', function (e) { if (!w.contains(e.target)) closeAC(); });
-}
-function filterHotels(q) {
-    var ul = hotelAC.list; hotelAC.idx = -1;
-    if (q.length < 2) { closeAC(); return; }
-    var ql = q.toLowerCase(), results = HOTELS.filter(function (h) { return h.n.toLowerCase().indexOf(ql) !== -1 || h.z.toLowerCase().indexOf(ql) !== -1; }).slice(0, 12);
-    if (results.length === 0) { closeAC(); return; }
-    var html = ''; results.forEach(function (h, i) {
-        html += '<li class="ac-item" data-i="' + i + '" onmousedown="selectHotel(\'' + h.n.replace(/'/g, "\\'") + '\',\'' + h.z.replace(/'/g, "\\'") + '\')">' +
-            '<span class="ac-name">' + boldMatch(h.n, ql) + '</span><span class="ac-zone">' + h.z + '</span></li>';
-    });
-    ul.innerHTML = html; ul.style.display = 'block'; hotelAC.open = true;
-}
-function boldMatch(text, q) { var i = text.toLowerCase().indexOf(q); if (i === -1) return text; return text.slice(0, i) + '<strong>' + text.slice(i, i + q.length) + '</strong>' + text.slice(i + q.length); }
-function highlightAC(items) { items.forEach(function (el, i) { el.classList.toggle('ac-active', i === hotelAC.idx); if (i === hotelAC.idx) el.scrollIntoView({ block: 'nearest' }); }); }
-function selectHotel(name, zone) { var inp = document.getElementById('customer-hotel'); inp.value = name + ' (' + zone + ')'; inp.dataset.hotel = name; inp.dataset.zone = zone; closeAC(); showMapBtn(name); }
-function closeAC() { if (hotelAC.list) { hotelAC.list.style.display = 'none'; hotelAC.open = false; hotelAC.idx = -1; } }
-function showMapBtn(hotelName) { hideMapBtn(); if (!hotelName || hotelName.length < 3) return; var wrap = hotelAC.wrap || document.getElementById('customer-hotel').parentNode; var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'hotel-map-btn'; btn.title = 'Ver en Google Maps'; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <span>Maps</span>'; btn.onclick = function () { openHotelMap(hotelName); }; wrap.appendChild(btn); }
-function hideMapBtn() { var existing = document.querySelector('.hotel-map-btn'); if (existing) existing.remove(); }
-function openHotelMap(name) { var q = encodeURIComponent(name + ' Cancun Mexico'); window.open('https://www.google.com/maps/search/?api=1&query=' + q, '_blank'); }
-function initTimePicker() {
-    var h = document.getElementById('pickup-hour'), m = document.getElementById('pickup-min'), ap = document.getElementById('pickup-ampm'), hidden = document.getElementById('pickup-time');
-    function sync() { if (h.value && m.value) { hidden.value = h.value + ':' + m.value + ' ' + ap.value; } else { hidden.value = ''; } }
-    function updateAMPM() { var hr = parseInt(h.value); if (!hr) return; if (hr >= 7 && hr <= 11) { ap.value = 'AM'; } else if (hr === 12 || (hr >= 1 && hr <= 5)) { ap.value = 'PM'; } sync(); }
-    h.addEventListener('change', updateAMPM); m.addEventListener('change', sync); ap.addEventListener('change', sync);
+
+    var wrapper = document.getElementById('language-selector-container');
+    if (wrapper) wrapper.classList.remove('open');
+
+    document.documentElement.lang = state.language;
+    if (window.tourDatePicker) {
+        window.tourDatePicker.set('locale', state.language === 'es' ? 'es' : 'default');
+    }
+
+    if (opts.rerender) {
+        if (state.currentView === 'catalog') {
+            renderCatalog();
+        } else if (state.currentTour && TOURS[state.currentTour]) {
+            renderTourDetail(TOURS[state.currentTour]);
+        }
+    }
+
+    applyDataTranslations();
 }
 
-function toggleOrderSummary() {
-    var content = document.getElementById('order-summary-content');
-    var toggle = document.querySelector('.order-summary-toggle');
-    if (content.classList.contains('collapsed')) {
-        content.classList.remove('collapsed');
-        toggle.classList.remove('collapsed');
-    } else {
-        content.classList.add('collapsed');
-        toggle.classList.add('collapsed');
+function applyDataTranslations() {
+    document.querySelectorAll('[data-es]').forEach(function (el) {
+        var value = el.getAttribute('data-' + state.language);
+        if (value != null) el.textContent = value;
+    });
+
+    document.querySelectorAll('[data-placeholder-es]').forEach(function (el) {
+        var placeholder = el.getAttribute('data-placeholder-' + state.language);
+        if (placeholder != null) el.setAttribute('placeholder', placeholder);
+    });
+
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+        var key = el.getAttribute('data-i18n');
+        if (key) el.textContent = t(key);
+    });
+
+    var mapBtn = document.querySelector('.hotel-map-btn');
+    if (mapBtn) {
+        mapBtn.title = t('mapsTitle');
+        var span = mapBtn.querySelector('span');
+        if (span) span.textContent = t('maps');
     }
 }
 
-function updateProgressIndicator(step) {
-    for (var i = 1; i <= 3; i++) {
-        var s = document.getElementById('step-' + i);
-        s.classList.remove('active', 'completed');
-        if (i < step) s.classList.add('completed');
-        if (i === step) s.classList.add('active');
-    }
-}
+function initRevealObserver() {
+    if (prefersReducedMotion) return;
 
-function updatePreviews() {
-    var lang = state.language;
-    var form = document.getElementById('booking-form');
-    if (!form.checkValidity()) return;
-
-    var m = lang === 'es' ? '*NUEVA RESERVACION*\n\n' : '*NEW BOOKING*\n\n';
-    m += '*' + document.getElementById('customer-name').value + '*\n';
-    m += document.getElementById('tour-date').value + '\n';
-    var pickupTime = document.getElementById('pickup-time').value;
-    if (pickupTime) m += pickupTime + ' (MX Time)\n';
-    m += document.getElementById('customer-phone').value + '\n\n*Tours:*\n';
-
-    state.cart.forEach(function (it) {
-        m += '- ' + it.name + ' (' + it.adults + 'ad, ' + it.children + 'ch)';
-        if (it.addOns && it.addOns.length > 0) m += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', ');
-        m += ' - $' + it.subtotalUSD + ' USD\n';
-    });
-
-    var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0);
-    m += '\n*TOTAL: $' + t + ' USD*';
-    var comments = document.getElementById('customer-comments').value;
-    if (comments) m += '\n\n' + comments;
-
-    var wpPreview = document.getElementById('whatsapp-preview');
-    var wpContent = document.getElementById('whatsapp-message-content');
-    if (wpPreview && wpContent) {
-        wpPreview.style.display = 'block';
-        wpContent.textContent = m;
-    }
-
-    var emailPreview = document.getElementById('email-preview');
-    var emailContent = document.getElementById('email-preview-content');
-    if (emailPreview && emailContent) {
-        emailPreview.style.display = 'block';
-        var itemsHtml = '';
-        state.cart.forEach(function (it) {
-            var details = it.adults + ' adults, ' + it.children + ' children';
-            if (it.addOns && it.addOns.length > 0) details += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', ');
-            itemsHtml += '<div class="email-row"><span class="email-label">' + it.name + '</span><span class="email-value">$' + it.subtotalUSD + '</span></div>';
-        });
-
-        emailContent.innerHTML =
-            '<h4>' + (lang === 'es' ? 'Resumen de Reservación' : 'Booking Summary') + '</h4>' +
-            '<div class="email-row"><span class="email-label">' + (lang === 'es' ? 'Nombre' : 'Name') + '</span><span class="email-value">' + document.getElementById('customer-name').value + '</span></div>' +
-            '<div class="email-row"><span class="email-label">' + (lang === 'es' ? 'Email' : 'Email') + '</span><span class="email-value">' + document.getElementById('customer-email').value + '</span></div>' +
-            '<div class="email-row"><span class="email-label">' + (lang === 'es' ? 'Teléfono' : 'Phone') + '</span><span class="email-value">' + document.getElementById('customer-phone').value + '</span></div>' +
-            '<div class="email-row"><span class="email-label">' + (lang === 'es' ? 'Fecha del Tour' : 'Tour Date') + '</span><span class="email-value">' + document.getElementById('tour-date').value + '</span></div>' +
-            '<div class="email-row"><span class="email-label">' + (lang === 'es' ? 'Hora de Recogida' : 'Pickup Time') + '</span><span class="email-value">' + (pickupTime || 'Not specified') + '</span></div>' +
-            '<div class="email-row"><span class="email-label">' + (lang === 'es' ? 'Hotel' : 'Hotel') + '</span><span class="email-value">' + (document.getElementById('customer-hotel').value || 'Not specified') + '</span></div>' +
-            '<hr style="border:none;border-top:1px dashed #ddd;margin:12px 0">' +
-            itemsHtml +
-            '<div class="email-total"><span>TOTAL</span><span>$' + t + ' USD</span></div>';
-    }
-}
-
-function proceedToCheckout() {
-    state.checkoutMode = true;
-    document.getElementById('checkout-form').classList.add('active');
-    document.getElementById('checkout-btn').style.display = 'none';
-    document.getElementById('send-email-btn').style.display = 'flex';
-    document.getElementById('send-whatsapp-btn').style.display = 'flex';
-    document.getElementById('trust-badges').style.display = 'none';
-    updateProgressIndicator(2);
-
-    setTimeout(function () {
-        document.getElementById('checkout-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-}
-
-async function sendBookingEmail() {
-    var lang = state.language, form = document.getElementById('booking-form');
-    if (!form.checkValidity()) { form.reportValidity(); return; }
-
-    updateProgressIndicator(3);
-
-    var btn = document.getElementById('send-email-btn');
-    btn.classList.add('loading');
-    btn.disabled = true;
-
-    try {
-        var cs = state.cart.map(function (it) {
-            var l = it.name + ': ' + it.adults + 'ad, ' + it.children + 'ch';
-            if (it.addOns && it.addOns.length > 0) l += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', ');
-            l += ' - $' + it.subtotalUSD + ' USD';
-            return l;
-        }).join('\n');
-
-        var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0);
-
-        await fetch('/api/bookings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                name: document.getElementById('customer-name').value,
-                email: document.getElementById('customer-email').value,
-                phone: document.getElementById('customer-phone').value,
-                date: document.getElementById('tour-date').value,
-                pickup_time: document.getElementById('pickup-time').value || '',
-                hotel: document.getElementById('customer-hotel').value || '',
-                comments: document.getElementById('customer-comments').value || '',
-                cart: state.cart,
-                total: t
-            })
-        });
-
-        await emailjs.send(
-            CONFIG.emailjs.serviceId,
-            CONFIG.emailjs.templateId,
-            {
-                customer_name: document.getElementById('customer-name').value,
-                customer_email: document.getElementById('customer-email').value,
-                customer_phone: document.getElementById('customer-phone').value,
-                tour_date: document.getElementById('tour-date').value,
-                pickup_time: document.getElementById('pickup-time').value || 'Not specified',
-                customer_hotel: document.getElementById('customer-hotel').value || 'Not specified',
-                customer_comments: document.getElementById('customer-comments').value || 'No comments',
-                cart_summary: cs,
-                total_amount: '$' + t + ' USD'
+    revealObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                revealObserver.unobserve(entry.target);
             }
-        );
+        });
+    }, {
+        rootMargin: '0px 0px -12% 0px',
+        threshold: 0.12
+    });
+}
 
-        showToast('success', lang === 'es' ? 'Reservacion Enviada' : 'Booking Sent', '');
-        state.cart = [];
-        saveState();
-        updateProgressIndicator(1);
-        setTimeout(closeCartModal, 2000);
-    } catch (e) {
-        console.error(e);
-        showToast('error', lang === 'es' ? 'Error. Use WhatsApp' : 'Error. Use WhatsApp', '');
-    } finally {
-        btn.classList.remove('loading');
-        btn.disabled = false;
+function observeReveals(root) {
+    var context = root || document;
+    context.querySelectorAll('[data-reveal]').forEach(function (el) {
+        if (prefersReducedMotion || !revealObserver) {
+            el.classList.add('is-visible');
+            return;
+        }
+        revealObserver.observe(el);
+    });
+}
+
+function initCatalogHero() {
+    var hero = document.getElementById('catalog-hero');
+    var layerA = document.getElementById('catalog-hero-bg-a');
+    var layerB = document.getElementById('catalog-hero-bg-b');
+    if (!hero || !layerA || !layerB) return;
+
+    var slides = [
+        'imagenes/whale.jpg',
+        'imagenes/servicios/tour_privado_tulum_ruinas/1.jpg',
+        'imagenes/servicios/tulum_akumal_snorkel_tortugas/1.jpg'
+    ];
+
+    layerA.style.backgroundImage = 'url("' + slides[0] + '")';
+    layerB.style.backgroundImage = 'url("' + slides[1] + '")';
+
+    if (prefersReducedMotion) return;
+
+    clearInterval(heroRotationTimer);
+    heroRotationTimer = setInterval(function () {
+        heroIndex = (heroIndex + 1) % slides.length;
+        var nextIndex = (heroIndex + 1) % slides.length;
+
+        if (layerA.classList.contains('active')) {
+            layerB.style.backgroundImage = 'url("' + slides[nextIndex] + '")';
+            layerA.classList.remove('active');
+            layerB.classList.add('active');
+        } else {
+            layerA.style.backgroundImage = 'url("' + slides[nextIndex] + '")';
+            layerB.classList.remove('active');
+            layerA.classList.add('active');
+        }
+    }, 7000);
+}
+
+function scrollToTopTours() {
+    var section = document.getElementById('catalog-grid');
+    if (!section) return;
+    section.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+}
+
+function renderCatalog() {
+    var grid = document.getElementById('catalog-grid');
+    if (!grid) return;
+
+    if (Object.keys(TOURS).length === 0) {
+        grid.innerHTML = '<div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
+        return;
+    }
+
+    var html = '';
+    Object.values(TOURS).forEach(function (tour) {
+        var title = getLocalizedPack(tour.card.title, state.language);
+        var description = getLocalizedPack(tour.card.shortDescription, state.language);
+        var imageUrl = escapeAttr(sanitizeImageUrl(buildImageUrl(tour.imageFolder, tour.card.thumbnail)));
+        var tourId = escapeAttr(tour.id);
+
+        html += '<article class="tour-card reveal" data-reveal data-tour-id="' + tourId + '" tabindex="0" role="button">';
+        html += '<div class="tour-card-image" style="background-image:url(\'' + imageUrl + '\')"></div>';
+        html += '<div class="tour-card-body">';
+        html += '<h3 class="tour-card-title" data-es="' + title.es + '" data-en="' + title.en + '">' + title.text + '</h3>';
+        html += '<p class="tour-card-desc" data-es="' + description.es + '" data-en="' + description.en + '">' + description.text + '</p>';
+        html += '<div class="tour-card-footer">';
+        html += '<span class="tour-card-price">' + t('from') + ' $' + safeInt(tour.card.priceFrom, 0) + ' USD</span>';
+        html += '<span class="tour-card-cta">' + t('viewDetails') + ' &rarr;</span>';
+        html += '</div></div></article>';
+    });
+
+    grid.innerHTML = html;
+
+    grid.querySelectorAll('.tour-card').forEach(function (card) {
+        var tourId = card.getAttribute('data-tour-id');
+        card.addEventListener('click', function () {
+            navigateTo('detail', tourId);
+        });
+        card.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigateTo('detail', tourId);
+            }
+        });
+    });
+
+    observeReveals(document.getElementById('main-view'));
+    applyDataTranslations();
+}
+
+function renderTourDetail(tour) {
+    var container = document.getElementById('detail-view');
+    if (!container) return;
+
+    var lang = state.language;
+    var imageFolder = safeText(tour.imageFolder);
+
+    if (tour.addOns && Array.isArray(tour.addOns.options)) {
+        tour.addOns.options.forEach(function (option) {
+            if (state.addOns[option.id] === undefined) state.addOns[option.id] = false;
+        });
+    }
+
+    var heroTitle = getLocalizedPack(tour.hero.title, lang);
+    var heroSubtitle = getLocalizedPack(tour.hero.subtitle, lang);
+    var heroDescription = getLocalizedPack(tour.hero.description, lang);
+    var galleryTitle = getLocalizedPack(tour.gallery.title, lang);
+
+    var galleryImages = Array.isArray(tour.gallery.images) && tour.gallery.images.length > 0 ? tour.gallery.images : [1];
+
+    var gallerySlides = '';
+    var galleryDots = '';
+    galleryImages.forEach(function (imageRef, index) {
+        var imageUrl = escapeAttr(sanitizeImageUrl(buildImageUrl(imageFolder, imageRef)));
+        gallerySlides += '<div class="gallery-slide" style="background-image:url(\'' + imageUrl + '\')"></div>';
+        galleryDots += '<button class="gallery-dot' + (index === 0 ? ' active' : '') + '" onclick="goToGallerySlide(' + index + ')" aria-label="Slide ' + (index + 1) + '"></button>';
+    });
+
+    var tableRows = '';
+    (tour.pricing.tiers || []).forEach(function (tier) {
+        var adults = safeInt(tier.adults, 0);
+        var adultPrice = safeInt(tier.adultPrice, 0);
+        tableRows += '<tr data-adults="' + adults + '" onclick="selectTier(' + adults + ')"><td>' + adults + '</td><td>$' + adultPrice + ' USD</td><td>$' + safeInt(tour.pricing.childPriceFlat, 0) + ' USD</td></tr>';
+    });
+
+    var includesItems = '';
+    (tour.includes.items || []).forEach(function (item) {
+        var value = getLocalizedPack(item, lang);
+        includesItems += '<li><span class="check-icon">' + SVG.check + '</span><span data-es="' + value.es + '" data-en="' + value.en + '">' + value.text + '</span></li>';
+    });
+
+    var excludesItems = '';
+    (tour.includes.excludes || []).forEach(function (item) {
+        var value = getLocalizedPack(item, lang);
+        excludesItems += '<li><span class="cross-icon">' + SVG.cross + '</span><span data-es="' + value.es + '" data-en="' + value.en + '">' + value.text + '</span></li>';
+    });
+
+    var itineraryItems = '';
+    (tour.itinerary.steps || []).forEach(function (step, index) {
+        var value = getLocalizedPack(step, lang);
+        itineraryItems += '<li class="itinerary-item"><span class="itinerary-number">' + (index + 1) + '.</span><span data-es="' + value.es + '" data-en="' + value.en + '">' + value.text + '</span></li>';
+    });
+
+    var addOnCards = '';
+    if (tour.addOns && Array.isArray(tour.addOns.options) && tour.addOns.options.length > 0) {
+        tour.addOns.options.forEach(function (option) {
+            var selected = Boolean(state.addOns[option.id]);
+            var title = getLocalizedPack(option.title, lang);
+            var desc = getLocalizedPack(option.description, lang);
+            var optionId = escapeAttr(option.id);
+            addOnCards += '<div class="addon-card' + (selected ? ' selected' : '') + '" data-addon-id="' + optionId + '" onclick="toggleAddon(this.dataset.addonId)">';
+            addOnCards += '<div class="addon-content"><div class="addon-header">';
+            addOnCards += '<span class="addon-title" data-es="' + title.es + '" data-en="' + title.en + '">' + title.text + '</span>';
+            addOnCards += '<span class="addon-price">+$' + safeInt(option.pricePerPerson, 0) + ' USD / ' + t('person') + '</span>';
+            addOnCards += '</div>';
+            addOnCards += '<p class="addon-description" data-es="' + desc.es + '" data-en="' + desc.en + '">' + desc.text + '</p>';
+            addOnCards += '<div class="addon-toggle"><span class="addon-checkbox">' + SVG.check + '</span><span>' + (selected ? t('selected') : t('select')) + '</span></div>';
+            addOnCards += '</div></div>';
+        });
+    }
+
+    var packingItems = '';
+    (tour.packingList.items || []).forEach(function (item) {
+        var value = getLocalizedPack(item, lang);
+        packingItems += '<div class="packing-item"><span class="packing-icon">' + (SVG[item.icon] || '') + '</span><span data-es="' + value.es + '" data-en="' + value.en + '">' + value.text + '</span></div>';
+    });
+
+    var pricingTitle = getLocalizedPack(tour.pricing.sectionTitle, lang);
+    var adultsHeader = getLocalizedPack(tour.pricing.tableHeader.adults, lang);
+    var adultPriceHeader = getLocalizedPack(tour.pricing.tableHeader.adultPrice, lang);
+    var childPriceHeader = getLocalizedPack(tour.pricing.tableHeader.childPrice, lang);
+    var pricingNote = getLocalizedPack(tour.pricing.pricingNote, lang);
+    var freeChildNote = getLocalizedPack(tour.pricing.freeChildNote, lang);
+    var groupNote = getLocalizedPack(tour.pricing.groupNote, lang);
+
+    var includesTitle = getLocalizedPack(tour.includes.sectionTitle, lang);
+    var excludesTitle = getLocalizedPack(tour.includes.excludesTitle, lang);
+
+    var itineraryTitle = getLocalizedPack(tour.itinerary.sectionTitle, lang);
+    var itineraryWarning = getLocalizedPack(tour.itinerary.warning, lang);
+
+    var addOnsTitle = tour.addOns && tour.addOns.sectionTitle ? getLocalizedPack(tour.addOns.sectionTitle, lang) : null;
+    var packingTitle = getLocalizedPack(tour.packingList.sectionTitle, lang);
+    var bookingTitle = getLocalizedPack(tour.booking.sectionTitle, lang);
+    var bookingDesc = getLocalizedPack(tour.booking.description, lang);
+
+    var html = '';
+    html += '<div class="detail-nav reveal" data-reveal><button class="back-btn" onclick="navigateTo(\'catalog\')">' + SVG.back + ' <span data-es="' + escapeAttr(I18N.es.backHome) + '" data-en="' + escapeAttr(I18N.en.backHome) + '">' + escapeHtml(t('backHome')) + '</span></button></div>';
+
+    html += '<section class="tour-hero reveal" data-reveal style="background-image:url(\'' + escapeAttr(sanitizeImageUrl(buildImageUrl(imageFolder, tour.hero.heroImage))) + '\')">';
+    html += '<div class="tour-hero-overlay"><div class="tour-hero-content">';
+    html += '<h2 data-es="' + heroTitle.es + '" data-en="' + heroTitle.en + '">' + heroTitle.text + '</h2>';
+    html += '<h3 data-es="' + heroSubtitle.es + '" data-en="' + heroSubtitle.en + '">' + heroSubtitle.text + '</h3>';
+    html += '</div></div></section>';
+
+    html += '<section class="tour-section reveal" data-reveal><div class="section-divider"></div><p class="tour-description-text" data-es="' + heroDescription.es + '" data-en="' + heroDescription.en + '">' + heroDescription.text + '</p></section>';
+
+    html += '<section class="tour-gallery reveal" data-reveal><div class="tour-section"><div class="section-divider"></div>';
+    html += '<h2 class="section-title" data-es="' + galleryTitle.es + '" data-en="' + galleryTitle.en + '">' + galleryTitle.text + '</h2>';
+    html += '<div style="height:16px"></div><div class="gallery-container"><div class="gallery-slider" id="gallery-slider">' + gallerySlides + '</div>';
+    html += '<button class="gallery-btn prev" onclick="moveGallery(-1)">' + SVG.arrowLeft + '</button>';
+    html += '<button class="gallery-btn next" onclick="moveGallery(1)">' + SVG.arrowRight + '</button></div>';
+    html += '<div class="gallery-dots" id="gallery-dots">' + galleryDots + '</div></div></section>';
+
+    html += '<section class="pricing-section reveal" data-reveal><div class="tour-section"><div class="section-divider"></div>';
+    html += '<h2 class="section-title" data-es="' + pricingTitle.es + '" data-en="' + pricingTitle.en + '">' + pricingTitle.text + '</h2>';
+    html += '<div style="height:8px"></div><p class="pricing-note" data-es="' + pricingNote.es + '" data-en="' + pricingNote.en + '">' + pricingNote.text + '</p>';
+    html += '<div class="pricing-table-wrapper"><table class="pricing-table" id="pricing-table"><thead><tr>';
+    html += '<th data-es="' + adultsHeader.es + '" data-en="' + adultsHeader.en + '">' + adultsHeader.text + '</th>';
+    html += '<th data-es="' + adultPriceHeader.es + '" data-en="' + adultPriceHeader.en + '">' + adultPriceHeader.text + '</th>';
+    html += '<th data-es="' + childPriceHeader.es + '" data-en="' + childPriceHeader.en + '">' + childPriceHeader.text + '</th>';
+    html += '</tr></thead><tbody>' + tableRows + '</tbody></table></div>';
+    html += '<p class="pricing-note" data-es="' + freeChildNote.es + '" data-en="' + freeChildNote.en + '">' + freeChildNote.text + '</p>';
+    html += '<p class="pricing-note-highlight" data-es="' + groupNote.es + '" data-en="' + groupNote.en + '">' + groupNote.text + '</p>';
+
+    html += '<div class="booking-configurator">';
+    html += '<h3 class="configurator-title" data-es="' + escapeAttr(I18N.es.configureBooking) + '" data-en="' + escapeAttr(I18N.en.configureBooking) + '">' + escapeHtml(t('configureBooking')) + '</h3>';
+    html += '<div class="configurator-row"><div class="configurator-label"><span class="configurator-label-main" data-es="' + escapeAttr(I18N.es.adultsLabel) + '" data-en="' + escapeAttr(I18N.en.adultsLabel) + '">' + escapeHtml(t('adultsLabel')) + '</span><span class="configurator-label-sub" id="adult-price-label">' + escapeHtml(t('selectQuantity')) + '</span></div><div class="quantity-selector"><button class="qty-btn" onclick="updateAdults(-1)">-</button><span class="qty-value" id="qty-adults">0</span><button class="qty-btn" onclick="updateAdults(1)">+</button></div></div>';
+    html += '<div class="configurator-row"><div class="configurator-label"><span class="configurator-label-main" data-es="' + escapeAttr(I18N.es.childrenLabel) + '" data-en="' + escapeAttr(I18N.en.childrenLabel) + '">' + escapeHtml(t('childrenLabel')) + '</span><span class="configurator-label-sub">$' + safeInt(tour.pricing.childPriceFlat, 0) + ' USD ' + escapeHtml(t('perChild')) + '</span></div><div class="quantity-selector"><button class="qty-btn" onclick="updateChildren(-1)">-</button><span class="qty-value" id="qty-children">0</span><button class="qty-btn" onclick="updateChildren(1)">+</button></div></div>';
+    html += '<div class="configurator-total"><span class="configurator-total-label">' + escapeHtml(t('total')) + ':</span><span class="configurator-total-amount" id="configurator-total">$0 USD</span></div>';
+    html += '<button class="add-to-cart-btn" id="btn-add-tour" onclick="addTourToCart()" disabled>' + SVG.cart + ' <span data-es="' + escapeAttr(I18N.es.addToCart) + '" data-en="' + escapeAttr(I18N.en.addToCart) + '">' + escapeHtml(t('addToCart')) + '</span></button>';
+    html += '</div></div></section>';
+
+    html += '<section class="includes-excludes-section reveal" data-reveal><div class="tour-section"><div class="section-divider"></div><div class="includes-grid"><div class="includes-col"><h4 data-es="' + includesTitle.es + '" data-en="' + includesTitle.en + '">' + includesTitle.text + '</h4><ul>' + includesItems + '</ul></div><div class="includes-col"><h4 data-es="' + excludesTitle.es + '" data-en="' + excludesTitle.en + '">' + excludesTitle.text + '</h4><ul>' + excludesItems + '</ul></div></div></div></section>';
+
+    html += '<section class="itinerary-section reveal" data-reveal><div class="tour-section"><div class="section-divider"></div>';
+    html += '<h2 class="section-title" data-es="' + itineraryTitle.es + '" data-en="' + itineraryTitle.en + '">' + itineraryTitle.text + '</h2><div style="height:16px"></div>';
+    html += '<ul class="itinerary-list">' + itineraryItems + '</ul>';
+    html += '<div class="itinerary-warning">' + SVG.warning + ' <span data-es="' + itineraryWarning.es + '" data-en="' + itineraryWarning.en + '">' + itineraryWarning.text + '</span></div>';
+    if (tour.itinerary.comboNote) {
+        var comboNote = getLocalizedPack(tour.itinerary.comboNote, lang);
+        html += '<p class="itinerary-combo" data-es="' + comboNote.es + '" data-en="' + comboNote.en + '">' + comboNote.text + '</p>';
+    }
+    html += '</div></section>';
+
+    if (addOnCards) {
+        html += '<section class="addons-section reveal" data-reveal><div class="tour-section"><div class="section-divider"></div>';
+        html += '<h2 class="section-title" data-es="' + addOnsTitle.es + '" data-en="' + addOnsTitle.en + '">' + addOnsTitle.text + '</h2>';
+        html += '<div style="height:16px"></div><div class="addons-grid">' + addOnCards + '</div></div></section>';
+    }
+
+    html += '<section class="packing-section reveal" data-reveal><div class="tour-section"><div class="section-divider"></div>';
+    html += '<h2 class="section-title" data-es="' + packingTitle.es + '" data-en="' + packingTitle.en + '">' + packingTitle.text + '</h2>';
+    html += '<div style="height:16px"></div><div class="packing-grid">' + packingItems + '</div></div></section>';
+
+    html += '<section class="booking-section reveal" data-reveal><div class="tour-section"><div class="section-divider"></div>';
+    html += '<h2 class="section-title" data-es="' + bookingTitle.es + '" data-en="' + bookingTitle.en + '">' + bookingTitle.text + '</h2>';
+    html += '<div style="height:16px"></div><p class="booking-text" data-es="' + bookingDesc.es + '" data-en="' + bookingDesc.en + '">' + bookingDesc.text + '</p></div></section>';
+
+    container.innerHTML = html;
+    observeReveals(container);
+
+    var floatingBack = document.createElement('button');
+    floatingBack.id = 'floating-back';
+    floatingBack.className = 'floating-back-btn';
+    floatingBack.onclick = function () { navigateTo('catalog'); };
+    floatingBack.innerHTML = SVG.back + ' <span>' + escapeHtml(t('back')) + '</span>';
+    document.body.appendChild(floatingBack);
+
+    initGallerySlider();
+    updateConfigurator();
+    applyDataTranslations();
+}
+
+function stopGallerySlider() {
+    clearInterval(galleryAutoSlide);
+    galleryAutoSlide = null;
+}
+
+function initGallerySlider() {
+    if (!state.currentTour) return;
+
+    var tour = TOURS[state.currentTour];
+    if (!tour || !tour.gallery || !Array.isArray(tour.gallery.images)) return;
+
+    galleryState = { current: 0, total: tour.gallery.images.length || 1 };
+    stopGallerySlider();
+
+    if (!prefersReducedMotion && galleryState.total > 1) {
+        galleryAutoSlide = setInterval(function () {
+            moveGallery(1);
+        }, 5000);
     }
 }
 
-function sendToWhatsApp() {
-    var lang = state.language, form = document.getElementById('booking-form');
-    if (!form.checkValidity()) { form.reportValidity(); return; }
+function goToGallerySlide(index) {
+    galleryState.current = index;
+    var slider = document.getElementById('gallery-slider');
+    if (slider) {
+        slider.style.transform = 'translateX(-' + (index * 100) + '%)';
+    }
 
-    updateProgressIndicator(3);
+    document.querySelectorAll('.gallery-dot').forEach(function (dot, dotIndex) {
+        dot.classList.toggle('active', dotIndex === index);
+    });
+}
 
-    var m = lang === 'es' ? '*NUEVA RESERVACION*\n\n' : '*NEW BOOKING*\n\n';
-    m += '*' + document.getElementById('customer-name').value + '*\n';
-    m += document.getElementById('tour-date').value + '\n';
-    m += (document.getElementById('pickup-time').value ? document.getElementById('pickup-time').value + ' (MX Time)\n' : '');
-    m += document.getElementById('customer-phone').value + '\n\n*Tours:*\n';
+function moveGallery(direction) {
+    if (!galleryState.total) return;
+    var next = galleryState.current + direction;
+    if (next < 0) next = galleryState.total - 1;
+    if (next >= galleryState.total) next = 0;
+    goToGallerySlide(next);
+}
 
-    state.cart.forEach(function (it) {
-        m += '- ' + it.name + ' (' + it.adults + 'ad, ' + it.children + 'ch)';
-        if (it.addOns && it.addOns.length > 0) m += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', ');
-        m += ' - $' + it.subtotalUSD + ' USD\n';
+function getCurrentTour() {
+    return state.currentTour ? TOURS[state.currentTour] : null;
+}
+
+function selectTier(adults) {
+    state.adults = adults;
+    var el = document.getElementById('qty-adults');
+    if (el) el.textContent = adults;
+    highlightTier();
+    updateConfigurator();
+}
+
+function updateAdults(change) {
+    state.adults = Math.max(0, Math.min(10, state.adults + change));
+    var el = document.getElementById('qty-adults');
+    if (el) el.textContent = state.adults;
+    highlightTier();
+    updateConfigurator();
+}
+
+function updateChildren(change) {
+    state.children = Math.max(0, Math.min(10, state.children + change));
+    var el = document.getElementById('qty-children');
+    if (el) el.textContent = state.children;
+    updateConfigurator();
+}
+
+function highlightTier() {
+    document.querySelectorAll('#pricing-table tbody tr').forEach(function (row) {
+        row.classList.toggle('selected', safeInt(row.dataset.adults, -1) === state.adults);
+    });
+}
+
+function getAdultPrice() {
+    var tour = getCurrentTour();
+    if (!tour || state.adults === 0) return 0;
+
+    var tier = (tour.pricing.tiers || []).find(function (item) {
+        return safeInt(item.adults, -1) === state.adults;
+    });
+    return tier ? safeInt(tier.adultPrice, 0) : 0;
+}
+
+function calculateTotal() {
+    var tour = getCurrentTour();
+    if (!tour) return 0;
+
+    var total = state.adults * getAdultPrice() + state.children * safeInt(tour.pricing.childPriceFlat, 0);
+    var persons = state.adults + state.children;
+
+    if (tour.addOns && Array.isArray(tour.addOns.options)) {
+        tour.addOns.options.forEach(function (opt) {
+            if (state.addOns[opt.id]) {
+                total += safeInt(opt.pricePerPerson, 0) * persons;
+            }
+        });
+    }
+
+    return total;
+}
+
+function triggerNumberBump(elementId) {
+    if (prefersReducedMotion) return;
+    var el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.remove('is-bump');
+    void el.offsetWidth;
+    el.classList.add('is-bump');
+}
+
+function updateConfigurator() {
+    var adultPrice = getAdultPrice();
+    var label = document.getElementById('adult-price-label');
+    if (label) {
+        label.textContent = state.adults > 0
+            ? ('$' + adultPrice + ' USD ' + t('perAdult'))
+            : t('selectQuantity');
+    }
+
+    var totalEl = document.getElementById('configurator-total');
+    if (totalEl) {
+        totalEl.textContent = '$' + calculateTotal() + ' USD';
+        triggerNumberBump('configurator-total');
+    }
+
+    var button = document.getElementById('btn-add-tour');
+    if (button) {
+        button.disabled = (state.adults + state.children) === 0;
+    }
+}
+
+function toggleAddon(addonId) {
+    if (!addonId) return;
+
+    state.addOns[addonId] = !state.addOns[addonId];
+
+    var selector = '.addon-card[data-addon-id="' + cssEscapeValue(addonId) + '"]';
+    var card = document.querySelector(selector);
+    if (card) {
+        card.classList.toggle('selected', state.addOns[addonId]);
+        var toggleLabel = card.querySelector('.addon-toggle span:last-child');
+        if (toggleLabel) {
+            toggleLabel.textContent = state.addOns[addonId] ? t('selected') : t('select');
+        }
+    }
+
+    updateConfigurator();
+}
+
+function addTourToCart() {
+    var tour = getCurrentTour();
+    if (!tour || state.adults + state.children === 0) return;
+
+    var selectedAddOns = [];
+    if (tour.addOns && Array.isArray(tour.addOns.options)) {
+        tour.addOns.options.forEach(function (option) {
+            if (state.addOns[option.id]) {
+                selectedAddOns.push({
+                    id: option.id,
+                    name: getLocalized(option.title, state.language),
+                    pricePerPerson: safeInt(option.pricePerPerson, 0)
+                });
+            }
+        });
+    }
+
+    var firstImage = tour.gallery && Array.isArray(tour.gallery.images) && tour.gallery.images.length > 0
+        ? tour.gallery.images[0]
+        : 1;
+
+    state.cart.push({
+        id: tour.id + '-' + Date.now(),
+        tourId: tour.id,
+        name: getLocalized(tour.hero.title, state.language),
+        image: sanitizeImageUrl(buildImageUrl(tour.imageFolder, firstImage)),
+        adults: state.adults,
+        children: state.children,
+        adultPriceUSD: getAdultPrice(),
+        childPriceUSD: safeInt(tour.pricing.childPriceFlat, 0),
+        addOns: selectedAddOns,
+        subtotalUSD: calculateTotal()
     });
 
-    var t = state.cart.reduce(function (s, i) { return s + i.subtotalUSD; }, 0);
-    m += '\n*TOTAL: $' + t + ' USD*';
-    var c = document.getElementById('customer-comments').value;
-    if (c) m += '\n\n' + c;
-
-    fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            name: document.getElementById('customer-name').value,
-            email: document.getElementById('customer-email').value,
-            phone: document.getElementById('customer-phone').value,
-            date: document.getElementById('tour-date').value,
-            pickup_time: document.getElementById('pickup-time').value || '',
-            hotel: document.getElementById('customer-hotel').value || '',
-            comments: document.getElementById('customer-comments').value || '',
-            cart: state.cart,
-            total: t
-        })
+    state.adults = 0;
+    state.children = 0;
+    Object.keys(state.addOns).forEach(function (key) {
+        state.addOns[key] = false;
     });
 
-    window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(m), '_blank');
+    var adultsEl = document.getElementById('qty-adults');
+    var childrenEl = document.getElementById('qty-children');
+    if (adultsEl) adultsEl.textContent = '0';
+    if (childrenEl) childrenEl.textContent = '0';
 
-    setTimeout(function () {
-        state.cart = [];
-        saveState();
-        updateProgressIndicator(1);
-        closeCartModal();
-    }, 2000);
+    highlightTier();
+    document.querySelectorAll('.addon-card').forEach(function (card) {
+        card.classList.remove('selected');
+        var toggleLabel = card.querySelector('.addon-toggle span:last-child');
+        if (toggleLabel) toggleLabel.textContent = t('select');
+    });
+
+    updateConfigurator();
+    saveState();
+    updateCartUI();
+
+    showToast('success', t('added'), t('addedMessage'));
+
+    var button = document.getElementById('btn-add-tour');
+    if (button) {
+        button.classList.add('added');
+        var original = button.innerHTML;
+        button.innerHTML = SVG.check + ' <span>' + escapeHtml(t('added')) + '</span>';
+
+        setTimeout(function () {
+            button.classList.remove('added');
+            button.innerHTML = original;
+            applyDataTranslations();
+        }, 1200);
+    }
+}
+
+function removeFromCart(index) {
+    state.cart.splice(index, 1);
+    saveState();
+    updateCartUI();
+    showToast('info', t('removed'), t('removedMessage'));
+}
+
+function updateCartTotal() {
+    var total = state.cart.reduce(function (sum, item) {
+        return sum + safeInt(item.subtotalUSD, 0);
+    }, 0);
+
+    var amount = document.getElementById('cart-total-amount');
+    if (amount) {
+        amount.textContent = '$' + total + ' USD';
+        triggerNumberBump('cart-total-amount');
+    }
+
+    var mobileAmount = document.getElementById('mobile-summary-total');
+    if (mobileAmount) mobileAmount.textContent = '$' + total + ' USD';
+
+    var mobileLabel = document.getElementById('mobile-summary-label');
+    if (mobileLabel) mobileLabel.textContent = t('totalToPay');
+}
+
+function loadState() {
+    try {
+        var cart = localStorage.getItem('lindotours_cart');
+        var language = localStorage.getItem('lindotours_language');
+
+        if (cart) state.cart = JSON.parse(cart);
+        if (language) state.language = normalizeLanguage(language);
+    } catch (e) {
+        console.error('loadState error', e);
+    }
+}
+
+function saveState() {
+    try {
+        localStorage.setItem('lindotours_cart', JSON.stringify(state.cart));
+        localStorage.setItem('lindotours_language', state.language);
+    } catch (e) {
+        console.error('saveState error', e);
+    }
+}
+
+function openCartModal() {
+    var modal = document.getElementById('cart-modal');
+    if (!modal) return;
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    updateCartUI();
+}
+
+function closeCartModal() {
+    var modal = document.getElementById('cart-modal');
+    if (modal) modal.classList.remove('active');
+
+    document.body.style.overflow = '';
+    state.checkoutMode = false;
+
+    var checkoutForm = document.getElementById('checkout-form');
+    var whatsappPreview = document.getElementById('whatsapp-preview');
+    var emailPreview = document.getElementById('email-preview');
+    var trustBadges = document.getElementById('trust-badges');
+    var checkoutBtn = document.getElementById('checkout-btn');
+    var sendEmailBtn = document.getElementById('send-email-btn');
+    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
+
+    if (checkoutForm) checkoutForm.classList.remove('active');
+    if (whatsappPreview) whatsappPreview.style.display = 'none';
+    if (emailPreview) emailPreview.style.display = 'none';
+    if (trustBadges) trustBadges.style.display = 'flex';
+
+    updateProgressIndicator(1);
+    setBookingStatus('idle');
+
+    if (checkoutBtn) checkoutBtn.style.display = state.cart.length > 0 ? 'flex' : 'none';
+    if (sendEmailBtn) sendEmailBtn.style.display = 'none';
+    if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = 'none';
 }
 
 function updateCartUI() {
-    var cc = document.getElementById('cart-count'),
-        ci = document.getElementById('cart-items'),
-        ts = document.getElementById('cart-total-section'),
-        cb = document.getElementById('checkout-btn'),
-        lang = state.language;
+    var cartCount = document.getElementById('cart-count');
+    var cartItems = document.getElementById('cart-items');
+    var totalSection = document.getElementById('cart-total-section');
+    var checkoutBtn = document.getElementById('checkout-btn');
 
-    var total = 0;
-    state.cart.forEach(function (it) { total += (it.adults || 0) + (it.children || 0); });
+    if (!cartCount || !cartItems || !totalSection) return;
 
-    cc.textContent = total;
-    cc.classList.toggle('empty', total === 0);
+    var totalPeople = 0;
+    state.cart.forEach(function (item) {
+        totalPeople += safeInt(item.adults, 0) + safeInt(item.children, 0);
+    });
+
+    cartCount.textContent = String(totalPeople);
+    cartCount.classList.toggle('empty', totalPeople === 0);
 
     if (state.cart.length === 0) {
-        ci.innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><p>' + (lang === 'es' ? 'Tu carrito esta vacio' : 'Your cart is empty') + '</p></div>';
-        ts.style.display = 'none';
-        if (cb) cb.style.display = 'none';
+        cartItems.innerHTML = '<div class="cart-empty">' +
+            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' +
+            '<p>' + escapeHtml(t('cartEmpty')) + '</p></div>';
+
+        totalSection.style.display = 'none';
+        if (checkoutBtn) checkoutBtn.style.display = 'none';
+
         document.getElementById('checkout-form').classList.remove('active');
         document.getElementById('send-email-btn').style.display = 'none';
         document.getElementById('send-whatsapp-btn').style.display = 'none';
         document.getElementById('whatsapp-preview').style.display = 'none';
         document.getElementById('email-preview').style.display = 'none';
         document.getElementById('trust-badges').style.display = 'flex';
+
         state.checkoutMode = false;
         updateProgressIndicator(1);
+        setBookingStatus('idle');
     } else {
         var html = '';
-        state.cart.forEach(function (it, idx) {
-            var parts = [];
-            if (it.adults > 0) parts.push(it.adults + ' ' + (lang === 'es' ? 'adulto(s)' : 'adult(s)'));
-            if (it.children > 0) parts.push(it.children + ' ' + (lang === 'es' ? 'nino(s)' : 'child(ren)'));
-            var qt = parts.join(', ');
-            if (it.addOns && it.addOns.length > 0) qt += ' + ' + it.addOns.map(function (a) { return a.name; }).join(', ');
-            html += '<div class="cart-item"><div class="cart-item-image" style="background-image:url(\'' + it.image + '\')"></div><div class="cart-item-details"><div class="cart-item-name">' + it.name + '</div><div class="cart-item-qty">' + qt + '</div></div><div class="cart-item-price">$' + it.subtotalUSD + ' USD</div><button class="cart-item-remove" onclick="removeFromCart(' + idx + ')">&times;</button></div>';
+
+        state.cart.forEach(function (item, index) {
+            var qtyParts = [];
+            if (safeInt(item.adults, 0) > 0) qtyParts.push(safeInt(item.adults, 0) + ' ' + t('adultUnit'));
+            if (safeInt(item.children, 0) > 0) qtyParts.push(safeInt(item.children, 0) + ' ' + t('childUnit'));
+
+            var qtyText = qtyParts.join(', ');
+            if (item.addOns && item.addOns.length > 0) {
+                qtyText += ' + ' + item.addOns.map(function (addon) { return addon.name; }).join(', ');
+            }
+
+            html += '<div class="cart-item">';
+            html += '<div class="cart-item-image" style="background-image:url(\'' + escapeAttr(sanitizeImageUrl(item.image)) + '\')"></div>';
+            html += '<div class="cart-item-details">';
+            html += '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>';
+            html += '<div class="cart-item-qty">' + escapeHtml(qtyText) + '</div>';
+            html += '</div>';
+            html += '<div class="cart-item-price">$' + safeInt(item.subtotalUSD, 0) + ' USD</div>';
+            html += '<button class="cart-item-remove" onclick="removeFromCart(' + index + ')">&times;</button>';
+            html += '</div>';
         });
-        ci.innerHTML = html;
-        ts.style.display = 'flex';
-        if (cb) cb.style.display = state.checkoutMode ? 'none' : 'flex';
+
+        cartItems.innerHTML = html;
+        totalSection.style.display = 'flex';
+        if (checkoutBtn) checkoutBtn.style.display = state.checkoutMode ? 'none' : 'flex';
 
         if (state.checkoutMode) {
             document.getElementById('checkout-form').classList.add('active');
@@ -432,69 +1299,689 @@ function updateCartUI() {
             updatePreviews();
         }
     }
+
     updateCartTotal();
 }
 
-function closeCartModal() {
-    document.getElementById('cart-modal').classList.remove('active');
-    document.body.style.overflow = '';
-    state.checkoutMode = false;
-    document.getElementById('checkout-form').classList.remove('active');
-    document.getElementById('whatsapp-preview').style.display = 'none';
-    document.getElementById('email-preview').style.display = 'none';
-    document.getElementById('trust-badges').style.display = 'flex';
-    updateProgressIndicator(1);
+function showToast(type, title, message) {
+    var container = document.getElementById('toast-container');
+    if (!container) return;
 
-    var cb = document.getElementById('checkout-btn');
-    if (cb) cb.style.display = state.cart.length > 0 ? 'flex' : 'none';
-    document.getElementById('send-email-btn').style.display = 'none';
-    document.getElementById('send-whatsapp-btn').style.display = 'none';
+    var icons = {
+        success: SVG.check,
+        error: SVG.cross,
+        info: SVG.cart
+    };
+
+    var toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+
+    var iconWrap = document.createElement('span');
+    iconWrap.className = 'toast-icon';
+    iconWrap.innerHTML = icons[type] || SVG.cart;
+
+    var content = document.createElement('div');
+    content.className = 'toast-content';
+
+    var titleEl = document.createElement('div');
+    titleEl.className = 'toast-title';
+    titleEl.textContent = title || '';
+
+    var msgEl = document.createElement('div');
+    msgEl.className = 'toast-message';
+    msgEl.textContent = message || '';
+
+    content.appendChild(titleEl);
+    content.appendChild(msgEl);
+    toast.appendChild(iconWrap);
+    toast.appendChild(content);
+    container.appendChild(toast);
+
+    setTimeout(function () {
+        toast.style.animation = 'toastSlide 0.25s ease reverse';
+        setTimeout(function () {
+            toast.remove();
+        }, 250);
+    }, 4000);
 }
 
-document.addEventListener('DOMContentLoaded', function () {
+function bindBookingPreviewListeners() {
     var formInputs = document.querySelectorAll('#booking-form input, #booking-form textarea');
     formInputs.forEach(function (input) {
         input.addEventListener('input', updatePreviews);
         input.addEventListener('change', updatePreviews);
     });
-});
+}
 
-// --- ADMIN DASHBOARD ---
+function initDatePicker() {
+    window.tourDatePicker = flatpickr('#tour-date', {
+        locale: state.language === 'es' ? 'es' : 'default',
+        minDate: 'today',
+        dateFormat: 'd/m/Y',
+        disableMobile: false,
+        allowInput: false
+    });
+}
+
+function initTimePicker() {
+    var hour = document.getElementById('pickup-hour');
+    var minute = document.getElementById('pickup-min');
+    var ampm = document.getElementById('pickup-ampm');
+    var hidden = document.getElementById('pickup-time');
+
+    function sync() {
+        if (hour.value && minute.value) {
+            hidden.value = hour.value + ':' + minute.value + ' ' + ampm.value;
+        } else {
+            hidden.value = '';
+        }
+    }
+
+    function updateAMPM() {
+        var hr = safeInt(hour.value, 0);
+        if (!hr) return;
+        if (hr >= 7 && hr <= 11) ampm.value = 'AM';
+        else if (hr === 12 || (hr >= 1 && hr <= 5)) ampm.value = 'PM';
+        sync();
+    }
+
+    hour.addEventListener('change', updateAMPM);
+    minute.addEventListener('change', sync);
+    ampm.addEventListener('change', sync);
+}
+
+function toggleOrderSummary() {
+    var content = document.getElementById('order-summary-content');
+    var toggle = document.querySelector('.order-summary-toggle');
+    if (!content || !toggle) return;
+
+    var collapsed = content.classList.contains('collapsed');
+    content.classList.toggle('collapsed', !collapsed);
+    toggle.classList.toggle('collapsed', !collapsed);
+}
+
+function updateProgressIndicator(step) {
+    for (var i = 1; i <= 3; i += 1) {
+        var node = document.getElementById('step-' + i);
+        if (!node) continue;
+        node.classList.remove('active', 'completed');
+        if (i < step) node.classList.add('completed');
+        if (i === step) node.classList.add('active');
+    }
+}
+
+function buildWhatsAppMessage() {
+    var lines = [];
+
+    lines.push(t('newBooking'));
+    lines.push('');
+    lines.push('*' + document.getElementById('customer-name').value + '*');
+    lines.push(document.getElementById('tour-date').value);
+
+    var pickupTime = document.getElementById('pickup-time').value;
+    if (pickupTime) lines.push(pickupTime + ' (MX Time)');
+
+    lines.push(document.getElementById('customer-phone').value);
+    lines.push('');
+    lines.push(t('tours'));
+
+    state.cart.forEach(function (item) {
+        var line = '- ' + item.name + ' (' + safeInt(item.adults, 0) + 'ad, ' + safeInt(item.children, 0) + 'ch)';
+        if (item.addOns && item.addOns.length > 0) {
+            line += ' + ' + item.addOns.map(function (addon) { return addon.name; }).join(', ');
+        }
+        line += ' - $' + safeInt(item.subtotalUSD, 0) + ' USD';
+        lines.push(line);
+    });
+
+    var total = state.cart.reduce(function (sum, item) {
+        return sum + safeInt(item.subtotalUSD, 0);
+    }, 0);
+    lines.push('');
+    lines.push('*TOTAL: $' + total + ' USD*');
+
+    var comments = document.getElementById('customer-comments').value.trim();
+    if (comments) {
+        lines.push('');
+        lines.push(comments);
+    }
+
+    return lines.join('\n');
+}
+
+function appendEmailRow(container, label, value) {
+    var row = document.createElement('div');
+    row.className = 'email-row';
+
+    var labelEl = document.createElement('span');
+    labelEl.className = 'email-label';
+    labelEl.textContent = label;
+
+    var valueEl = document.createElement('span');
+    valueEl.className = 'email-value';
+    valueEl.textContent = value;
+
+    row.appendChild(labelEl);
+    row.appendChild(valueEl);
+    container.appendChild(row);
+}
+
+function updatePreviews() {
+    var form = document.getElementById('booking-form');
+    if (!form || !form.checkValidity()) return;
+
+    var whatsappPreview = document.getElementById('whatsapp-preview');
+    var whatsappContent = document.getElementById('whatsapp-message-content');
+    if (whatsappPreview && whatsappContent) {
+        whatsappPreview.style.display = 'block';
+        whatsappContent.textContent = buildWhatsAppMessage();
+    }
+
+    var emailPreview = document.getElementById('email-preview');
+    var emailContent = document.getElementById('email-preview-content');
+    if (!emailPreview || !emailContent) return;
+
+    emailPreview.style.display = 'block';
+    emailContent.replaceChildren();
+
+    var title = document.createElement('h4');
+    title.textContent = t('bookingSummary');
+    emailContent.appendChild(title);
+
+    var pickupTime = document.getElementById('pickup-time').value || t('notSpecified');
+    var hotel = document.getElementById('customer-hotel').value || t('notSpecified');
+
+    appendEmailRow(emailContent, t('name'), document.getElementById('customer-name').value);
+    appendEmailRow(emailContent, t('email'), document.getElementById('customer-email').value);
+    appendEmailRow(emailContent, t('phone'), document.getElementById('customer-phone').value);
+    appendEmailRow(emailContent, t('tourDate'), document.getElementById('tour-date').value);
+    appendEmailRow(emailContent, t('pickupTime'), pickupTime);
+    appendEmailRow(emailContent, t('hotel'), hotel);
+
+    var hr = document.createElement('hr');
+    hr.style.border = 'none';
+    hr.style.borderTop = '1px dashed #ddd';
+    hr.style.margin = '12px 0';
+    emailContent.appendChild(hr);
+
+    state.cart.forEach(function (item) {
+        appendEmailRow(emailContent, item.name, '$' + safeInt(item.subtotalUSD, 0));
+    });
+
+    var total = state.cart.reduce(function (sum, item) {
+        return sum + safeInt(item.subtotalUSD, 0);
+    }, 0);
+
+    var totalRow = document.createElement('div');
+    totalRow.className = 'email-total';
+
+    var left = document.createElement('span');
+    left.textContent = 'TOTAL';
+    var right = document.createElement('span');
+    right.textContent = '$' + total + ' USD';
+
+    totalRow.appendChild(left);
+    totalRow.appendChild(right);
+    emailContent.appendChild(totalRow);
+}
+
+function proceedToCheckout() {
+    state.checkoutMode = true;
+
+    var checkoutForm = document.getElementById('checkout-form');
+    var checkoutBtn = document.getElementById('checkout-btn');
+    var sendEmailBtn = document.getElementById('send-email-btn');
+    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
+    var trustBadges = document.getElementById('trust-badges');
+
+    if (checkoutForm) checkoutForm.classList.add('active');
+    if (checkoutBtn) checkoutBtn.style.display = 'none';
+    if (sendEmailBtn) sendEmailBtn.style.display = 'flex';
+    if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = 'flex';
+    if (trustBadges) trustBadges.style.display = 'none';
+
+    updateProgressIndicator(2);
+    setBookingStatus('idle');
+
+    if (checkoutForm) {
+        setTimeout(function () {
+            checkoutForm.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+        }, 80);
+    }
+}
+
+function buildBookingPayload() {
+    var total = state.cart.reduce(function (sum, item) {
+        return sum + safeInt(item.subtotalUSD, 0);
+    }, 0);
+
+    return {
+        name: document.getElementById('customer-name').value,
+        email: document.getElementById('customer-email').value,
+        phone: document.getElementById('customer-phone').value,
+        date: document.getElementById('tour-date').value,
+        pickup_time: document.getElementById('pickup-time').value || '',
+        hotel: document.getElementById('customer-hotel').value || '',
+        comments: document.getElementById('customer-comments').value || '',
+        cart: state.cart,
+        total: total
+    };
+}
+
+async function persistBooking(payload) {
+    var response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        var message = t('bookingFailed');
+        try {
+            var body = await response.json();
+            if (body && body.error) message = body.error;
+        } catch (_) {
+            // ignore json parse errors
+        }
+        throw new Error(message);
+    }
+
+    return response.json();
+}
+
+function setBookingButtonsLoading(loading) {
+    var sendEmailBtn = document.getElementById('send-email-btn');
+    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
+
+    [sendEmailBtn, sendWhatsAppBtn].forEach(function (btn) {
+        if (!btn) return;
+        btn.disabled = loading;
+        btn.classList.toggle('loading', loading);
+    });
+}
+
+function setBookingStatus(status) {
+    var statusEl = document.getElementById('booking-status');
+    if (!statusEl) return;
+
+    statusEl.classList.remove('loading', 'success', 'error');
+
+    if (status === 'idle') {
+        statusEl.textContent = '';
+        return;
+    }
+
+    if (status === 'loading') {
+        statusEl.textContent = t('bookingStatusLoading');
+        statusEl.classList.add('loading');
+    } else if (status === 'success') {
+        statusEl.textContent = t('bookingStatusSuccess');
+        statusEl.classList.add('success');
+    } else if (status === 'error') {
+        statusEl.textContent = t('bookingStatusError');
+        statusEl.classList.add('error');
+    }
+}
+
+function completeCheckout() {
+    state.cart = [];
+    saveState();
+    updateCartUI();
+    updateProgressIndicator(1);
+
+    setTimeout(function () {
+        closeCartModal();
+    }, 1500);
+}
+
+async function sendBookingEmail() {
+    if (bookingSubmissionInProgress) return;
+    if (state.cart.length === 0) return;
+
+    var form = document.getElementById('booking-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    updateProgressIndicator(3);
+    bookingSubmissionInProgress = true;
+    setBookingButtonsLoading(true);
+    setBookingStatus('loading');
+
+    try {
+        var payload = buildBookingPayload();
+        await persistBooking(payload);
+
+        var summary = state.cart.map(function (item) {
+            var line = item.name + ': ' + safeInt(item.adults, 0) + 'ad, ' + safeInt(item.children, 0) + 'ch';
+            if (item.addOns && item.addOns.length > 0) {
+                line += ' + ' + item.addOns.map(function (addon) { return addon.name; }).join(', ');
+            }
+            line += ' - $' + safeInt(item.subtotalUSD, 0) + ' USD';
+            return line;
+        }).join('\n');
+
+        if (CONFIG.emailjs && CONFIG.emailjs.serviceId && CONFIG.emailjs.templateId && typeof emailjs !== 'undefined') {
+            await emailjs.send(CONFIG.emailjs.serviceId, CONFIG.emailjs.templateId, {
+                customer_name: payload.name,
+                customer_email: payload.email,
+                customer_phone: payload.phone,
+                tour_date: payload.date,
+                pickup_time: payload.pickup_time || t('notSpecified'),
+                customer_hotel: payload.hotel || t('notSpecified'),
+                customer_comments: payload.comments || t('noComments'),
+                cart_summary: summary,
+                total_amount: '$' + payload.total + ' USD'
+            });
+        }
+
+        setBookingStatus('success');
+        showToast('success', t('bookingSentTitle'), t('bookingSentMessage'));
+        completeCheckout();
+    } catch (e) {
+        console.error(e);
+        setBookingStatus('error');
+        showToast('error', t('whatsappErrorTitle'), e.message || t('emailFallbackError'));
+    } finally {
+        bookingSubmissionInProgress = false;
+        setBookingButtonsLoading(false);
+    }
+}
+
+async function sendToWhatsApp() {
+    if (bookingSubmissionInProgress) return;
+    if (state.cart.length === 0) return;
+
+    var form = document.getElementById('booking-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    updateProgressIndicator(3);
+    bookingSubmissionInProgress = true;
+    setBookingButtonsLoading(true);
+    setBookingStatus('loading');
+
+    try {
+        var payload = buildBookingPayload();
+        await persistBooking(payload);
+
+        var message = buildWhatsAppMessage();
+        window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(message), '_blank');
+
+        setBookingStatus('success');
+        showToast('success', t('bookingSentTitle'), t('bookingSavedForWhatsApp'));
+        completeCheckout();
+    } catch (e) {
+        console.error(e);
+        setBookingStatus('error');
+        showToast('error', t('whatsappErrorTitle'), e.message || t('whatsappErrorMessage'));
+    } finally {
+        bookingSubmissionInProgress = false;
+        setBookingButtonsLoading(false);
+    }
+}
+
+var hotelAC = { wrap: null, list: null, idx: -1, open: false };
+
+function initHotelAutocomplete() {
+    var input = document.getElementById('customer-hotel');
+    if (!input || hotelAC.wrap) return;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'ac-wrap';
+
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+
+    var list = document.createElement('ul');
+    list.className = 'ac-list';
+    wrap.appendChild(list);
+
+    hotelAC.wrap = wrap;
+    hotelAC.list = list;
+    input.setAttribute('autocomplete', 'off');
+
+    input.addEventListener('input', function () {
+        filterHotels(this.value);
+        hideMapBtn();
+    });
+
+    input.addEventListener('focus', function () {
+        if (this.value.length >= 2) filterHotels(this.value);
+    });
+
+    input.addEventListener('blur', function () {
+        var value = this.value.trim();
+        if (value.length > 2) {
+            setTimeout(function () {
+                showMapBtn(value);
+            }, 300);
+        }
+    });
+
+    input.addEventListener('keydown', function (e) {
+        var items = list.querySelectorAll('.ac-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            hotelAC.idx = Math.min(hotelAC.idx + 1, items.length - 1);
+            highlightAC(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            hotelAC.idx = Math.max(hotelAC.idx - 1, 0);
+            highlightAC(items);
+        } else if (e.key === 'Enter' && hotelAC.open && hotelAC.idx >= 0) {
+            e.preventDefault();
+            if (items[hotelAC.idx]) items[hotelAC.idx].dispatchEvent(new Event('mousedown'));
+        } else if (e.key === 'Escape') {
+            closeAC();
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!wrap.contains(e.target)) closeAC();
+    });
+}
+
+function createHighlightedName(text, query) {
+    var fragment = document.createDocumentFragment();
+    var source = safeText(text);
+    var lower = source.toLowerCase();
+    var q = safeText(query).toLowerCase();
+    var idx = lower.indexOf(q);
+
+    if (idx === -1 || !q) {
+        fragment.appendChild(document.createTextNode(source));
+        return fragment;
+    }
+
+    fragment.appendChild(document.createTextNode(source.slice(0, idx)));
+    var strong = document.createElement('strong');
+    strong.textContent = source.slice(idx, idx + q.length);
+    fragment.appendChild(strong);
+    fragment.appendChild(document.createTextNode(source.slice(idx + q.length)));
+    return fragment;
+}
+
+function filterHotels(query) {
+    var list = hotelAC.list;
+    hotelAC.idx = -1;
+
+    if (!list || query.length < 2) {
+        closeAC();
+        return;
+    }
+
+    var lower = query.toLowerCase();
+    var results = HOTELS.filter(function (hotel) {
+        return hotel.n.toLowerCase().indexOf(lower) !== -1 || hotel.z.toLowerCase().indexOf(lower) !== -1;
+    }).slice(0, 12);
+
+    if (results.length === 0) {
+        closeAC();
+        return;
+    }
+
+    list.innerHTML = '';
+
+    results.forEach(function (hotel) {
+        var item = document.createElement('li');
+        item.className = 'ac-item';
+
+        var name = document.createElement('span');
+        name.className = 'ac-name';
+        name.appendChild(createHighlightedName(hotel.n, lower));
+
+        var zone = document.createElement('span');
+        zone.className = 'ac-zone';
+        zone.textContent = hotel.z;
+
+        item.appendChild(name);
+        item.appendChild(zone);
+
+        item.addEventListener('mousedown', function (event) {
+            event.preventDefault();
+            selectHotel(hotel.n, hotel.z);
+        });
+
+        list.appendChild(item);
+    });
+
+    list.style.display = 'block';
+    hotelAC.open = true;
+}
+
+function highlightAC(items) {
+    items.forEach(function (item, index) {
+        item.classList.toggle('ac-active', index === hotelAC.idx);
+        if (index === hotelAC.idx) {
+            item.scrollIntoView({ block: 'nearest' });
+        }
+    });
+}
+
+function selectHotel(name, zone) {
+    var input = document.getElementById('customer-hotel');
+    if (!input) return;
+
+    input.value = name + ' (' + zone + ')';
+    input.dataset.hotel = name;
+    input.dataset.zone = zone;
+
+    closeAC();
+    showMapBtn(name);
+}
+
+function closeAC() {
+    if (hotelAC.list) {
+        hotelAC.list.style.display = 'none';
+    }
+    hotelAC.open = false;
+    hotelAC.idx = -1;
+}
+
+function showMapBtn(hotelName) {
+    hideMapBtn();
+
+    if (!hotelName || hotelName.length < 3) return;
+
+    var wrap = hotelAC.wrap || document.getElementById('customer-hotel').parentNode;
+    if (!wrap) return;
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hotel-map-btn';
+    btn.title = t('mapsTitle');
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <span></span>';
+
+    var label = btn.querySelector('span');
+    if (label) label.textContent = t('maps');
+
+    btn.onclick = function () {
+        openHotelMap(hotelName);
+    };
+
+    wrap.appendChild(btn);
+}
+
+function hideMapBtn() {
+    var existing = document.querySelector('.hotel-map-btn');
+    if (existing) existing.remove();
+}
+
+function openHotelMap(name) {
+    var query = encodeURIComponent(name + ' Cancun Mexico');
+    window.open('https://www.google.com/maps/search/?api=1&query=' + query, '_blank');
+}
+
 function addAdminPricingRow() {
-    const container = document.getElementById('admin-pricing-container');
-    const div = document.createElement('div');
-    div.className = 'admin-dynamic-row pricing-row';
-    div.innerHTML = '<input type="number" placeholder="Adults (e.g. 1)" class="p-adults" required><input type="number" placeholder="Price (e.g. 150)" class="p-price" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
-    container.appendChild(div);
+    var container = document.getElementById('admin-pricing-container');
+    if (!container) return;
+
+    var row = document.createElement('div');
+    row.className = 'admin-dynamic-row pricing-row';
+    row.innerHTML = '<input type="number" placeholder="Adults (e.g. 1)" class="p-adults" required><input type="number" placeholder="Price (e.g. 150)" class="p-price" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
+    container.appendChild(row);
 }
 
 function addAdminItineraryRow() {
-    const container = document.getElementById('admin-itinerary-container');
-    const div = document.createElement('div');
-    div.className = 'admin-dynamic-row itinerary-row';
-    div.innerHTML = '<input type="text" placeholder="EN Step" class="i-en" required><input type="text" placeholder="ES Step" class="i-es" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
-    container.appendChild(div);
+    var container = document.getElementById('admin-itinerary-container');
+    if (!container) return;
+
+    var row = document.createElement('div');
+    row.className = 'admin-dynamic-row itinerary-row';
+    row.innerHTML = '<input type="text" placeholder="EN Step" class="i-en" required><input type="text" placeholder="ES Step" class="i-es" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
+    container.appendChild(row);
 }
 
 function addAdminInclRow(type) {
-    const container = document.getElementById('admin-' + type + '-container');
-    const div = document.createElement('div');
-    div.className = 'admin-dynamic-row ' + type + '-row';
-    div.innerHTML = '<input type="text" placeholder="EN" class="inc-en" required><input type="text" placeholder="ES" class="inc-es" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
-    container.appendChild(div);
+    var container = document.getElementById('admin-' + type + '-container');
+    if (!container) return;
+
+    var row = document.createElement('div');
+    row.className = 'admin-dynamic-row ' + type + '-row';
+    row.innerHTML = '<input type="text" placeholder="EN" class="inc-en" required><input type="text" placeholder="ES" class="inc-es" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
+    container.appendChild(row);
+}
+
+function filesAreJpg(fileList) {
+    return Array.from(fileList || []).every(function (file) {
+        if (!file) return true;
+        var mime = String(file.type || '').toLowerCase();
+        return mime === 'image/jpeg' || mime === 'image/jpg' || /\.jpe?g$/i.test(file.name || '');
+    });
 }
 
 async function handleAdminAddTour(e) {
     e.preventDefault();
-    const btn = document.getElementById('admin-submit-tour-btn');
-    btn.disabled = true;
+
+    var submitBtn = document.getElementById('admin-submit-tour-btn');
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
-        const slug = document.getElementById('admin-tour-slug').value.trim();
-        const data = {
+        if (!isAdminLoggedIn()) {
+            throw new Error(t('adminAuthRequired'));
+        }
+
+        var rawSlug = document.getElementById('admin-tour-slug').value.trim();
+        var slug = sanitizeSlugClient(rawSlug);
+        if (!slug) throw new Error(t('invalidSlug'));
+
+        var heroFile = document.getElementById('admin-img-hero').files[0];
+        var cardFile = document.getElementById('admin-img-card').files[0];
+        var galleryFiles = document.getElementById('admin-img-gallery').files;
+
+        if (!filesAreJpg([heroFile, cardFile]) || !filesAreJpg(galleryFiles)) {
+            throw new Error(t('onlyJpgError'));
+        }
+
+        var data = {
             slug: slug,
-            price_from: parseInt(document.getElementById('admin-tour-price-from').value),
-            child_price_flat: parseInt(document.getElementById('admin-tour-child-price').value),
+            price_from: safeInt(document.getElementById('admin-tour-price-from').value, 0),
+            child_price_flat: safeInt(document.getElementById('admin-tour-child-price').value, 0),
             title_en: document.getElementById('admin-tour-title-en').value,
             title_es: document.getElementById('admin-tour-title-es').value,
             subtitle_en: document.getElementById('admin-tour-subtitle-en').value,
@@ -512,81 +1999,80 @@ async function handleAdminAddTour(e) {
             gallery_images: []
         };
 
-        // gather pricing
-        document.querySelectorAll('.pricing-row').forEach(row => {
+        document.querySelectorAll('.pricing-row').forEach(function (row) {
             data.pricing_tiers.push({
-                adults: parseInt(row.querySelector('.p-adults').value) || 0,
-                adult_price: parseInt(row.querySelector('.p-price').value) || 0
+                adults: safeInt(row.querySelector('.p-adults').value, 0),
+                adult_price: safeInt(row.querySelector('.p-price').value, 0)
             });
         });
 
-        // gather itinerary
-        document.querySelectorAll('.itinerary-row').forEach(row => {
+        document.querySelectorAll('.itinerary-row').forEach(function (row) {
             data.itinerary.push({
                 en: row.querySelector('.i-en').value,
                 es: row.querySelector('.i-es').value
             });
         });
 
-        // gather includes
-        document.querySelectorAll('.includes-row').forEach(row => {
+        document.querySelectorAll('.includes-row').forEach(function (row) {
             data.includes.push({
                 en: row.querySelector('.inc-en').value,
                 es: row.querySelector('.inc-es').value
             });
         });
 
-        document.querySelectorAll('.excludes-row').forEach(row => {
+        document.querySelectorAll('.excludes-row').forEach(function (row) {
             data.excludes.push({
                 en: row.querySelector('.inc-en').value,
                 es: row.querySelector('.inc-es').value
             });
         });
 
-        const formData = new FormData();
+        var formData = new FormData();
         formData.append('slug', slug);
-
-        const heroFile = document.getElementById('admin-img-hero').files[0];
-        const cardFile = document.getElementById('admin-img-card').files[0];
-        const galleryFiles = document.getElementById('admin-img-gallery').files;
 
         if (heroFile) formData.append('images', heroFile, '1.jpg');
         if (cardFile) formData.append('images', cardFile, '2.jpg');
 
-        for (let i = 0; i < galleryFiles.length; i++) {
-            const num = i + 3; // start from 3
+        for (var i = 0; i < galleryFiles.length; i += 1) {
+            var num = i + 3;
             data.gallery_images.push(num);
-            formData.append('images', galleryFiles[i], num + '.' + galleryFiles[i].name.split('.').pop());
+            formData.append('images', galleryFiles[i], num + '.jpg');
         }
 
         formData.append('data', JSON.stringify(data));
 
-        const res = await fetch('/api/tours', {
+        var response = await adminFetch('/api/tours', {
             method: 'POST',
             body: formData
         });
-        const result = await res.json();
 
-        if (result.status === 'ok') {
-            showToast('success', 'Exito', 'Tour guardado correctamente');
-            document.getElementById('admin-add-tour-form').reset();
-            document.getElementById('admin-itinerary-container').innerHTML = '';
-            document.getElementById('admin-pricing-container').innerHTML = '';
-            document.getElementById('admin-includes-container').innerHTML = '';
-            document.getElementById('admin-excludes-container').innerHTML = '';
-            try {
-                const refreshed = await fetch('/api/tours').then(r => r.json());
-                TOURS = {};
-                refreshed.forEach(t => { TOURS[t.id] = t });
-                if (state.currentView === 'catalog') renderCatalog();
-            } catch (e) { }
-        } else {
-            showToast('error', 'Error', result.error || 'Failed to save');
+        var result = await response.json();
+        if (!response.ok || result.status !== 'ok') {
+            throw new Error(result.error || t('saveError'));
+        }
+
+        showToast('success', state.language === 'es' ? 'Éxito' : 'Success', t('tourSaved'));
+
+        document.getElementById('admin-add-tour-form').reset();
+        document.getElementById('admin-itinerary-container').innerHTML = '';
+        document.getElementById('admin-pricing-container').innerHTML = '';
+        document.getElementById('admin-includes-container').innerHTML = '';
+        document.getElementById('admin-excludes-container').innerHTML = '';
+
+        try {
+            var refreshed = await fetch('/api/tours').then(function (r) { return r.json(); });
+            TOURS = {};
+            refreshed.forEach(function (tour) {
+                TOURS[tour.id] = tour;
+            });
+            if (state.currentView === 'catalog') renderCatalog();
+        } catch (_) {
+            // Ignore refresh issues after successful save.
         }
     } catch (err) {
         console.error(err);
-        showToast('error', 'Error', 'Error: ' + err.message);
+        showToast('error', state.language === 'es' ? 'Error' : 'Error', err.message || t('saveError'));
     } finally {
-        if (btn) btn.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
     }
 }

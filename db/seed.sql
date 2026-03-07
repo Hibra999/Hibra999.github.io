@@ -47,15 +47,35 @@ INSERT INTO tours(slug,image_folder,card_thumbnail,title_en,title_es,short_desc_
 'Select your preferred tour time (9:30 AM or 1:30 PM) when booking. Once you book online and complete the deposit payment, we will send you the confirmation voucher by email. Print your voucher and bring it with you. It includes all the details and our contact information if you need to make any changes. Please specify your hotel location so we can confirm transportation availability and any additional charges.',
 'Seleccione su horario preferido (9:30 AM o 1:30 PM) al reservar. Una vez que reserve en linea y complete el pago del deposito, le enviaremos el voucher de confirmacion por correo electronico. Imprima su voucher y traigalo consigo. Incluye todos los detalles y nuestra informacion de contacto si necesita hacer cambios. Por favor indique la ubicacion de su hotel para confirmar disponibilidad de transporte y cargos adicionales.');
 
+-- Tour 4: Chichen Itza Group Tour
+INSERT INTO tours(slug,image_folder,card_thumbnail,title_en,title_es,short_desc_en,short_desc_es,price_from,subtitle_en,subtitle_es,description_en,description_es,hero_image,price_adults_label_en,price_adults_label_es,price_adult_price_label_en,price_adult_price_label_es,price_child_price_label_en,price_child_price_label_es,child_price_flat,free_child_note_en,free_child_note_es,group_note_en,group_note_es,pricing_note_en,pricing_note_es,itinerary_title_en,itinerary_title_es,itinerary_warning_en,itinerary_warning_es,booking_desc_en,booking_desc_es)VALUES(
+'chichen_itza_group_tour','imagenes/servicios/chichen_itza_group_tour',1,
+'Chichen Itza Group Tour','Tour Grupal a Chichen Itza',
+'Our Chichen Itza tour takes you from Cancun to the ancient Mayan pyramids of Chichen Itza. We include your transportation, guide, lunch and swimming in a sacred Mayan cenote.',
+'Nuestro tour a Chichen Itza te lleva desde Cancun a las antiguas piramides mayas. Incluimos transporte, guia, almuerzo y nado en un cenote maya sagrado.',76,
+'Group Tour to Chichen Itza, Cenote and Lunch','Tour Grupal a Chichen Itza, Cenote y Almuerzo',
+'Chichen Itza is now one of the New 7 Wonders of the World. Our tour takes you from Cancun to the ancient Mayan pyramids. We include your transportation, guide, lunch and swimming in a sacred Mayan cenote. This is a public bus tour operated by Mina''an U Xuul tours. After you are picked up, you will be transferred to a bus with guide. Only available for guests staying in Cancun or Puerto Juarez (Isla Mujeres). NOTE: There is a 60 pesos charge in the ruins to use your cell phone for video or photos.',
+'Chichen Itza es ahora una de las Nuevas 7 Maravillas del Mundo. Nuestro tour te lleva desde Cancun a las antiguas piramides mayas. Incluimos transporte, guia, almuerzo y nado en un cenote maya sagrado. Este es un tour publico en autobus operado por Mina''an U Xuul tours. Despues de la recogida, seras transferido a un autobus con guia. Solo disponible para huespedes en Cancun o Puerto Juarez (Isla Mujeres). NOTA: Hay un cargo de 60 pesos en las ruinas por usar celular para video o fotos.',
+1,'Number of Adults','Numero de Adultos','Price per Adult','Precio por Adulto','Price per Child','Precio por Nino',
+61,'Children under 5 must be confirmed before booking.','Ninos menores de 5 anos deben confirmarse antes de reservar.',
+'Public group tour operated by Mina''an U Xuul tours.','Tour grupal publico operado por Mina''an U Xuul tours.',
+'Adult and child rates are fixed per person for this group experience.','Las tarifas de adulto y nino son fijas por persona para esta experiencia grupal.',
+'Itinerary','Itinerario',
+'This tour is only available for guests staying in Cancun or Puerto Juarez (Isla Mujeres).','Este tour solo esta disponible para huespedes en Cancun o Puerto Juarez (Isla Mujeres).',
+'Once you book online and complete the deposit payment, we will send you the confirmation voucher by email with all meeting point and schedule details.',
+'Una vez que reserve en linea y complete el pago del deposito, le enviaremos por correo electronico el voucher de confirmacion con todos los detalles del punto de encuentro y horarios.');
+
 -- Gallery images
 INSERT INTO gallery_images(tour_id,image_num)VALUES(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19),(1,20),(1,21);
-INSERT INTO gallery_images(tour_id,image_num)VALUES(2,1),(2,2),(2,3),(2,4),(2,5),(2,6),(2,7),(2,8),(2,9),(2,10);
+INSERT INTO gallery_images(tour_id,image_num)VALUES(2,1),(2,2),(2,3),(2,4),(2,5),(2,6),(2,7),(2,8),(2,9),(2,10),(2,11);
 INSERT INTO gallery_images(tour_id,image_num)VALUES(3,1),(3,2),(3,3),(3,4),(3,5),(3,6),(3,7),(3,8);
+INSERT INTO gallery_images(tour_id,image_num)VALUES(4,1),(4,2),(4,3),(4,4),(4,5);
 
 -- Pricing tiers
 INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(1,1,269),(1,2,169),(1,3,139),(1,4,99),(1,5,89),(1,6,79),(1,7,69),(1,8,69),(1,9,59),(1,10,49);
 INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(2,1,299),(2,2,199),(2,3,169),(2,4,139),(2,5,119),(2,6,109),(2,7,99),(2,8,89),(2,9,79),(2,10,69);
 INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(3,1,129),(3,2,119),(3,3,109),(3,4,99),(3,5,99),(3,6,99),(3,7,99),(3,8,99),(3,9,99),(3,10,99);
+INSERT INTO pricing_tiers(tour_id,adults,adult_price)VALUES(4,1,76),(4,2,76),(4,3,76),(4,4,76),(4,5,76),(4,6,76),(4,7,76),(4,8,76),(4,9,76),(4,10,76);
 
 -- Includes Tour 1
 INSERT INTO tour_includes(tour_id,text_en,text_es)VALUES
@@ -93,6 +113,18 @@ INSERT INTO tour_excludes(tour_id,text_en,text_es)VALUES
 (3,'Hotels south of Playa del Carmen: $15 USD per person','Hoteles al sur de Playa del Carmen: $15 USD por persona'),
 (3,'Costa Mujeres, Playa Mujeres or other locations: email us for a quote','Costa Mujeres, Playa Mujeres u otras ubicaciones: envie un correo para cotizacion');
 
+-- Includes Tour 4
+INSERT INTO tour_includes(tour_id,text_en,text_es)VALUES
+(4,'Transportation from Cancun/Puerto Juarez','Transporte desde Cancun/Puerto Juarez'),
+(4,'English-speaking guide','Guia de habla inglesa'),
+(4,'Lunch','Almuerzo'),
+(4,'Swimming in sacred Mayan cenote','Nado en cenote maya sagrado'),
+(4,'Entrance fees','Entradas incluidas');
+INSERT INTO tour_excludes(tour_id,text_en,text_es)VALUES
+(4,'Gratuities','Propinas'),
+(4,'Personal expenses','Gastos personales'),
+(4,'60 pesos cell phone fee at ruins','Cargo de 60 pesos por celular en las ruinas');
+
 -- Itinerary Tour 1
 INSERT INTO itinerary_steps(tour_id,step_order,text_en,text_es)VALUES
 (1,1,'Hotel pickup at the time you choose (we suggest 7-8 AM)','Recogida en su hotel a la hora que elija (sugerimos 7-8 AM)'),
@@ -114,6 +146,15 @@ INSERT INTO itinerary_steps(tour_id,step_order,text_en,text_es)VALUES
 (3,3,'5 zip lines and 3 balance bridges through the jungle canopy','5 tirolesas y 3 puentes de equilibrio sobre la selva'),
 (3,4,'50 minutes of ATV riding through jungle trails','50 minutos de paseo en ATV por senderos en la selva'),
 (3,5,'50 minutes of swimming at an open cenote with zip lines and jump platforms','50 minutos de nado en cenote abierto con tirolesas y plataformas de salto');
+
+-- Itinerary Tour 4
+INSERT INTO itinerary_steps(tour_id,step_order,text_en,text_es)VALUES
+(4,1,'Hotel pickup in Cancun or Puerto Juarez','Recogida en hotel en Cancun o Puerto Juarez'),
+(4,2,'Transfer to group bus with guide','Traslado a autobus grupal con guia'),
+(4,3,'Visit Chichen Itza pyramids','Visita a las piramides de Chichen Itza'),
+(4,4,'Lunch at local restaurant','Almuerzo en restaurante local'),
+(4,5,'Swimming in sacred cenote','Nado en cenote sagrado'),
+(4,6,'Return to hotel','Regreso al hotel');
 
 -- Addons Tour 1
 INSERT INTO addons(tour_id,slug,title_en,title_es,desc_en,desc_es,price_per_person)VALUES
@@ -142,6 +183,15 @@ INSERT INTO packing_items(tour_id,text_en,text_es,icon)VALUES
 (3,'Camera','Camara','camera'),(3,'Insect repellent','Repelente de insectos','sun'),
 (3,'Light clothes you don''t mind getting dirty','Ropa ligera que no te importe ensuciar','hat'),
 (3,'Tennis shoes or sport sandals','Tenis o sandalias deportivas','water');
+
+-- Packing items Tour 4
+INSERT INTO packing_items(tour_id,text_en,text_es,icon)VALUES
+(4,'Sunblock','Bloqueador solar','sun'),
+(4,'Sunglasses','Lentes de sol','glasses'),
+(4,'Hat','Sombrero','hat'),
+(4,'Camera','Camara','camera'),
+(4,'Towel and swimsuit','Toalla y traje de bano','swim'),
+(4,'Extra cash for souvenirs and tips','Dinero extra para recuerdos y propinas','water');
 
 -- Hotels
 INSERT INTO hotels(name,zone)VALUES

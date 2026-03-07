@@ -1,0 +1,22 @@
+0 verbose cli /usr/bin/node /usr/bin/npm
+1 info using npm@11.11.0
+2 info using node@v25.7.0
+3 silly config load:file:/usr/lib/node_modules/npm/npmrc
+4 silly config load:file:/home/gabo/portfolio/projects/23-lindoTours/web/Hibra999.github.io/.npmrc
+5 silly config load:file:/home/gabo/.npmrc
+6 silly config load:file:/etc/npmrc
+7 verbose title npm rebuild better-sqlite3
+8 verbose argv "rebuild" "better-sqlite3" "--foreground-scripts"
+9 verbose logfile logs-max:10 dir:/home/gabo/portfolio/projects/23-lindoTours/web/Hibra999.github.io/.npm-cache/_logs/2026-03-07T06_00_23_848Z-
+10 verbose logfile /home/gabo/portfolio/projects/23-lindoTours/web/Hibra999.github.io/.npm-cache/_logs/2026-03-07T06_00_23_848Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:2251030528 maxSize:562757632 maxEntrySize:281378816
+13 verbose shrinkwrap failed to load node_modules/.package-lock.json out of date, updated: node_modules/better-sqlite3
+14 info run better-sqlite3@12.6.2 install node_modules/better-sqlite3 prebuild-install || node-gyp rebuild --release
+15 info run better-sqlite3@12.6.2 install { code: 0, signal: null }
+16 verbose cwd /home/gabo/portfolio/projects/23-lindoTours/web/Hibra999.github.io
+17 verbose os Linux 6.18.5-arch1-1
+18 verbose node v25.7.0
+19 verbose npm  v11.11.0
+20 verbose exit 0
+21 info ok
