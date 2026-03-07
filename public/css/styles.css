@@ -1300,8 +1300,27 @@ header {
   color: var(--charcoal);
 }
 
+.close-modal:focus-visible,
+.order-summary-toggle:focus-visible,
+.cart-item-remove:focus-visible,
+.cart-qty-btn:focus-visible,
+.btn:focus-visible,
+#confirm-step-title:focus-visible {
+  outline: 3px solid var(--primary-pale);
+  outline-offset: 2px;
+}
+
 .modal-body {
   padding: 20px 24px
+}
+
+.checkout-step-view {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.checkout-step-view.active {
+  display: block;
 }
 
 .cart-empty {
@@ -1316,7 +1335,7 @@ header {
 
 .cart-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
   padding: 16px 0;
   border-bottom: 1px solid var(--gray-100);
@@ -1357,6 +1376,62 @@ header {
   color: var(--gray-600);
 }
 
+.cart-item-editors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cart-item-editor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--gray-50, #f8fafc);
+  border: 1px solid var(--gray-100);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+.cart-editor-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.cart-qty-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-qty-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.cart-qty-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cart-qty-value {
+  min-width: 18px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .cart-item-price {
   font-size: 0.95rem;
   font-weight: 700;
@@ -1365,6 +1440,7 @@ header {
   background: var(--teal-light);
   padding: 6px 12px;
   border-radius: 20px;
+  align-self: flex-start;
 }
 
 .cart-item-remove {
@@ -1381,6 +1457,7 @@ header {
   align-items: center;
   justify-content: center;
   transition: all var(--transition);
+  align-self: flex-start;
 }
 
 .cart-item-remove:hover {
@@ -1419,6 +1496,7 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 14px 18px;
   background: var(--gray-50, #fafafa);
   border-radius: 12px;
@@ -1426,6 +1504,10 @@ header {
   transition: all var(--transition);
   margin-bottom: 16px;
   border: 1px solid var(--gray-100);
+  text-align: left;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .order-summary-toggle:hover {
@@ -1515,6 +1597,81 @@ header {
 .trust-badge svg {
   width: 18px;
   height: 18px;
+  color: var(--teal);
+}
+
+.confirm-step {
+  padding-top: 4px;
+}
+
+.confirm-step-text {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.confirm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.confirm-card {
+  background: var(--gray-50, #fafafa);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.confirm-card h5 {
+  margin: 0 0 10px;
+  font-size: 0.86rem;
+  color: var(--charcoal);
+}
+
+.confirm-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.confirm-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--gray-200);
+}
+
+.confirm-summary-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.confirm-summary-label {
+  color: var(--gray-600);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.confirm-summary-value {
+  color: var(--charcoal);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  font-weight: 600;
+  text-align: right;
+}
+
+.confirm-total {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 2px solid var(--charcoal);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.92rem;
   color: var(--teal);
 }
 
@@ -2261,6 +2418,14 @@ footer a:hover {
     color: var(--teal);
     font-weight: 700;
     font-size: 0.95rem;
+  }
+
+  .cart-item-editors {
+    grid-template-columns: 1fr;
+  }
+
+  .confirm-grid {
+    grid-template-columns: 1fr;
   }
 }
 

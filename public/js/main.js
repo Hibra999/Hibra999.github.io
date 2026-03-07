@@ -6,7 +6,8 @@ let state = {
     children: 0,
     addOns: {},
     cart: [],
-    checkoutMode: false
+    checkoutMode: false,
+    checkoutStep: 1
 };
 
 let TOURS = {};
@@ -19,6 +20,7 @@ let heroRotationTimer = null;
 let heroIndex = 0;
 let revealObserver = null;
 let bookingSubmissionInProgress = false;
+let lastFocusedBeforeCartModal = null;
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -62,6 +64,7 @@ const I18N = {
         tourDate: 'Fecha del Tour',
         pickupTime: 'Hora de Recogida',
         hotel: 'Hotel',
+        comments: 'Comentarios',
         notSpecified: 'No especificado',
         noComments: 'Sin comentarios',
         sendingBooking: 'Enviando reservación...',
@@ -82,7 +85,22 @@ const I18N = {
         invalidSlug: 'El slug del tour no es válido.',
         tourSaved: 'Tour guardado correctamente',
         saveError: 'No se pudo guardar el tour',
-        totalToPay: 'Total a pagar'
+        totalToPay: 'Total a pagar',
+        closeCart: 'Cerrar carrito',
+        removeFromCartAria: 'Eliminar tour del carrito',
+        cartMinTravelers: 'Cada tour debe incluir al menos 1 viajero.',
+        invalidAdultsTier: 'No hay tarifa para esa cantidad de adultos.',
+        decreaseAdults: 'Disminuir adultos',
+        increaseAdults: 'Aumentar adultos',
+        decreaseChildren: 'Disminuir niños',
+        increaseChildren: 'Aumentar niños',
+        confirmStepInvalid: 'Completa los campos obligatorios antes de confirmar.',
+        confirmCustomerDetails: 'Datos del Cliente',
+        confirmToursAndTotal: 'Tours y Total',
+        confirmLineAdults: 'Adultos',
+        confirmLineChildren: 'Niños',
+        backToCart: 'Volver al carrito',
+        editDetails: 'Editar datos'
     },
     en: {
         from: 'From',
@@ -123,6 +141,7 @@ const I18N = {
         tourDate: 'Tour Date',
         pickupTime: 'Pickup Time',
         hotel: 'Hotel',
+        comments: 'Comments',
         notSpecified: 'Not specified',
         noComments: 'No comments',
         sendingBooking: 'Sending booking...',
@@ -143,7 +162,22 @@ const I18N = {
         invalidSlug: 'The tour slug is invalid.',
         tourSaved: 'Tour saved successfully',
         saveError: 'Tour could not be saved',
-        totalToPay: 'Total to pay'
+        totalToPay: 'Total to pay',
+        closeCart: 'Close cart',
+        removeFromCartAria: 'Remove tour from cart',
+        cartMinTravelers: 'Each tour must include at least 1 traveler.',
+        invalidAdultsTier: 'No pricing tier exists for that number of adults.',
+        decreaseAdults: 'Decrease adults',
+        increaseAdults: 'Increase adults',
+        decreaseChildren: 'Decrease children',
+        increaseChildren: 'Increase children',
+        confirmStepInvalid: 'Complete required fields before confirming.',
+        confirmCustomerDetails: 'Customer Details',
+        confirmToursAndTotal: 'Tours and Total',
+        confirmLineAdults: 'Adults',
+        confirmLineChildren: 'Children',
+        backToCart: 'Back to cart',
+        editDetails: 'Edit details'
     }
 };
 
@@ -192,6 +226,181 @@ function safeText(value) {
 function safeInt(value, fallback) {
     var n = Number(value);
     return Number.isFinite(n) ? Math.round(n) : fallback;
+}
+
+function getDateFormatByLanguage() {
+    return state.language === 'en' ? 'm/d/Y' : 'd/m/Y';
+}
+
+function isCartModalActive() {
+    var modal = document.getElementById('cart-modal');
+    return Boolean(modal && modal.classList.contains('active'));
+}
+
+function getModalFocusableElements() {
+    var dialog = document.getElementById('cart-modal-dialog');
+    if (!dialog) return [];
+
+    var selector = [
+        'a[href]',
+        'button:not([disabled])',
+        'textarea:not([disabled])',
+        'input:not([type="hidden"]):not([disabled])',
+        'select:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])'
+    ].join(',');
+
+    return Array.prototype.slice.call(dialog.querySelectorAll(selector)).filter(function (el) {
+        return el.offsetParent !== null || document.activeElement === el;
+    });
+}
+
+function trapCartModalFocus(event) {
+    if (event.key !== 'Tab') return;
+    var dialog = document.getElementById('cart-modal-dialog');
+    if (!dialog) return;
+
+    var focusable = getModalFocusableElements();
+    if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+    }
+
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    var active = document.activeElement;
+    if (!dialog.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+    }
+
+    if (event.shiftKey) {
+        if (active === first) {
+            event.preventDefault();
+            last.focus();
+        }
+        return;
+    }
+
+    if (active === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
+
+function focusCartModalPrimaryControl() {
+    var dialog = document.getElementById('cart-modal-dialog');
+    if (!dialog) return;
+
+    var focusable = getModalFocusableElements();
+    if (focusable.length > 0) {
+        focusable[0].focus();
+        return;
+    }
+
+    dialog.focus();
+}
+
+function hideBookingPreviews() {
+    var whatsappPreview = document.getElementById('whatsapp-preview');
+    var emailPreview = document.getElementById('email-preview');
+    var whatsappContent = document.getElementById('whatsapp-message-content');
+    var emailContent = document.getElementById('email-preview-content');
+
+    if (whatsappPreview) whatsappPreview.style.display = 'none';
+    if (emailPreview) emailPreview.style.display = 'none';
+    if (whatsappContent) whatsappContent.textContent = '';
+    if (emailContent) emailContent.replaceChildren();
+}
+
+function getTourForCartItem(item) {
+    if (!item || !item.tourId) return null;
+    return TOURS[item.tourId] || null;
+}
+
+function getCartItemName(item) {
+    var tour = getTourForCartItem(item);
+    if (tour && tour.hero && tour.hero.title) {
+        return getLocalized(tour.hero.title, state.language);
+    }
+    if (item && item.name && typeof item.name === 'object') {
+        return getLocalized(item.name, state.language);
+    }
+    return safeText(item && item.name);
+}
+
+function getCartItemAddonNames(item) {
+    if (!item || !Array.isArray(item.addOns)) return [];
+
+    var names = [];
+    var tour = getTourForCartItem(item);
+    item.addOns.forEach(function (addon) {
+        if (!addon) return;
+        var label = '';
+
+        if (tour && tour.addOns && Array.isArray(tour.addOns.options) && addon.id) {
+            var option = tour.addOns.options.find(function (opt) {
+                return opt.id === addon.id;
+            });
+            if (option) {
+                label = getLocalized(option.title, state.language);
+            }
+        }
+
+        if (!label && addon.name && typeof addon.name === 'object') {
+            label = getLocalized(addon.name, state.language);
+        }
+        if (!label) {
+            label = safeText(addon.name || addon.id);
+        }
+        if (label) names.push(label);
+    });
+
+    return names;
+}
+
+function calculateCartItemPricing(item, adults, children) {
+    var tour = getTourForCartItem(item);
+    var adultPriceUSD = safeInt(item && item.adultPriceUSD, 0);
+    var childPriceUSD = safeInt(item && item.childPriceUSD, 0);
+
+    if (tour && tour.pricing) {
+        if (adults > 0) {
+            var tier = (tour.pricing.tiers || []).find(function (priceTier) {
+                return safeInt(priceTier.adults, -1) === adults;
+            });
+            if (!tier) return null;
+            adultPriceUSD = safeInt(tier.adultPrice, 0);
+        } else {
+            adultPriceUSD = 0;
+        }
+        childPriceUSD = safeInt(tour.pricing.childPriceFlat, childPriceUSD);
+    }
+
+    var persons = adults + children;
+    var addOnsSubtotalUSD = 0;
+    if (Array.isArray(item && item.addOns)) {
+        item.addOns.forEach(function (addon) {
+            if (!addon) return;
+            var addonPrice = safeInt(addon.pricePerPerson, 0);
+            if (tour && tour.addOns && Array.isArray(tour.addOns.options) && addon.id) {
+                var option = tour.addOns.options.find(function (opt) {
+                    return opt.id === addon.id;
+                });
+                if (option) addonPrice = safeInt(option.pricePerPerson, addonPrice);
+            }
+            addon.pricePerPerson = addonPrice;
+            addOnsSubtotalUSD += addonPrice * persons;
+        });
+    }
+
+    return {
+        adultPriceUSD: adultPriceUSD,
+        childPriceUSD: childPriceUSD,
+        subtotalUSD: adults * adultPriceUSD + children * childPriceUSD + addOnsSubtotalUSD
+    };
 }
 
 function safePathSegment(segment) {
@@ -358,7 +567,13 @@ async function initApp() {
     }
 
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closeCartModal();
+        if (!isCartModalActive()) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeCartModal();
+            return;
+        }
+        trapCartModalFocus(e);
     });
 
     window.addEventListener('hashchange', handleHash);
@@ -602,6 +817,7 @@ function changeLanguage(lang, options) {
     document.documentElement.lang = state.language;
     if (window.tourDatePicker) {
         window.tourDatePicker.set('locale', state.language === 'es' ? 'es' : 'default');
+        window.tourDatePicker.set('dateFormat', getDateFormatByLanguage());
     }
 
     if (opts.rerender) {
@@ -613,6 +829,7 @@ function changeLanguage(lang, options) {
     }
 
     applyDataTranslations();
+    if (isCartModalActive()) updateCartUI();
 }
 
 function applyDataTranslations() {
@@ -636,6 +853,11 @@ function applyDataTranslations() {
         mapBtn.title = t('mapsTitle');
         var span = mapBtn.querySelector('span');
         if (span) span.textContent = t('maps');
+    }
+
+    var closeCartBtn = document.querySelector('.close-modal');
+    if (closeCartBtn) {
+        closeCartBtn.setAttribute('aria-label', t('closeCart'));
     }
 }
 
@@ -1149,22 +1371,66 @@ function addTourToCart() {
 }
 
 function removeFromCart(index) {
+    if (index < 0 || index >= state.cart.length) return;
     state.cart.splice(index, 1);
     saveState();
     updateCartUI();
     showToast('info', t('removed'), t('removedMessage'));
 }
 
-function updateCartTotal() {
-    var total = state.cart.reduce(function (sum, item) {
+function updateCartItemQuantity(index, type, change) {
+    var item = state.cart[index];
+    if (!item) return;
+
+    var adults = safeInt(item.adults, 0);
+    var children = safeInt(item.children, 0);
+
+    if (type === 'adults') {
+        adults = Math.max(0, Math.min(10, adults + change));
+    } else if (type === 'children') {
+        children = Math.max(0, Math.min(10, children + change));
+    } else {
+        return;
+    }
+
+    if (adults + children === 0) {
+        showToast('info', t('removed'), t('cartMinTravelers'));
+        return;
+    }
+
+    var recalculated = calculateCartItemPricing(item, adults, children);
+    if (!recalculated) {
+        showToast('error', t('whatsappErrorTitle'), t('invalidAdultsTier'));
+        return;
+    }
+
+    item.adults = adults;
+    item.children = children;
+    item.adultPriceUSD = recalculated.adultPriceUSD;
+    item.childPriceUSD = recalculated.childPriceUSD;
+    item.subtotalUSD = recalculated.subtotalUSD;
+
+    saveState();
+    updateCartUI();
+}
+
+function getCartTotalUSD() {
+    return state.cart.reduce(function (sum, item) {
         return sum + safeInt(item.subtotalUSD, 0);
     }, 0);
+}
+
+function updateCartTotal() {
+    var total = getCartTotalUSD();
 
     var amount = document.getElementById('cart-total-amount');
     if (amount) {
         amount.textContent = '$' + total + ' USD';
         triggerNumberBump('cart-total-amount');
     }
+
+    var confirmAmount = document.getElementById('confirm-total-amount');
+    if (confirmAmount) confirmAmount.textContent = '$' + total + ' USD';
 
     var mobileAmount = document.getElementById('mobile-summary-total');
     if (mobileAmount) mobileAmount.textContent = '$' + total + ' USD';
@@ -1197,44 +1463,48 @@ function saveState() {
 function openCartModal() {
     var modal = document.getElementById('cart-modal');
     if (!modal) return;
+    if (modal.classList.contains('active')) return;
+
+    lastFocusedBeforeCartModal = document.activeElement;
     modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     updateCartUI();
+    focusCartModalPrimaryControl();
 }
 
 function closeCartModal() {
     var modal = document.getElementById('cart-modal');
-    if (modal) modal.classList.remove('active');
+    var wasOpen = Boolean(modal && modal.classList.contains('active'));
+    if (modal) {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+    }
 
     document.body.style.overflow = '';
     state.checkoutMode = false;
+    state.checkoutStep = 1;
 
-    var checkoutForm = document.getElementById('checkout-form');
-    var whatsappPreview = document.getElementById('whatsapp-preview');
-    var emailPreview = document.getElementById('email-preview');
-    var trustBadges = document.getElementById('trust-badges');
-    var checkoutBtn = document.getElementById('checkout-btn');
-    var sendEmailBtn = document.getElementById('send-email-btn');
-    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
-
-    if (checkoutForm) checkoutForm.classList.remove('active');
-    if (whatsappPreview) whatsappPreview.style.display = 'none';
-    if (emailPreview) emailPreview.style.display = 'none';
-    if (trustBadges) trustBadges.style.display = 'flex';
-
-    updateProgressIndicator(1);
+    hideBookingPreviews();
     setBookingStatus('idle');
+    goToCheckoutStep(1, {
+        skipValidation: true,
+        manageFocus: false,
+        scrollIntoView: false,
+        preserveStatus: true
+    });
 
-    if (checkoutBtn) checkoutBtn.style.display = state.cart.length > 0 ? 'flex' : 'none';
-    if (sendEmailBtn) sendEmailBtn.style.display = 'none';
-    if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = 'none';
+    if (wasOpen && lastFocusedBeforeCartModal && document.contains(lastFocusedBeforeCartModal)) {
+        lastFocusedBeforeCartModal.focus();
+    }
+    lastFocusedBeforeCartModal = null;
 }
 
 function updateCartUI() {
     var cartCount = document.getElementById('cart-count');
     var cartItems = document.getElementById('cart-items');
     var totalSection = document.getElementById('cart-total-section');
-    var checkoutBtn = document.getElementById('checkout-btn');
+    var mobileSummaryBar = document.getElementById('mobile-summary-bar');
 
     if (!cartCount || !cartItems || !totalSection) return;
 
@@ -1247,60 +1517,80 @@ function updateCartUI() {
     cartCount.classList.toggle('empty', totalPeople === 0);
 
     if (state.cart.length === 0) {
+        if (mobileSummaryBar) mobileSummaryBar.hidden = true;
         cartItems.innerHTML = '<div class="cart-empty">' +
             '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' +
             '<p>' + escapeHtml(t('cartEmpty')) + '</p></div>';
 
         totalSection.style.display = 'none';
-        if (checkoutBtn) checkoutBtn.style.display = 'none';
-
-        document.getElementById('checkout-form').classList.remove('active');
-        document.getElementById('send-email-btn').style.display = 'none';
-        document.getElementById('send-whatsapp-btn').style.display = 'none';
-        document.getElementById('whatsapp-preview').style.display = 'none';
-        document.getElementById('email-preview').style.display = 'none';
-        document.getElementById('trust-badges').style.display = 'flex';
+        hideBookingPreviews();
 
         state.checkoutMode = false;
-        updateProgressIndicator(1);
+        state.checkoutStep = 1;
         setBookingStatus('idle');
+
+        var customerSummary = document.getElementById('confirm-customer-summary');
+        var cartSummary = document.getElementById('confirm-cart-summary');
+        if (customerSummary) customerSummary.replaceChildren();
+        if (cartSummary) cartSummary.replaceChildren();
     } else {
+        if (mobileSummaryBar) mobileSummaryBar.hidden = false;
         var html = '';
 
         state.cart.forEach(function (item, index) {
+            var adults = safeInt(item.adults, 0);
+            var children = safeInt(item.children, 0);
             var qtyParts = [];
-            if (safeInt(item.adults, 0) > 0) qtyParts.push(safeInt(item.adults, 0) + ' ' + t('adultUnit'));
-            if (safeInt(item.children, 0) > 0) qtyParts.push(safeInt(item.children, 0) + ' ' + t('childUnit'));
+            if (adults > 0) qtyParts.push(adults + ' ' + t('adultUnit'));
+            if (children > 0) qtyParts.push(children + ' ' + t('childUnit'));
 
+            var addOnNames = getCartItemAddonNames(item);
             var qtyText = qtyParts.join(', ');
-            if (item.addOns && item.addOns.length > 0) {
-                qtyText += ' + ' + item.addOns.map(function (addon) { return addon.name; }).join(', ');
+            if (addOnNames.length > 0) {
+                qtyText += (qtyText ? ' + ' : '') + addOnNames.join(', ');
             }
 
             html += '<div class="cart-item">';
             html += '<div class="cart-item-image" style="background-image:url(\'' + escapeAttr(sanitizeImageUrl(item.image)) + '\')"></div>';
             html += '<div class="cart-item-details">';
-            html += '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>';
+            html += '<div class="cart-item-name">' + escapeHtml(getCartItemName(item)) + '</div>';
             html += '<div class="cart-item-qty">' + escapeHtml(qtyText) + '</div>';
+            html += '<div class="cart-item-editors">';
+            html += '<div class="cart-item-editor">';
+            html += '<span class="cart-editor-label">' + escapeHtml(t('adultsLabel')) + '</span>';
+            html += '<div class="cart-qty-controls">';
+            html += '<button type="button" class="cart-qty-btn" onclick="updateCartItemQuantity(' + index + ',\'adults\',-1)" aria-label="' + escapeAttr(t('decreaseAdults')) + '"' + (adults === 0 ? ' disabled' : '') + '>-</button>';
+            html += '<span class="cart-qty-value">' + adults + '</span>';
+            html += '<button type="button" class="cart-qty-btn" onclick="updateCartItemQuantity(' + index + ',\'adults\',1)" aria-label="' + escapeAttr(t('increaseAdults')) + '"' + (adults >= 10 ? ' disabled' : '') + '>+</button>';
+            html += '</div>';
+            html += '</div>';
+            html += '<div class="cart-item-editor">';
+            html += '<span class="cart-editor-label">' + escapeHtml(t('childrenLabel')) + '</span>';
+            html += '<div class="cart-qty-controls">';
+            html += '<button type="button" class="cart-qty-btn" onclick="updateCartItemQuantity(' + index + ',\'children\',-1)" aria-label="' + escapeAttr(t('decreaseChildren')) + '"' + (children === 0 ? ' disabled' : '') + '>-</button>';
+            html += '<span class="cart-qty-value">' + children + '</span>';
+            html += '<button type="button" class="cart-qty-btn" onclick="updateCartItemQuantity(' + index + ',\'children\',1)" aria-label="' + escapeAttr(t('increaseChildren')) + '"' + (children >= 10 ? ' disabled' : '') + '>+</button>';
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
             html += '</div>';
             html += '<div class="cart-item-price">$' + safeInt(item.subtotalUSD, 0) + ' USD</div>';
-            html += '<button class="cart-item-remove" onclick="removeFromCart(' + index + ')">&times;</button>';
+            html += '<button type="button" class="cart-item-remove" onclick="removeFromCart(' + index + ')" aria-label="' + escapeAttr(t('removeFromCartAria')) + '">&times;</button>';
             html += '</div>';
         });
 
         cartItems.innerHTML = html;
         totalSection.style.display = 'flex';
-        if (checkoutBtn) checkoutBtn.style.display = state.checkoutMode ? 'none' : 'flex';
-
-        if (state.checkoutMode) {
-            document.getElementById('checkout-form').classList.add('active');
-            document.getElementById('send-email-btn').style.display = 'flex';
-            document.getElementById('send-whatsapp-btn').style.display = 'flex';
-            updatePreviews();
-        }
+        if (state.checkoutStep < 1 || state.checkoutStep > 3) state.checkoutStep = 1;
     }
 
     updateCartTotal();
+    goToCheckoutStep(state.checkoutStep, {
+        skipValidation: true,
+        manageFocus: false,
+        scrollIntoView: false,
+        preserveStatus: true
+    });
 }
 
 function showToast(type, title, message) {
@@ -1346,7 +1636,7 @@ function showToast(type, title, message) {
 }
 
 function bindBookingPreviewListeners() {
-    var formInputs = document.querySelectorAll('#booking-form input, #booking-form textarea');
+    var formInputs = document.querySelectorAll('#booking-form input, #booking-form textarea, #booking-form select');
     formInputs.forEach(function (input) {
         input.addEventListener('input', updatePreviews);
         input.addEventListener('change', updatePreviews);
@@ -1357,7 +1647,7 @@ function initDatePicker() {
     window.tourDatePicker = flatpickr('#tour-date', {
         locale: state.language === 'es' ? 'es' : 'default',
         minDate: 'today',
-        dateFormat: 'd/m/Y',
+        dateFormat: getDateFormatByLanguage(),
         disableMobile: false,
         allowInput: false
     });
@@ -1368,6 +1658,7 @@ function initTimePicker() {
     var minute = document.getElementById('pickup-min');
     var ampm = document.getElementById('pickup-ampm');
     var hidden = document.getElementById('pickup-time');
+    if (!hour || !minute || !ampm || !hidden) return;
 
     function sync() {
         if (hour.value && minute.value) {
@@ -1375,6 +1666,7 @@ function initTimePicker() {
         } else {
             hidden.value = '';
         }
+        updatePreviews();
     }
 
     function updateAMPM() {
@@ -1392,12 +1684,13 @@ function initTimePicker() {
 
 function toggleOrderSummary() {
     var content = document.getElementById('order-summary-content');
-    var toggle = document.querySelector('.order-summary-toggle');
+    var toggle = document.getElementById('order-summary-toggle') || document.querySelector('.order-summary-toggle');
     if (!content || !toggle) return;
 
     var collapsed = content.classList.contains('collapsed');
     content.classList.toggle('collapsed', !collapsed);
     toggle.classList.toggle('collapsed', !collapsed);
+    toggle.setAttribute('aria-expanded', String(collapsed));
 }
 
 function updateProgressIndicator(step) {
@@ -1408,6 +1701,163 @@ function updateProgressIndicator(step) {
         if (i < step) node.classList.add('completed');
         if (i === step) node.classList.add('active');
     }
+}
+
+function getCheckoutStepView(step) {
+    return document.getElementById('checkout-step-' + step);
+}
+
+function appendConfirmSummaryRow(container, label, value) {
+    if (!container) return;
+
+    var row = document.createElement('div');
+    row.className = 'confirm-summary-row';
+
+    var labelEl = document.createElement('span');
+    labelEl.className = 'confirm-summary-label';
+    labelEl.textContent = label;
+
+    var valueEl = document.createElement('span');
+    valueEl.className = 'confirm-summary-value';
+    valueEl.textContent = value;
+
+    row.appendChild(labelEl);
+    row.appendChild(valueEl);
+    container.appendChild(row);
+}
+
+function renderConfirmSummary() {
+    var customerSummary = document.getElementById('confirm-customer-summary');
+    var cartSummary = document.getElementById('confirm-cart-summary');
+    if (!customerSummary || !cartSummary) return;
+
+    customerSummary.replaceChildren();
+    cartSummary.replaceChildren();
+
+    if (state.cart.length === 0) return;
+
+    var pickupTime = document.getElementById('pickup-time').value || t('notSpecified');
+    var hotel = document.getElementById('customer-hotel').value || t('notSpecified');
+    var comments = document.getElementById('customer-comments').value.trim() || t('noComments');
+
+    appendConfirmSummaryRow(customerSummary, t('name'), document.getElementById('customer-name').value);
+    appendConfirmSummaryRow(customerSummary, t('email'), document.getElementById('customer-email').value);
+    appendConfirmSummaryRow(customerSummary, t('phone'), document.getElementById('customer-phone').value);
+    appendConfirmSummaryRow(customerSummary, t('tourDate'), document.getElementById('tour-date').value);
+    appendConfirmSummaryRow(customerSummary, t('pickupTime'), pickupTime);
+    appendConfirmSummaryRow(customerSummary, t('hotel'), hotel);
+    appendConfirmSummaryRow(customerSummary, t('comments'), comments);
+
+    state.cart.forEach(function (item) {
+        var adults = safeInt(item.adults, 0);
+        var children = safeInt(item.children, 0);
+        var travelerParts = [];
+        if (adults > 0) travelerParts.push(adults + ' ' + t('confirmLineAdults'));
+        if (children > 0) travelerParts.push(children + ' ' + t('confirmLineChildren'));
+
+        var addOnNames = getCartItemAddonNames(item);
+        var summaryLabel = getCartItemName(item) + ' (' + travelerParts.join(', ') + ')';
+        if (addOnNames.length > 0) summaryLabel += ' + ' + addOnNames.join(', ');
+
+        appendConfirmSummaryRow(cartSummary, summaryLabel, '$' + safeInt(item.subtotalUSD, 0) + ' USD');
+    });
+
+    var confirmTotalAmount = document.getElementById('confirm-total-amount');
+    if (confirmTotalAmount) confirmTotalAmount.textContent = '$' + getCartTotalUSD() + ' USD';
+}
+
+function focusCheckoutStep(step) {
+    var target = null;
+    if (step === 1) {
+        target = document.getElementById('checkout-btn');
+    } else if (step === 2) {
+        target = document.getElementById('customer-name');
+    } else if (step === 3) {
+        target = document.getElementById('confirm-step-title');
+        if (target) target.setAttribute('tabindex', '-1');
+    }
+
+    if (!target || target.offsetParent === null || target.disabled) {
+        target = document.querySelector('.close-modal');
+    }
+
+    if (target) target.focus();
+}
+
+function goToCheckoutStep(step, options) {
+    var opts = Object.assign({
+        skipValidation: false,
+        manageFocus: true,
+        scrollIntoView: true,
+        preserveStatus: false
+    }, options || {});
+
+    var nextStep = safeInt(step, 1);
+    if (nextStep < 1 || nextStep > 3) nextStep = 1;
+    if (state.cart.length === 0) nextStep = 1;
+
+    var form = document.getElementById('booking-form');
+    if (nextStep === 3 && !opts.skipValidation) {
+        if (!form || !form.checkValidity()) {
+            if (form) form.reportValidity();
+            hideBookingPreviews();
+            showToast('error', t('whatsappErrorTitle'), t('confirmStepInvalid'));
+            return false;
+        }
+    }
+
+    state.checkoutStep = nextStep;
+    state.checkoutMode = nextStep > 1;
+
+    for (var i = 1; i <= 3; i += 1) {
+        var view = getCheckoutStepView(i);
+        if (!view) continue;
+
+        var isActive = i === nextStep;
+        view.classList.toggle('active', isActive);
+        view.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    }
+
+    var checkoutForm = document.getElementById('checkout-form');
+    var checkoutBtn = document.getElementById('checkout-btn');
+    var confirmBtn = document.getElementById('confirm-btn');
+    var backToCartBtn = document.getElementById('back-to-cart-btn');
+    var editDetailsBtn = document.getElementById('edit-details-btn');
+    var sendEmailBtn = document.getElementById('send-email-btn');
+    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
+    var hasItems = state.cart.length > 0;
+
+    if (checkoutForm) checkoutForm.classList.toggle('active', nextStep === 2);
+    if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
+    if (confirmBtn) confirmBtn.style.display = hasItems && nextStep === 2 ? 'flex' : 'none';
+    if (backToCartBtn) backToCartBtn.style.display = hasItems && nextStep >= 2 ? 'flex' : 'none';
+    if (editDetailsBtn) editDetailsBtn.style.display = hasItems && nextStep === 3 ? 'flex' : 'none';
+    if (sendEmailBtn) sendEmailBtn.style.display = hasItems && nextStep === 3 ? 'flex' : 'none';
+    if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = hasItems && nextStep === 3 ? 'flex' : 'none';
+
+    updateProgressIndicator(nextStep);
+
+    if (nextStep >= 2) updatePreviews();
+    if (nextStep === 3) renderConfirmSummary();
+
+    if (!opts.preserveStatus) setBookingStatus('idle');
+
+    if (opts.scrollIntoView) {
+        var activeView = getCheckoutStepView(nextStep);
+        if (activeView) {
+            setTimeout(function () {
+                activeView.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+            }, 80);
+        }
+    }
+
+    if (opts.manageFocus) {
+        setTimeout(function () {
+            focusCheckoutStep(nextStep);
+        }, 10);
+    }
+
+    return true;
 }
 
 function buildWhatsAppMessage() {
@@ -1426,17 +1876,14 @@ function buildWhatsAppMessage() {
     lines.push(t('tours'));
 
     state.cart.forEach(function (item) {
-        var line = '- ' + item.name + ' (' + safeInt(item.adults, 0) + 'ad, ' + safeInt(item.children, 0) + 'ch)';
-        if (item.addOns && item.addOns.length > 0) {
-            line += ' + ' + item.addOns.map(function (addon) { return addon.name; }).join(', ');
-        }
+        var line = '- ' + getCartItemName(item) + ' (' + safeInt(item.adults, 0) + ' ' + t('adultUnit') + ', ' + safeInt(item.children, 0) + ' ' + t('childUnit') + ')';
+        var addOnNames = getCartItemAddonNames(item);
+        if (addOnNames.length > 0) line += ' + ' + addOnNames.join(', ');
         line += ' - $' + safeInt(item.subtotalUSD, 0) + ' USD';
         lines.push(line);
     });
 
-    var total = state.cart.reduce(function (sum, item) {
-        return sum + safeInt(item.subtotalUSD, 0);
-    }, 0);
+    var total = getCartTotalUSD();
     lines.push('');
     lines.push('*TOTAL: $' + total + ' USD*');
 
@@ -1468,7 +1915,10 @@ function appendEmailRow(container, label, value) {
 
 function updatePreviews() {
     var form = document.getElementById('booking-form');
-    if (!form || !form.checkValidity()) return;
+    if (!form || !form.checkValidity()) {
+        hideBookingPreviews();
+        return;
+    }
 
     var whatsappPreview = document.getElementById('whatsapp-preview');
     var whatsappContent = document.getElementById('whatsapp-message-content');
@@ -1505,12 +1955,10 @@ function updatePreviews() {
     emailContent.appendChild(hr);
 
     state.cart.forEach(function (item) {
-        appendEmailRow(emailContent, item.name, '$' + safeInt(item.subtotalUSD, 0));
+        appendEmailRow(emailContent, getCartItemName(item), '$' + safeInt(item.subtotalUSD, 0));
     });
 
-    var total = state.cart.reduce(function (sum, item) {
-        return sum + safeInt(item.subtotalUSD, 0);
-    }, 0);
+    var total = getCartTotalUSD();
 
     var totalRow = document.createElement('div');
     totalRow.className = 'email-total';
@@ -1523,37 +1971,20 @@ function updatePreviews() {
     totalRow.appendChild(left);
     totalRow.appendChild(right);
     emailContent.appendChild(totalRow);
+
+    if (state.checkoutStep === 3) renderConfirmSummary();
 }
 
 function proceedToCheckout() {
-    state.checkoutMode = true;
+    goToCheckoutStep(2);
+}
 
-    var checkoutForm = document.getElementById('checkout-form');
-    var checkoutBtn = document.getElementById('checkout-btn');
-    var sendEmailBtn = document.getElementById('send-email-btn');
-    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
-    var trustBadges = document.getElementById('trust-badges');
-
-    if (checkoutForm) checkoutForm.classList.add('active');
-    if (checkoutBtn) checkoutBtn.style.display = 'none';
-    if (sendEmailBtn) sendEmailBtn.style.display = 'flex';
-    if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = 'flex';
-    if (trustBadges) trustBadges.style.display = 'none';
-
-    updateProgressIndicator(2);
-    setBookingStatus('idle');
-
-    if (checkoutForm) {
-        setTimeout(function () {
-            checkoutForm.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
-        }, 80);
-    }
+function proceedToConfirmation() {
+    goToCheckoutStep(3);
 }
 
 function buildBookingPayload() {
-    var total = state.cart.reduce(function (sum, item) {
-        return sum + safeInt(item.subtotalUSD, 0);
-    }, 0);
+    var total = getCartTotalUSD();
 
     return {
         name: document.getElementById('customer-name').value,
@@ -1623,11 +2054,41 @@ function setBookingStatus(status) {
     }
 }
 
+function resetBookingForm() {
+    var form = document.getElementById('booking-form');
+    if (form) form.reset();
+
+    if (window.tourDatePicker) {
+        window.tourDatePicker.clear();
+    }
+
+    var pickupTime = document.getElementById('pickup-time');
+    if (pickupTime) pickupTime.value = '';
+
+    var hotelInput = document.getElementById('customer-hotel');
+    if (hotelInput) {
+        delete hotelInput.dataset.hotel;
+        delete hotelInput.dataset.zone;
+    }
+
+    hideMapBtn();
+    closeAC();
+    hideBookingPreviews();
+}
+
 function completeCheckout() {
     state.cart = [];
+    resetBookingForm();
     saveState();
+    state.checkoutMode = false;
+    state.checkoutStep = 1;
     updateCartUI();
-    updateProgressIndicator(1);
+    goToCheckoutStep(1, {
+        skipValidation: true,
+        manageFocus: false,
+        scrollIntoView: false,
+        preserveStatus: true
+    });
 
     setTimeout(function () {
         closeCartModal();
@@ -1637,6 +2098,9 @@ function completeCheckout() {
 async function sendBookingEmail() {
     if (bookingSubmissionInProgress) return;
     if (state.cart.length === 0) return;
+    if (state.checkoutStep !== 3) {
+        if (!goToCheckoutStep(3)) return;
+    }
 
     var form = document.getElementById('booking-form');
     if (!form.checkValidity()) {
@@ -1654,10 +2118,9 @@ async function sendBookingEmail() {
         await persistBooking(payload);
 
         var summary = state.cart.map(function (item) {
-            var line = item.name + ': ' + safeInt(item.adults, 0) + 'ad, ' + safeInt(item.children, 0) + 'ch';
-            if (item.addOns && item.addOns.length > 0) {
-                line += ' + ' + item.addOns.map(function (addon) { return addon.name; }).join(', ');
-            }
+            var line = getCartItemName(item) + ': ' + safeInt(item.adults, 0) + ' ' + t('adultUnit') + ', ' + safeInt(item.children, 0) + ' ' + t('childUnit');
+            var addOnNames = getCartItemAddonNames(item);
+            if (addOnNames.length > 0) line += ' + ' + addOnNames.join(', ');
             line += ' - $' + safeInt(item.subtotalUSD, 0) + ' USD';
             return line;
         }).join('\n');
@@ -1692,6 +2155,9 @@ async function sendBookingEmail() {
 async function sendToWhatsApp() {
     if (bookingSubmissionInProgress) return;
     if (state.cart.length === 0) return;
+    if (state.checkoutStep !== 3) {
+        if (!goToCheckoutStep(3)) return;
+    }
 
     var form = document.getElementById('booking-form');
     if (!form.checkValidity()) {
@@ -1873,6 +2339,7 @@ function selectHotel(name, zone) {
 
     closeAC();
     showMapBtn(name);
+    updatePreviews();
 }
 
 function closeAC() {

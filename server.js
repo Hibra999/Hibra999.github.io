@@ -41,6 +41,15 @@ function sanitizeSlug(input) {
     return base || `tour-${Date.now()}`;
 }
 
+function normalizeSlug(input) {
+    return String(input || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9-_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
 function sanitizeText(input, maxLen) {
     const value = String(input == null ? '' : input).trim();
     if (!maxLen) return value;
@@ -140,6 +149,103 @@ function maskPhone(phone) {
     const digits = String(phone || '').replace(/\D/g, '');
     if (digits.length < 4) return phone ? '***' : '';
     return `***${digits.slice(-4)}`;
+}
+
+const findTourBySlugStmt = db.prepare('SELECT id, slug, title_en, title_es, child_price_flat FROM tours WHERE slug = ? LIMIT 1');
+const findPricingTierStmt = db.prepare('SELECT adult_price FROM pricing_tiers WHERE tour_id = ? AND adults = ? LIMIT 1');
+const findAddonBySlugStmt = db.prepare('SELECT slug, price_per_person FROM addons WHERE tour_id = ? AND slug = ? LIMIT 1');
+
+function normalizeAddonIds(addOns) {
+    if (!Array.isArray(addOns)) return [];
+
+    const seen = new Set();
+    const ids = [];
+    addOns.forEach((addOn) => {
+        const rawId = addOn && typeof addOn === 'object' ? addOn.id : addOn;
+        const slug = normalizeSlug(rawId);
+        if (!slug || seen.has(slug)) return;
+        seen.add(slug);
+        ids.push(slug);
+    });
+    return ids;
+}
+
+function computeServerCartTotals(rawCart) {
+    if (!Array.isArray(rawCart) || rawCart.length === 0) {
+        return { error: 'Cart cannot be empty' };
+    }
+
+    let totalUSD = 0;
+    const normalizedCart = [];
+
+    for (const rawItem of rawCart) {
+        const tourSlug = normalizeSlug(rawItem && rawItem.tourId);
+        const adults = safeInt(rawItem && rawItem.adults, NaN);
+        const children = safeInt(rawItem && rawItem.children, NaN);
+
+        if (!tourSlug || !Number.isFinite(adults) || !Number.isFinite(children)) {
+            return { error: 'Invalid cart item' };
+        }
+        if (adults < 0 || children < 0 || adults > 10 || children > 10) {
+            return { error: 'Invalid traveler quantity in cart' };
+        }
+
+        const persons = adults + children;
+        if (persons === 0) {
+            return { error: 'Each cart item must include at least 1 traveler' };
+        }
+
+        const tour = findTourBySlugStmt.get(tourSlug);
+        if (!tour) {
+            return { error: 'Tour not found in cart' };
+        }
+
+        let adultPriceUSD = 0;
+        if (adults > 0) {
+            const tier = findPricingTierStmt.get(tour.id, adults);
+            if (!tier) {
+                return { error: 'Invalid adults quantity for selected tour' };
+            }
+            adultPriceUSD = safeInt(tier.adult_price, 0);
+        }
+
+        const childPriceUSD = safeInt(tour.child_price_flat, 0);
+        const addOnIds = normalizeAddonIds(rawItem && rawItem.addOns);
+        const normalizedAddOns = [];
+        let addOnsSubtotalUSD = 0;
+
+        for (const addOnSlug of addOnIds) {
+            const addOn = findAddonBySlugStmt.get(tour.id, addOnSlug);
+            if (!addOn) {
+                return { error: 'Invalid add-on for selected tour' };
+            }
+            const pricePerPerson = safeInt(addOn.price_per_person, 0);
+            addOnsSubtotalUSD += pricePerPerson * persons;
+            normalizedAddOns.push({
+                id: addOnSlug,
+                pricePerPerson
+            });
+        }
+
+        const subtotalUSD = adults * adultPriceUSD + children * childPriceUSD + addOnsSubtotalUSD;
+        totalUSD += subtotalUSD;
+
+        normalizedCart.push({
+            tourId: tourSlug,
+            name: {
+                en: sanitizeText(tour.title_en, 255),
+                es: sanitizeText(tour.title_es, 255)
+            },
+            adults,
+            children,
+            adultPriceUSD,
+            childPriceUSD,
+            addOns: normalizedAddOns,
+            subtotalUSD
+        });
+    }
+
+    return { totalUSD, normalizedCart };
 }
 
 const JPG_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/pjpeg']);
@@ -480,11 +586,17 @@ app.post('/api/bookings', (req, res) => {
     if (!payload.name || !payload.email || !payload.phone || !payload.date) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
+
+    const computed = computeServerCartTotals(payload.cart);
+    if (computed.error) {
+        return res.status(400).json({ error: computed.error });
+    }
+
     if (!Number.isFinite(payload.total) || payload.total < 0) {
         return res.status(400).json({ error: 'Invalid total amount' });
     }
-    if (payload.cart.length === 0) {
-        return res.status(400).json({ error: 'Cart cannot be empty' });
+    if (payload.total !== computed.totalUSD) {
+        return res.status(400).json({ error: 'Total mismatch. Refresh your cart and try again.' });
     }
 
     const stmt = db.prepare(`
@@ -500,8 +612,8 @@ app.post('/api/bookings', (req, res) => {
         payload.pickup_time || '',
         payload.hotel || '',
         payload.comments || '',
-        JSON.stringify(payload.cart),
-        payload.total,
+        JSON.stringify(computed.normalizedCart),
+        computed.totalUSD,
         'pending'
     );
 
