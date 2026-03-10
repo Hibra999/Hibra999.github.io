@@ -185,6 +185,39 @@ var SVG = {
     back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>'
 };
 
+var SEA_HERO_SLIDES = [
+    'imagenes/servicios/whale_shark_snorkel_from_cancun/1.jpg',
+    'imagenes/servicios/isla_mujeres_catamaran_day_trip/1.jpg',
+    'imagenes/servicios/isla_contoy/1.jpg',
+    'imagenes/servicios/tulum_akumal_snorkel_tortugas/1.jpg'
+];
+
+var COMMONS_API_URL = 'https://commons.wikimedia.org/w/api.php';
+var COMMONS_HERO_SEARCH_TERMS = [
+    'Cancun beach caribbean sea',
+    'Playa Delfines Cancun beach',
+    'Riviera Maya beach Mexico'
+];
+
+var TOUR_CATEGORY_META = {
+    sea: {
+        className: 'sea',
+        labels: { es: 'Mar', en: 'Sea' }
+    },
+    ruins: {
+        className: 'ruins',
+        labels: { es: 'Ruinas', en: 'Ruins' }
+    },
+    adventure: {
+        className: 'adventure',
+        labels: { es: 'Aventura', en: 'Adventure' }
+    },
+    city: {
+        className: 'city',
+        labels: { es: 'Ciudad', en: 'City' }
+    }
+};
+
 function t(key) {
     var dict = I18N[state.language] || I18N.es;
     return dict[key] || key;
@@ -402,6 +435,116 @@ function sanitizeSlugClient(input) {
         .replace(/[^a-z0-9-_]+/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
+}
+
+function getTourCategory(tour) {
+    var haystack = [
+        safeText(tour && tour.id),
+        getLocalized(tour && tour.card && tour.card.title, 'es'),
+        getLocalized(tour && tour.card && tour.card.title, 'en'),
+        getLocalized(tour && tour.card && tour.card.shortDescription, 'es'),
+        getLocalized(tour && tour.card && tour.card.shortDescription, 'en')
+    ].join(' ').toLowerCase();
+
+    var key = 'adventure';
+
+    if (/(market|shopping|downtown|mercado|compras|centro|city)/.test(haystack)) {
+        key = 'city';
+    } else if (/(atv|zipline|tirolesa|adventure|aventur|xcanche)/.test(haystack)) {
+        key = 'adventure';
+    } else if (/(snorkel|sea|ocean|mar|isla|catamaran|whale|shark|akumal|turtle|tortuga|playa|contoy)/.test(haystack)) {
+        key = 'sea';
+    } else if (/(tulum|chichen|coba|ek[\s_-]?balam|ruins|ruinas|maya|arqueol|archaeolog)/.test(haystack)) {
+        key = 'ruins';
+    } else if (/cenote/.test(haystack)) {
+        key = 'adventure';
+    }
+
+    return TOUR_CATEGORY_META[key] || TOUR_CATEGORY_META.adventure;
+}
+
+function buildCommonsHeroSearchUrl(searchTerm) {
+    var params = new URLSearchParams({
+        action: 'query',
+        format: 'json',
+        origin: '*',
+        generator: 'search',
+        gsrnamespace: '6',
+        gsrlimit: '8',
+        gsrsearch: searchTerm,
+        prop: 'imageinfo',
+        iiprop: 'url|size',
+        iiurlwidth: '2200'
+    });
+    return COMMONS_API_URL + '?' + params.toString();
+}
+
+function extractCommonsSlides(data) {
+    if (!data || !data.query || !data.query.pages) return [];
+
+    return Object.values(data.query.pages)
+        .sort(function (a, b) {
+            return safeInt(a && a.index, 9999) - safeInt(b && b.index, 9999);
+        })
+        .map(function (page) {
+            var info = page && Array.isArray(page.imageinfo) ? page.imageinfo[0] : null;
+            if (!info) return null;
+
+            var width = safeInt(info.width, 0);
+            var height = safeInt(info.height, 0);
+            var slideUrl = safeText(info.thumburl || info.url);
+
+            if (!slideUrl || width < 1400 || width <= height) return null;
+            if (!/\.(jpg|jpeg|png|webp)(\?|$)/i.test(slideUrl)) return null;
+
+            return slideUrl;
+        })
+        .filter(Boolean);
+}
+
+async function fetchCommonsSeaHeroSlides() {
+    var requests = COMMONS_HERO_SEARCH_TERMS.map(function (term) {
+        return fetch(buildCommonsHeroSearchUrl(term), { method: 'GET' })
+            .then(function (response) {
+                if (!response.ok) throw new Error('Commons request failed');
+                return response.json();
+            })
+            .then(extractCommonsSlides)
+            .catch(function () {
+                return [];
+            });
+    });
+
+    var results = await Promise.all(requests);
+    return Array.from(new Set([].concat.apply([], results))).slice(0, 4);
+}
+
+function applyCatalogHeroSlides(layerA, layerB, slides) {
+    var activeSlides = Array.isArray(slides) && slides.length > 0 ? slides : SEA_HERO_SLIDES.slice();
+
+    clearInterval(heroRotationTimer);
+    heroIndex = 0;
+
+    layerA.style.backgroundImage = 'url("' + activeSlides[0] + '")';
+    layerA.classList.add('active');
+    layerB.classList.remove('active');
+
+    if (activeSlides.length > 1) {
+        layerB.style.backgroundImage = 'url("' + activeSlides[1] + '")';
+    }
+
+    if (prefersReducedMotion || activeSlides.length < 2) return;
+
+    heroRotationTimer = setInterval(function () {
+        var nextIndex = (heroIndex + 1) % activeSlides.length;
+        var incomingLayer = layerA.classList.contains('active') ? layerB : layerA;
+        var outgoingLayer = incomingLayer === layerA ? layerB : layerA;
+
+        incomingLayer.style.backgroundImage = 'url("' + activeSlides[nextIndex] + '")';
+        incomingLayer.classList.add('active');
+        outgoingLayer.classList.remove('active');
+        heroIndex = nextIndex;
+    }, 7000);
 }
 
 function getAdminToken() {
@@ -840,32 +983,17 @@ function initCatalogHero() {
     var layerB = document.getElementById('catalog-hero-bg-b');
     if (!hero || !layerA || !layerB) return;
 
-    var slides = [
-        'imagenes/whale.jpg',
-        'imagenes/servicios/tour_privado_tulum_ruinas/1.jpg',
-        'imagenes/servicios/tulum_akumal_snorkel_tortugas/1.jpg'
-    ];
+    applyCatalogHeroSlides(layerA, layerB, SEA_HERO_SLIDES);
 
-    layerA.style.backgroundImage = 'url("' + slides[0] + '")';
-    layerB.style.backgroundImage = 'url("' + slides[1] + '")';
-
-    if (prefersReducedMotion) return;
-
-    clearInterval(heroRotationTimer);
-    heroRotationTimer = setInterval(function () {
-        heroIndex = (heroIndex + 1) % slides.length;
-        var nextIndex = (heroIndex + 1) % slides.length;
-
-        if (layerA.classList.contains('active')) {
-            layerB.style.backgroundImage = 'url("' + slides[nextIndex] + '")';
-            layerA.classList.remove('active');
-            layerB.classList.add('active');
-        } else {
-            layerA.style.backgroundImage = 'url("' + slides[nextIndex] + '")';
-            layerB.classList.remove('active');
-            layerA.classList.add('active');
-        }
-    }, 7000);
+    fetchCommonsSeaHeroSlides()
+        .then(function (remoteSlides) {
+            if (remoteSlides.length >= 2) {
+                applyCatalogHeroSlides(layerA, layerB, remoteSlides);
+            }
+        })
+        .catch(function (error) {
+            console.warn('fetchCommonsSeaHeroSlides error', error);
+        });
 }
 
 function scrollToTopTours() {
@@ -889,32 +1017,34 @@ function renderCatalog() {
         var description = getLocalizedPack(tour.card.shortDescription, state.language);
         var imageUrl = escapeAttr(sanitizeImageUrl(buildImageUrl(tour.imageFolder, tour.card.thumbnail)));
         var tourId = escapeAttr(tour.id);
+        var category = getTourCategory(tour);
+        var categoryText = getLocalized(category.labels, state.language);
+        var price = safeInt(tour.card.priceFrom, 0);
+        var cardLabel = escapeAttr(t('viewDetails') + ': ' + getLocalized(tour.card.title, state.language));
 
-        html += '<article class="tour-card reveal" data-reveal data-tour-id="' + tourId + '" tabindex="0" role="button">';
-        html += '<div class="tour-card-image" style="background-image:url(\'' + imageUrl + '\')"></div>';
+        html += '<article class="tour-card">';
+        html += '<a class="tour-card-link" href="#' + tourId + '" aria-label="' + cardLabel + '">';
+        html += '<div class="tour-card-image">';
+        html += '<img src="' + imageUrl + '" alt="' + escapeAttr(getLocalized(tour.card.title, state.language)) + '" loading="lazy">';
+        html += '<span class="tour-card-badge tour-card-badge--' + category.className + '"><span data-es="' + escapeAttr(category.labels.es) + '" data-en="' + escapeAttr(category.labels.en) + '">' + escapeHtml(categoryText) + '</span></span>';
+        html += '</div>';
         html += '<div class="tour-card-body">';
         html += '<h3 class="tour-card-title" data-es="' + title.es + '" data-en="' + title.en + '">' + title.text + '</h3>';
         html += '<p class="tour-card-desc" data-es="' + description.es + '" data-en="' + description.en + '">' + description.text + '</p>';
         html += '<div class="tour-card-footer">';
-        html += '<span class="tour-card-price">' + t('from') + ' $' + safeInt(tour.card.priceFrom, 0) + ' USD</span>';
-        html += '<span class="tour-card-cta">' + t('viewDetails') + ' &rarr;</span>';
-        html += '</div></div></article>';
+        html += '<div class="tour-card-price" aria-label="' + escapeAttr(t('from') + ' $' + price + ' USD') + '">';
+        html += '<span class="tour-card-price-prefix" data-es="' + escapeAttr(I18N.es.from) + '" data-en="' + escapeAttr(I18N.en.from) + '">' + escapeHtml(t('from')) + '</span>';
+        html += '<span class="tour-card-price-value">$' + price + '</span>';
+        html += '<span class="tour-card-price-currency">USD</span>';
+        html += '</div>';
+        html += '<span class="tour-card-cta">';
+        html += '<span class="tour-card-cta-label" data-es="' + escapeAttr(I18N.es.viewDetails) + '" data-en="' + escapeAttr(I18N.en.viewDetails) + '">' + escapeHtml(t('viewDetails')) + '</span>';
+        html += '<span class="tour-card-cta-icon" aria-hidden="true">' + SVG.arrowRight + '</span>';
+        html += '</span>';
+        html += '</div></div></a></article>';
     });
 
     grid.innerHTML = html;
-
-    grid.querySelectorAll('.tour-card').forEach(function (card) {
-        var tourId = card.getAttribute('data-tour-id');
-        card.addEventListener('click', function () {
-            navigateTo('detail', tourId);
-        });
-        card.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                navigateTo('detail', tourId);
-            }
-        });
-    });
 
     observeReveals(document.getElementById('main-view'));
     applyDataTranslations();
