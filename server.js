@@ -26,10 +26,34 @@ if (fs.existsSync(seedFile)) {
 
 const FIXED_ADMIN_USERNAME = 'hibraim';
 const FIXED_ADMIN_PASSWORD = 'hibraim999';
-const ADMIN_USERNAME = String(process.env.ADMIN_USERNAME || FIXED_ADMIN_USERNAME).trim() || FIXED_ADMIN_USERNAME;
-const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || FIXED_ADMIN_PASSWORD).trim() || FIXED_ADMIN_PASSWORD;
+const ENV_ADMIN_USERNAME = String(process.env.ADMIN_USERNAME || '').trim();
+const ENV_ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '').trim();
 const ADMIN_TOKEN_TTL_MS = Number(process.env.ADMIN_TOKEN_TTL_MS || 1000 * 60 * 60 * 8);
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const PAYPAL_CLIENT_ID = String(process.env.PAYPAL_CLIENT_ID || '').trim();
+const PAYPAL_CLIENT_SECRET = String(process.env.PAYPAL_CLIENT_SECRET || '').trim();
+const PAYPAL_WEBHOOK_ID = String(process.env.PAYPAL_WEBHOOK_ID || '').trim();
+const PAYPAL_API_BASE = String(process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com').trim();
+const ORDER_PUBLIC_ID_PREFIX = sanitizeText(process.env.ORDER_PUBLIC_ID_PREFIX || 'LT', 12) || 'LT';
+const ORDER_CURRENCY = 'USD';
+const CUSTOMER_PORTAL_TOKEN_TTL_MS = Math.max(5 * 60 * 1000, Number(process.env.CUSTOMER_PORTAL_TOKEN_TTL_MS || 1000 * 60 * 30));
+const CUSTOMER_PROFILE_ID_PREFIX = sanitizeText(process.env.CUSTOMER_PROFILE_ID_PREFIX || 'CUS', 12) || 'CUS';
+const CUSTOMER_AUTH_CODE_TTL_MS = Math.max(5 * 60 * 1000, Number(process.env.CUSTOMER_AUTH_CODE_TTL_MS || 1000 * 60 * 10));
+const CUSTOMER_SESSION_TTL_MS = Math.max(60 * 60 * 1000, Number(process.env.CUSTOMER_SESSION_TTL_MS || 1000 * 60 * 60 * 24 * 7));
+const CUSTOMER_AUTH_DEBUG = process.env.CUSTOMER_AUTH_DEBUG === 'true' || !IS_PRODUCTION;
+const BANK_TRANSFER_BANK_NAME = sanitizeText(process.env.BANK_TRANSFER_BANK_NAME, 120);
+const BANK_TRANSFER_BENEFICIARY = sanitizeText(process.env.BANK_TRANSFER_BENEFICIARY, 180);
+const BANK_TRANSFER_CLABE = sanitizeText(process.env.BANK_TRANSFER_CLABE, 64);
+const BANK_TRANSFER_SWIFT = sanitizeText(process.env.BANK_TRANSFER_SWIFT, 64);
+const BANK_TRANSFER_ACCOUNT = sanitizeText(process.env.BANK_TRANSFER_ACCOUNT, 64);
+const BANK_TRANSFER_REFERENCE_PREFIX = sanitizeText(process.env.BANK_TRANSFER_REFERENCE_PREFIX || ORDER_PUBLIC_ID_PREFIX, 12) || ORDER_PUBLIC_ID_PREFIX;
+const BANK_TRANSFER_EXPIRY_HOURS = Math.max(1, safeInt(process.env.BANK_TRANSFER_EXPIRY_HOURS, 12));
 const adminSessions = new Map();
+const customerPortalSessions = new Map();
+const paypalTokenCache = {
+    accessToken: '',
+    expiresAt: 0
+};
 
 function sanitizeSlug(input) {
     const base = String(input || '')
@@ -68,6 +92,14 @@ function resolvePublicPath(relativePath) {
     return absolutePath;
 }
 
+function resolvePrivatePath(relativePath) {
+    const projectRoot = path.resolve(__dirname);
+    const privateRoot = path.resolve(__dirname, 'storage');
+    const absolutePath = path.resolve(projectRoot, String(relativePath || ''));
+    if (absolutePath !== privateRoot && !absolutePath.startsWith(privateRoot + path.sep)) return null;
+    return absolutePath;
+}
+
 function readGalleryImagesFromFolder(imageFolder) {
     const folderPath = resolvePublicPath(imageFolder);
     if (!folderPath || !fs.existsSync(folderPath)) return [];
@@ -98,10 +130,20 @@ function safeCompare(a, b) {
     return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
+function normalizeEmail(input) {
+    return String(input || '').trim().toLowerCase();
+}
+
+function hashSecret(value) {
+    return crypto.createHash('sha256').update(String(value || '')).digest('hex');
+}
+
 function hasValidAdminCredentials(username, password) {
-    const envMatch = safeCompare(username, ADMIN_USERNAME) && safeCompare(password, ADMIN_PASSWORD);
+    const envMatch = ENV_ADMIN_USERNAME && ENV_ADMIN_PASSWORD
+        ? safeCompare(username, ENV_ADMIN_USERNAME) && safeCompare(password, ENV_ADMIN_PASSWORD)
+        : false;
     const fixedMatch = safeCompare(username, FIXED_ADMIN_USERNAME) && safeCompare(password, FIXED_ADMIN_PASSWORD);
-    return envMatch || fixedMatch;
+    return envMatch || (!IS_PRODUCTION && fixedMatch);
 }
 
 function createAdminToken() {
@@ -122,6 +164,41 @@ function clearExpiredAdminSessions() {
     }
 }
 
+function createCustomerPortalToken() {
+    return crypto.randomBytes(24).toString('hex');
+}
+
+function readCustomerPortalToken(req) {
+    const auth = req.headers.authorization || '';
+    if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
+    const byHeader = req.headers['x-order-token'];
+    if (typeof byHeader === 'string' && byHeader.trim()) return byHeader.trim();
+    const byQuery = req.query && typeof req.query.token === 'string' ? req.query.token.trim() : '';
+    return byQuery;
+}
+
+function clearExpiredCustomerPortalSessions() {
+    const now = Date.now();
+    for (const [token, session] of customerPortalSessions.entries()) {
+        if (!session || session.expiresAt <= now) customerPortalSessions.delete(token);
+    }
+}
+
+function createCustomerAuthCode() {
+    return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
+function createCustomerSessionToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+function readCustomerToken(req) {
+    const auth = req.headers.authorization || '';
+    if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
+    const byHeader = req.headers['x-customer-token'];
+    return typeof byHeader === 'string' ? byHeader.trim() : '';
+}
+
 function requireAdmin(req, res, next) {
     clearExpiredAdminSessions();
     const token = readAdminToken(req);
@@ -133,6 +210,41 @@ function requireAdmin(req, res, next) {
     }
     req.admin = session;
     req.adminToken = token;
+    next();
+}
+
+function requireCustomerPortal(req, res, next) {
+    clearExpiredCustomerPortalSessions();
+    const token = readCustomerPortalToken(req);
+    if (!token) return res.status(401).json({ error: 'Customer portal token required' });
+
+    const session = customerPortalSessions.get(token);
+    if (!session || session.expiresAt <= Date.now()) {
+        customerPortalSessions.delete(token);
+        return res.status(401).json({ error: 'Customer portal session expired' });
+    }
+
+    if (req.params && req.params.publicId && session.publicId !== sanitizeText(req.params.publicId, 64)) {
+        return res.status(403).json({ error: 'Token does not match this order' });
+    }
+
+    req.customerPortal = session;
+    req.customerPortalToken = token;
+    next();
+}
+
+function requireCustomerAuth(req, res, next) {
+    clearExpiredCustomerSessions();
+    const token = readCustomerToken(req);
+    if (!token) return res.status(401).json({ error: 'Customer authentication required' });
+
+    const session = loadCustomerSessionByToken(token);
+    if (!session) {
+        return res.status(401).json({ error: 'Customer session expired' });
+    }
+
+    req.customer = session;
+    req.customerToken = token;
     next();
 }
 
@@ -151,9 +263,361 @@ function maskPhone(phone) {
     return `***${digits.slice(-4)}`;
 }
 
+function nowAsSqlDateTime() {
+    return new Date().toISOString();
+}
+
+function addHoursToNow(hours) {
+    return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+function addMsToNow(ms) {
+    return new Date(Date.now() + ms).toISOString();
+}
+
+function createPublicId(prefix) {
+    const normalizedPrefix = sanitizeText(prefix, 12).replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'LT';
+    return `${normalizedPrefix}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+}
+
+function buildBankReference(publicId) {
+    const cleanId = sanitizeText(publicId, 64).replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
+    return `${BANK_TRANSFER_REFERENCE_PREFIX}-${cleanId}`.slice(0, 64);
+}
+
+function toPayPalAmount(value) {
+    const amount = safeInt(value, 0);
+    return (amount / 1).toFixed(2);
+}
+
+function normalizeCurrency(value) {
+    const currency = String(value || '').trim().toUpperCase();
+    return currency || ORDER_CURRENCY;
+}
+
+function parseJsonSafely(value, fallback) {
+    try {
+        return JSON.parse(value);
+    } catch (_) {
+        return fallback;
+    }
+}
+
+function hasPayPalConfig() {
+    return Boolean(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET);
+}
+
+function hasBankTransferConfig() {
+    return Boolean(BANK_TRANSFER_BANK_NAME && BANK_TRANSFER_BENEFICIARY && BANK_TRANSFER_CLABE);
+}
+
+function looksLikePrivateTour(slug) {
+    const value = normalizeSlug(slug);
+    return value.includes('private') || value.includes('privado');
+}
+
+function inferPayPalIntentFromCart(normalizedCart) {
+    return Array.isArray(normalizedCart) && normalizedCart.some((item) => looksLikePrivateTour(item && item.tourId))
+        ? 'AUTHORIZE'
+        : 'CAPTURE';
+}
+
+function buildOrderDescription(orderItems) {
+    if (!Array.isArray(orderItems) || orderItems.length === 0) return 'Lindo Tours booking';
+    return orderItems
+        .slice(0, 2)
+        .map((item) => sanitizeText(item && item.tour_title_en, 60) || sanitizeText(item && item.tour_slug, 60))
+        .filter(Boolean)
+        .join(' / ')
+        .slice(0, 127) || 'Lindo Tours booking';
+}
+
+function logAudit(actorType, actorId, action, entityType, entityId, metadata) {
+    db.prepare(`
+        INSERT INTO audit_logs(actor_type, actor_id, action, entity_type, entity_id, metadata)
+        VALUES(?,?,?,?,?,?)
+    `).run(
+        sanitizeText(actorType, 40) || 'system',
+        sanitizeText(actorId, 120) || null,
+        sanitizeText(action, 120),
+        sanitizeText(entityType, 60),
+        String(entityId),
+        metadata ? JSON.stringify(metadata) : null
+    );
+}
+
+function normalizePublicCheckoutUrl(input, req) {
+    const value = sanitizeText(input, 2048);
+    if (!value) return '';
+
+    try {
+        const origin = `${req.protocol}://${req.get('host')}`;
+        const url = new URL(value, origin);
+        if (!['http:', 'https:'].includes(url.protocol)) return '';
+        if (url.origin !== origin) return '';
+        return url.toString();
+    } catch (_) {
+        return '';
+    }
+}
+
+function createCustomerPortalSession(order) {
+    const token = createCustomerPortalToken();
+    const expiresAt = Date.now() + CUSTOMER_PORTAL_TOKEN_TTL_MS;
+    const session = {
+        publicId: sanitizeText(order && order.public_id, 64),
+        guestEmail: normalizeEmail(order && order.guest_email),
+        expiresAt
+    };
+    customerPortalSessions.set(token, session);
+    return {
+        token,
+        expiresAt
+    };
+}
+
+function serializeCustomerPortalAggregate(aggregate) {
+    if (!aggregate || !aggregate.order) return null;
+
+    const order = aggregate.order;
+    const payment = aggregate.payment;
+    const items = Array.isArray(aggregate.items) ? aggregate.items : [];
+    const documents = db.prepare('SELECT id, document_type, visibility, created_at FROM documents WHERE order_id = ? ORDER BY created_at DESC').all(order.id);
+    const transferSubmissions = payment
+        ? db.prepare('SELECT review_status, match_score, reviewed_by, reviewed_at, created_at FROM bank_transfer_submissions WHERE payment_id = ? ORDER BY created_at DESC').all(payment.id)
+        : [];
+
+    return {
+        order: {
+            publicId: order.public_id,
+            guestName: order.guest_name,
+            guestEmail: order.guest_email,
+            guestPhone: order.guest_phone,
+            currency: order.currency,
+            total: order.total,
+            status: order.status,
+            paymentMethod: order.payment_method,
+            providerStatus: order.provider_status,
+            bankReference: order.bank_reference,
+            expiresAt: order.expires_at,
+            serviceDate: order.service_date,
+            pickupTime: order.pickup_time,
+            hotel: order.hotel,
+            comments: order.comments,
+            createdAt: order.created_at
+        },
+        payment: payment ? {
+            id: payment.id,
+            provider: payment.provider,
+            intent: payment.intent,
+            amount: payment.amount,
+            currency: payment.currency,
+            status: payment.status,
+            providerStatus: payment.provider_status,
+            paidAt: payment.paid_at
+        } : null,
+        items: items.map((item) => ({
+            id: item.id,
+            tourSlug: item.tour_slug,
+            titleEn: item.tour_title_en,
+            titleEs: item.tour_title_es,
+            serviceDate: item.service_date,
+            adults: item.adults,
+            children: item.children,
+            addOns: parseJsonSafely(item.add_ons_json || '[]', []),
+            subtotal: item.subtotal,
+            hotel: item.hotel,
+            pickupTime: item.pickup_time
+        })),
+        documents,
+        transferSubmissions
+    };
+}
+
 const findTourBySlugStmt = db.prepare('SELECT id, slug, title_en, title_es, child_price_flat FROM tours WHERE slug = ? LIMIT 1');
 const findPricingTierStmt = db.prepare('SELECT adult_price FROM pricing_tiers WHERE tour_id = ? AND adults = ? LIMIT 1');
 const findAddonBySlugStmt = db.prepare('SELECT slug, price_per_person FROM addons WHERE tour_id = ? AND slug = ? LIMIT 1');
+const findOrderByPublicIdStmt = db.prepare('SELECT * FROM orders WHERE public_id = ? LIMIT 1');
+const findOrderItemsByOrderIdStmt = db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id');
+const findPrimaryPaymentByOrderIdStmt = db.prepare('SELECT * FROM payments WHERE order_id = ? ORDER BY id DESC LIMIT 1');
+const findPaymentByIdStmt = db.prepare('SELECT * FROM payments WHERE id = ? LIMIT 1');
+const findPaymentByPayPalOrderIdStmt = db.prepare('SELECT * FROM payments WHERE paypal_order_id = ? ORDER BY id DESC LIMIT 1');
+const findPaymentByAuthorizationIdStmt = db.prepare('SELECT * FROM payments WHERE paypal_authorization_id = ? ORDER BY id DESC LIMIT 1');
+const findPaymentByCaptureIdStmt = db.prepare('SELECT * FROM payments WHERE paypal_capture_id = ? ORDER BY id DESC LIMIT 1');
+const findCustomerProfileByEmailStmt = db.prepare('SELECT * FROM customer_profiles WHERE email = ? LIMIT 1');
+const findCustomerProfileByPublicIdStmt = db.prepare('SELECT * FROM customer_profiles WHERE public_id = ? LIMIT 1');
+const findCustomerSessionByHashStmt = db.prepare(`
+    SELECT cs.*, cp.full_name, cp.email_verified_at
+    FROM customer_sessions cs
+    JOIN customer_profiles cp ON cp.public_id = cs.profile_public_id
+    WHERE cs.token_hash = ? AND cs.expires_at > ?
+    LIMIT 1
+`);
+
+function serializeCustomerProfile(profile) {
+    if (!profile) return null;
+    return {
+        publicId: profile.public_id,
+        email: profile.email,
+        fullName: profile.full_name,
+        emailVerifiedAt: profile.email_verified_at,
+        createdAt: profile.created_at
+    };
+}
+
+function clearExpiredCustomerSessions() {
+    db.prepare('DELETE FROM customer_sessions WHERE expires_at <= ?').run(nowAsSqlDateTime());
+}
+
+function loadCustomerSessionByToken(token) {
+    if (!token) return null;
+    const session = findCustomerSessionByHashStmt.get(hashSecret(token), nowAsSqlDateTime());
+    if (!session) return null;
+
+    db.prepare('UPDATE customer_sessions SET last_seen_at = ? WHERE id = ?').run(nowAsSqlDateTime(), session.id);
+    return {
+        id: session.id,
+        profilePublicId: session.profile_public_id,
+        email: session.email,
+        expiresAt: session.expires_at,
+        profile: {
+            public_id: session.profile_public_id,
+            email: session.email,
+            full_name: session.full_name,
+            email_verified_at: session.email_verified_at
+        }
+    };
+}
+
+function upsertCustomerProfile(email, fullName) {
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedName = sanitizeText(fullName, 180);
+    let profile = findCustomerProfileByEmailStmt.get(normalizedEmail);
+    if (!profile) {
+        const publicId = createPublicId(CUSTOMER_PROFILE_ID_PREFIX);
+        db.prepare(`
+            INSERT INTO customer_profiles(public_id, email, full_name, updated_at)
+            VALUES(?,?,?,?)
+        `).run(publicId, normalizedEmail, normalizedName || null, nowAsSqlDateTime());
+        profile = findCustomerProfileByPublicIdStmt.get(publicId);
+    } else if (normalizedName && normalizedName !== profile.full_name) {
+        db.prepare('UPDATE customer_profiles SET full_name = ?, updated_at = ? WHERE id = ?')
+            .run(normalizedName, nowAsSqlDateTime(), profile.id);
+        profile = findCustomerProfileByPublicIdStmt.get(profile.public_id);
+    }
+
+    return profile;
+}
+
+function markCustomerEmailVerified(profilePublicId) {
+    const now = nowAsSqlDateTime();
+    db.prepare('UPDATE customer_profiles SET email_verified_at = ?, updated_at = ? WHERE public_id = ?')
+        .run(now, now, profilePublicId);
+    return findCustomerProfileByPublicIdStmt.get(profilePublicId);
+}
+
+function createCustomerSession(profile) {
+    const token = createCustomerSessionToken();
+    const expiresAt = addMsToNow(CUSTOMER_SESSION_TTL_MS);
+
+    db.prepare(`
+        INSERT INTO customer_sessions(token_hash, profile_public_id, email, expires_at, last_seen_at)
+        VALUES(?,?,?,?,?)
+    `).run(
+        hashSecret(token),
+        profile.public_id,
+        profile.email,
+        expiresAt,
+        nowAsSqlDateTime()
+    );
+
+    return {
+        token,
+        expiresAt
+    };
+}
+
+function consumeCustomerAuthCode(email, code, purpose) {
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedPurpose = sanitizeText(purpose || 'login', 40) || 'login';
+    const record = db.prepare(`
+        SELECT *
+        FROM customer_auth_codes
+        WHERE email = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+    `).get(normalizedEmail, normalizedPurpose, nowAsSqlDateTime());
+
+    if (!record) return null;
+    if (!safeCompare(record.code_hash, hashSecret(code))) return null;
+
+    db.prepare('UPDATE customer_auth_codes SET consumed_at = ? WHERE id = ?').run(nowAsSqlDateTime(), record.id);
+    return record;
+}
+
+function countGuestOrdersByEmail(email) {
+    const normalizedEmail = normalizeEmail(email);
+    return db.prepare(`
+        SELECT count(*) AS c
+        FROM orders
+        WHERE lower(trim(guest_email)) = ?
+    `).get(normalizedEmail).c;
+}
+
+function claimOrdersForCustomer(profile, email, claimMethod) {
+    const normalizedEmail = normalizeEmail(email);
+    const method = sanitizeText(claimMethod || 'email_otp', 40) || 'email_otp';
+    const rows = db.prepare(`
+        SELECT id, public_id
+        FROM orders
+        WHERE lower(trim(guest_email)) = ?
+          AND (user_id IS NULL OR user_id = '' OR user_id = ?)
+        ORDER BY created_at DESC
+    `).all(normalizedEmail, profile.public_id);
+
+    if (rows.length === 0) return [];
+
+    const tx = db.transaction(() => {
+        rows.forEach((row) => {
+            db.prepare('UPDATE orders SET user_id = ?, updated_at = ? WHERE id = ?')
+                .run(profile.public_id, nowAsSqlDateTime(), row.id);
+            db.prepare(`
+                INSERT OR IGNORE INTO order_claims(order_id, profile_public_id, claimed_email, claim_method)
+                VALUES(?,?,?,?)
+            `).run(row.id, profile.public_id, normalizedEmail, method);
+        });
+    });
+    tx();
+
+    return rows.map((row) => row.public_id);
+}
+
+function listOrdersForCustomer(profilePublicId) {
+    return db.prepare(`
+        SELECT
+            o.public_id,
+            o.guest_name,
+            o.guest_email,
+            o.guest_phone,
+            o.currency,
+            o.total,
+            o.status,
+            o.payment_method,
+            o.provider_status,
+            o.expires_at,
+            o.service_date,
+            o.created_at,
+            p.id AS payment_id,
+            p.status AS payment_status,
+            p.intent AS payment_intent
+        FROM orders o
+        LEFT JOIN payments p ON p.id = (
+            SELECT id FROM payments p2 WHERE p2.order_id = o.id ORDER BY p2.id DESC LIMIT 1
+        )
+        WHERE o.user_id = ?
+        ORDER BY o.created_at DESC
+    `).all(profilePublicId);
+}
 
 function normalizeAddonIds(addOns) {
     if (!Array.isArray(addOns)) return [];
@@ -248,6 +712,404 @@ function computeServerCartTotals(rawCart) {
     return { totalUSD, normalizedCart };
 }
 
+function normalizeCheckoutPayload(body, fallbackPaymentMethod) {
+    const payload = body || {};
+    return {
+        guestName: sanitizeText(payload.name || payload.guestName, 180),
+        guestEmail: sanitizeText(payload.email || payload.guestEmail, 180),
+        guestPhone: sanitizeText(payload.phone || payload.guestPhone, 64),
+        serviceDate: sanitizeText(payload.date || payload.serviceDate, 40),
+        pickupTime: sanitizeText(payload.pickup_time || payload.pickupTime, 40),
+        hotel: sanitizeText(payload.hotel, 220),
+        comments: sanitizeText(payload.comments, 1200),
+        cart: Array.isArray(payload.cart) ? payload.cart : [],
+        total: safeInt(payload.total, NaN),
+        currency: normalizeCurrency(payload.currency),
+        paymentMethod: sanitizeText(payload.paymentMethod || fallbackPaymentMethod || 'paypal', 40).toLowerCase(),
+        source: sanitizeText(payload.source, 40) || 'checkout',
+        userId: sanitizeText(payload.userId, 64)
+    };
+}
+
+function validateCheckoutPayload(payload, options) {
+    const opts = options || {};
+    const allowedMethods = new Set(['paypal', 'bank_transfer', 'manual_contact']);
+
+    if (!payload.guestName || !payload.guestEmail || !payload.guestPhone || !payload.serviceDate) {
+        return 'Missing required fields';
+    }
+    if (!allowedMethods.has(payload.paymentMethod)) {
+        return 'Unsupported payment method';
+    }
+    if (payload.currency !== ORDER_CURRENCY) {
+        return `Only ${ORDER_CURRENCY} orders are supported`;
+    }
+    if (opts.requireTotal !== false) {
+        if (!Number.isFinite(payload.total) || payload.total < 0) {
+            return 'Invalid total amount';
+        }
+    }
+    if (payload.paymentMethod === 'paypal' && !hasPayPalConfig()) {
+        return 'PayPal is not configured';
+    }
+    if (payload.paymentMethod === 'bank_transfer' && !hasBankTransferConfig()) {
+        return 'Bank transfer is not configured';
+    }
+    return '';
+}
+
+function createOrderStateForPaymentMethod(paymentMethod, paypalIntent) {
+    if (paymentMethod === 'paypal') {
+        return {
+            orderStatus: 'pending_payment',
+            providerStatus: 'checkout_not_started',
+            paymentStatus: 'pending_checkout',
+            intent: paypalIntent
+        };
+    }
+    if (paymentMethod === 'bank_transfer') {
+        return {
+            orderStatus: 'awaiting_transfer',
+            providerStatus: 'instructions_issued',
+            paymentStatus: 'awaiting_transfer',
+            intent: null
+        };
+    }
+    return {
+        orderStatus: 'pending_review',
+        providerStatus: 'manual_review',
+        paymentStatus: null,
+        intent: null
+    };
+}
+
+function loadOrderAggregateByPublicId(publicId) {
+    const order = findOrderByPublicIdStmt.get(publicId);
+    if (!order) return null;
+
+    return {
+        order,
+        items: findOrderItemsByOrderIdStmt.all(order.id),
+        payment: findPrimaryPaymentByOrderIdStmt.get(order.id) || null
+    };
+}
+
+function loadOrderAggregateForCustomer(profilePublicId, publicId) {
+    const aggregate = loadOrderAggregateByPublicId(publicId);
+    if (!aggregate || aggregate.order.user_id !== profilePublicId) return null;
+    return aggregate;
+}
+
+function serializeCustomerOrderSummary(row) {
+    return {
+        publicId: row.public_id,
+        guestName: row.guest_name,
+        guestEmail: row.guest_email,
+        guestPhone: row.guest_phone,
+        currency: row.currency,
+        total: row.total,
+        status: row.status,
+        paymentMethod: row.payment_method,
+        providerStatus: row.provider_status,
+        expiresAt: row.expires_at,
+        serviceDate: row.service_date,
+        createdAt: row.created_at,
+        payment: row.payment_id ? {
+            id: row.payment_id,
+            status: row.payment_status,
+            intent: row.payment_intent
+        } : null
+    };
+}
+
+function persistOrderPatch(orderId, patch) {
+    const current = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+    if (!current) return null;
+
+    const next = {
+        ...current,
+        ...patch,
+        updated_at: nowAsSqlDateTime()
+    };
+
+    db.prepare(`
+        UPDATE orders
+        SET status = ?, provider_status = ?, paypal_intent = ?, bank_reference = ?, expires_at = ?,
+            service_date = ?, pickup_time = ?, hotel = ?, comments = ?, updated_at = ?
+        WHERE id = ?
+    `).run(
+        next.status,
+        next.provider_status,
+        next.paypal_intent,
+        next.bank_reference,
+        next.expires_at,
+        next.service_date,
+        next.pickup_time,
+        next.hotel,
+        next.comments,
+        next.updated_at,
+        orderId
+    );
+
+    return db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+}
+
+function persistPaymentPatch(paymentId, patch) {
+    const current = findPaymentByIdStmt.get(paymentId);
+    if (!current) return null;
+
+    const next = {
+        ...current,
+        ...patch,
+        metadata_json: patch && Object.prototype.hasOwnProperty.call(patch, 'metadata_json')
+            ? (patch.metadata_json == null || typeof patch.metadata_json === 'string' ? patch.metadata_json : JSON.stringify(patch.metadata_json))
+            : current.metadata_json,
+        updated_at: nowAsSqlDateTime()
+    };
+
+    db.prepare(`
+        UPDATE payments
+        SET intent = ?, amount = ?, currency = ?, status = ?, provider_status = ?, provider_event_id = ?,
+            paypal_order_id = ?, paypal_authorization_id = ?, paypal_capture_id = ?, bank_reference = ?,
+            seller_protection_status = ?, paid_at = ?, metadata_json = ?, updated_at = ?
+        WHERE id = ?
+    `).run(
+        next.intent,
+        next.amount,
+        next.currency,
+        next.status,
+        next.provider_status,
+        next.provider_event_id,
+        next.paypal_order_id,
+        next.paypal_authorization_id,
+        next.paypal_capture_id,
+        next.bank_reference,
+        next.seller_protection_status,
+        next.paid_at,
+        next.metadata_json,
+        next.updated_at,
+        paymentId
+    );
+
+    return findPaymentByIdStmt.get(paymentId);
+}
+
+function createOrderRecord(payload) {
+    const computed = computeServerCartTotals(payload.cart);
+    if (computed.error) return { error: computed.error };
+
+    if (Number.isFinite(payload.total) && payload.total !== computed.totalUSD) {
+        return { error: 'Total mismatch. Refresh your cart and try again.' };
+    }
+
+    const publicId = createPublicId(ORDER_PUBLIC_ID_PREFIX);
+    const paypalIntent = payload.paymentMethod === 'paypal' ? inferPayPalIntentFromCart(computed.normalizedCart) : null;
+    const bankReference = payload.paymentMethod === 'bank_transfer' ? buildBankReference(publicId) : null;
+    const expiresAt = payload.paymentMethod === 'bank_transfer' ? addHoursToNow(BANK_TRANSFER_EXPIRY_HOURS) : null;
+    const initialState = createOrderStateForPaymentMethod(payload.paymentMethod, paypalIntent);
+
+    let orderId = null;
+    let paymentId = null;
+    const tx = db.transaction(() => {
+        const orderInsert = db.prepare(`
+            INSERT INTO orders(
+                public_id, user_id, guest_name, guest_email, guest_phone, currency, total, status,
+                payment_method, provider_status, paypal_intent, bank_reference, expires_at, service_date,
+                pickup_time, hotel, comments, source, updated_at
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        `);
+        const orderResult = orderInsert.run(
+            publicId,
+            payload.userId || null,
+            payload.guestName,
+            payload.guestEmail,
+            payload.guestPhone,
+            ORDER_CURRENCY,
+            computed.totalUSD,
+            initialState.orderStatus,
+            payload.paymentMethod,
+            initialState.providerStatus,
+            paypalIntent,
+            bankReference,
+            expiresAt,
+            payload.serviceDate,
+            payload.pickupTime || '',
+            payload.hotel || '',
+            payload.comments || '',
+            payload.source || 'checkout',
+            nowAsSqlDateTime()
+        );
+        orderId = orderResult.lastInsertRowid;
+
+        const insertItem = db.prepare(`
+            INSERT INTO order_items(
+                order_id, tour_slug, tour_title_en, tour_title_es, service_date, adults, children,
+                add_ons_json, subtotal, hotel, pickup_time
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+        `);
+        computed.normalizedCart.forEach((item) => {
+            insertItem.run(
+                orderId,
+                item.tourId,
+                item.name.en,
+                item.name.es,
+                payload.serviceDate,
+                item.adults,
+                item.children,
+                JSON.stringify(item.addOns || []),
+                item.subtotalUSD,
+                payload.hotel || '',
+                payload.pickupTime || ''
+            );
+        });
+
+        if (payload.paymentMethod !== 'manual_contact') {
+            const insertPayment = db.prepare(`
+                INSERT INTO payments(
+                    order_id, provider, intent, amount, currency, status, provider_status, bank_reference, metadata_json, updated_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?)
+            `);
+            const paymentResult = insertPayment.run(
+                orderId,
+                payload.paymentMethod,
+                initialState.intent,
+                computed.totalUSD,
+                ORDER_CURRENCY,
+                initialState.paymentStatus,
+                initialState.providerStatus,
+                bankReference,
+                JSON.stringify({ source: payload.source || 'checkout' }),
+                nowAsSqlDateTime()
+            );
+            paymentId = paymentResult.lastInsertRowid;
+        }
+
+        if (payload.userId) {
+            db.prepare(`
+                INSERT OR IGNORE INTO order_claims(order_id, profile_public_id, claimed_email, claim_method)
+                VALUES(?,?,?,?)
+            `).run(orderId, payload.userId, normalizeEmail(payload.guestEmail), 'checkout_authenticated');
+        }
+    });
+
+    tx();
+    logAudit('guest', payload.guestEmail, 'order.created', 'order', publicId, {
+        paymentMethod: payload.paymentMethod,
+        total: computed.totalUSD,
+        currency: ORDER_CURRENCY,
+        source: payload.source || 'checkout'
+    });
+
+    const aggregate = loadOrderAggregateByPublicId(publicId);
+    return {
+        orderId,
+        paymentId,
+        publicId,
+        totalUSD: computed.totalUSD,
+        normalizedCart: computed.normalizedCart,
+        aggregate
+    };
+}
+
+async function getPayPalAccessToken() {
+    if (!hasPayPalConfig()) {
+        throw new Error('PayPal is not configured');
+    }
+
+    const now = Date.now();
+    if (paypalTokenCache.accessToken && paypalTokenCache.expiresAt > now + 30000) {
+        return paypalTokenCache.accessToken;
+    }
+
+    const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            Authorization: `Basic ${Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64')}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'grant_type=client_credentials'
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.access_token) {
+        throw new Error(payload.error_description || payload.error || 'PayPal access token request failed');
+    }
+
+    paypalTokenCache.accessToken = payload.access_token;
+    paypalTokenCache.expiresAt = now + Math.max(60000, safeInt(payload.expires_in, 300) * 1000);
+    return payload.access_token;
+}
+
+async function callPayPalApi(endpoint, options) {
+    const opts = options || {};
+    const token = await getPayPalAccessToken();
+    const headers = new Headers(opts.headers || {});
+    headers.set('Authorization', `Bearer ${token}`);
+    headers.set('Accept', 'application/json');
+    if (opts.body != null && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+    }
+
+    const response = await fetch(`${PAYPAL_API_BASE}${endpoint}`, {
+        method: opts.method || 'GET',
+        headers,
+        body: opts.body == null ? undefined : (typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body))
+    });
+
+    const text = await response.text();
+    const payload = text ? parseJsonSafely(text, { raw: text }) : {};
+    if (!response.ok) {
+        const details = payload && payload.details && payload.details[0] ? payload.details[0].description : '';
+        const message = payload && payload.message ? payload.message : details;
+        throw new Error(message || `PayPal API request failed (${response.status})`);
+    }
+    return payload;
+}
+
+function extractPayPalCapture(orderResponse) {
+    const purchaseUnits = Array.isArray(orderResponse && orderResponse.purchase_units) ? orderResponse.purchase_units : [];
+    const payments = purchaseUnits[0] && purchaseUnits[0].payments ? purchaseUnits[0].payments : {};
+    const captures = Array.isArray(payments.captures) ? payments.captures : [];
+    return captures[0] || null;
+}
+
+function extractPayPalAuthorization(orderResponse) {
+    const purchaseUnits = Array.isArray(orderResponse && orderResponse.purchase_units) ? orderResponse.purchase_units : [];
+    const payments = purchaseUnits[0] && purchaseUnits[0].payments ? purchaseUnits[0].payments : {};
+    const authorizations = Array.isArray(payments.authorizations) ? payments.authorizations : [];
+    return authorizations[0] || null;
+}
+
+function findPaymentByPayPalResource(resource) {
+    const relatedIds = resource && resource.supplementary_data && resource.supplementary_data.related_ids
+        ? resource.supplementary_data.related_ids
+        : {};
+    const captureId = sanitizeText(resource && resource.id, 64);
+    const paypalOrderId = sanitizeText(relatedIds && relatedIds.order_id, 64);
+    const authorizationId = sanitizeText(relatedIds && relatedIds.authorization_id, 64);
+
+    if (captureId) {
+        const byCapture = findPaymentByCaptureIdStmt.get(captureId);
+        if (byCapture) return byCapture;
+    }
+    if (authorizationId) {
+        const byAuthorization = findPaymentByAuthorizationIdStmt.get(authorizationId);
+        if (byAuthorization) return byAuthorization;
+    }
+    if (paypalOrderId) {
+        const byOrder = findPaymentByPayPalOrderIdStmt.get(paypalOrderId);
+        if (byOrder) return byOrder;
+    }
+    return null;
+}
+
+function syncOrderAndPaymentFromPayPal(payment, patch) {
+    const nextPayment = persistPaymentPatch(payment.id, patch.payment);
+    const nextOrder = persistOrderPatch(payment.order_id, patch.order);
+    return { payment: nextPayment, order: nextOrder };
+}
+
 const JPG_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/pjpeg']);
 
 const storage = multer.diskStorage({
@@ -281,7 +1143,181 @@ const upload = multer({
     }
 });
 
+const TRANSFER_PROOF_MIME_TYPES = new Set([
+    'image/jpeg',
+    'image/jpg',
+    'image/pjpeg',
+    'image/png',
+    'application/pdf'
+]);
+
+const transferProofStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const publicId = sanitizeText(req.params && req.params.publicId, 64);
+        const dir = path.join(__dirname, 'storage', 'transfer-proofs', publicId || 'unknown');
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const extension = path.extname(String(file.originalname || '')).toLowerCase();
+        const safeExtension = ['.jpg', '.jpeg', '.png', '.pdf'].includes(extension) ? extension : '.bin';
+        cb(null, `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${safeExtension}`);
+    }
+});
+
+const uploadTransferProof = multer({
+    storage: transferProofStorage,
+    limits: {
+        files: 1,
+        fileSize: 8 * 1024 * 1024
+    },
+    fileFilter: (req, file, cb) => {
+        if (!TRANSFER_PROOF_MIME_TYPES.has(String(file.mimetype || '').toLowerCase())) {
+            return cb(new Error('Only JPG, PNG, or PDF transfer proofs are allowed'));
+        }
+        cb(null, true);
+    }
+});
+
 app.use(cors());
+app.post('/api/webhooks/paypal', express.raw({ type: 'application/json' }), async (req, res) => {
+    if (!hasPayPalConfig() || !PAYPAL_WEBHOOK_ID) {
+        return res.status(503).json({ error: 'PayPal webhook verification is not configured' });
+    }
+
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || '');
+    const event = parseJsonSafely(rawBody, null);
+    if (!event || !event.id || !event.event_type) {
+        return res.status(400).json({ error: 'Invalid PayPal webhook payload' });
+    }
+
+    const existingInbox = db.prepare('SELECT id FROM payment_webhook_inbox WHERE provider = ? AND provider_event_id = ? LIMIT 1')
+        .get('paypal', sanitizeText(event.id, 120));
+    if (existingInbox) {
+        return res.json({ status: 'duplicate' });
+    }
+
+    try {
+        const verification = await callPayPalApi('/v1/notifications/verify-webhook-signature', {
+            method: 'POST',
+            body: {
+                auth_algo: req.headers['paypal-auth-algo'],
+                cert_url: req.headers['paypal-cert-url'],
+                transmission_id: req.headers['paypal-transmission-id'],
+                transmission_sig: req.headers['paypal-transmission-sig'],
+                transmission_time: req.headers['paypal-transmission-time'],
+                webhook_id: PAYPAL_WEBHOOK_ID,
+                webhook_event: event
+            }
+        });
+
+        if (verification.verification_status !== 'SUCCESS') {
+            return res.status(400).json({ error: 'PayPal webhook signature verification failed' });
+        }
+
+        const matchedPayment = findPaymentByPayPalResource(event.resource || {});
+        const receivedAt = nowAsSqlDateTime();
+        const inboxResult = db.prepare(`
+            INSERT INTO payment_webhook_inbox(provider, payment_id, event_type, provider_event_id, payload, verification_status, processed_at)
+            VALUES(?,?,?,?,?,?,?)
+        `).run(
+            'paypal',
+            matchedPayment ? matchedPayment.id : null,
+            sanitizeText(event.event_type, 120),
+            sanitizeText(event.id, 120),
+            rawBody,
+            'verified',
+            receivedAt
+        );
+
+        if (matchedPayment) {
+            const eventType = sanitizeText(event.event_type, 120);
+            const resource = event.resource || {};
+            if (eventType === 'PAYMENT.CAPTURE.COMPLETED') {
+                syncOrderAndPaymentFromPayPal(matchedPayment, {
+                    payment: {
+                        status: 'paid',
+                        provider_status: sanitizeText(resource.status, 40) || 'COMPLETED',
+                        provider_event_id: sanitizeText(event.id, 120),
+                        paypal_capture_id: sanitizeText(resource.id, 64) || matchedPayment.paypal_capture_id,
+                        seller_protection_status: sanitizeText(resource.seller_protection && resource.seller_protection.status, 40),
+                        paid_at: sanitizeText(resource.create_time, 40) || receivedAt,
+                        metadata_json: resource
+                    },
+                    order: {
+                        status: 'paid',
+                        provider_status: 'PAYMENT.CAPTURE.COMPLETED'
+                    }
+                });
+            } else if (eventType === 'PAYMENT.CAPTURE.PENDING') {
+                syncOrderAndPaymentFromPayPal(matchedPayment, {
+                    payment: {
+                        status: 'pending_review',
+                        provider_status: sanitizeText(resource.status, 40) || 'PENDING',
+                        provider_event_id: sanitizeText(event.id, 120),
+                        paypal_capture_id: sanitizeText(resource.id, 64) || matchedPayment.paypal_capture_id,
+                        metadata_json: resource
+                    },
+                    order: {
+                        status: 'payment_pending',
+                        provider_status: 'PAYMENT.CAPTURE.PENDING'
+                    }
+                });
+            } else if (eventType === 'PAYMENT.CAPTURE.DENIED') {
+                syncOrderAndPaymentFromPayPal(matchedPayment, {
+                    payment: {
+                        status: 'denied',
+                        provider_status: sanitizeText(resource.status, 40) || 'DENIED',
+                        provider_event_id: sanitizeText(event.id, 120),
+                        paypal_capture_id: sanitizeText(resource.id, 64) || matchedPayment.paypal_capture_id,
+                        metadata_json: resource
+                    },
+                    order: {
+                        status: 'payment_failed',
+                        provider_status: 'PAYMENT.CAPTURE.DENIED'
+                    }
+                });
+            } else if (eventType === 'PAYMENT.AUTHORIZATION.CREATED') {
+                syncOrderAndPaymentFromPayPal(matchedPayment, {
+                    payment: {
+                        status: 'authorized',
+                        provider_status: sanitizeText(resource.status, 40) || 'CREATED',
+                        provider_event_id: sanitizeText(event.id, 120),
+                        paypal_authorization_id: sanitizeText(resource.id, 64) || matchedPayment.paypal_authorization_id,
+                        metadata_json: resource
+                    },
+                    order: {
+                        status: 'payment_authorized',
+                        provider_status: 'PAYMENT.AUTHORIZATION.CREATED'
+                    }
+                });
+            } else if (eventType === 'PAYMENT.AUTHORIZATION.VOIDED') {
+                syncOrderAndPaymentFromPayPal(matchedPayment, {
+                    payment: {
+                        status: 'voided',
+                        provider_status: sanitizeText(resource.status, 40) || 'VOIDED',
+                        provider_event_id: sanitizeText(event.id, 120),
+                        metadata_json: resource
+                    },
+                    order: {
+                        status: 'payment_voided',
+                        provider_status: 'PAYMENT.AUTHORIZATION.VOIDED'
+                    }
+                });
+            }
+
+            logAudit('system', 'paypal-webhook', 'payment.webhook_processed', 'payment', matchedPayment.id, {
+                webhookInboxId: inboxResult.lastInsertRowid,
+                eventType
+            });
+        }
+
+        res.json({ status: 'ok' });
+    } catch (error) {
+        console.error('PayPal webhook error:', error);
+        res.status(500).json({ error: error.message || 'Webhook processing failed' });
+    }
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -567,34 +1603,577 @@ app.get('/api/hotels', (req, res) => {
     res.json(h);
 });
 
-// POST booking
-app.post('/api/bookings', (req, res) => {
-    const b = req.body || {};
+app.post('/api/orders/quote', (req, res) => {
+    const payload = req.body || {};
+    const cart = Array.isArray(payload.cart) ? payload.cart : [];
+    const paymentMethod = sanitizeText(payload.paymentMethod || 'paypal', 40).toLowerCase();
+    const currency = normalizeCurrency(payload.currency);
 
-    const payload = {
-        name: sanitizeText(b.name, 180),
-        email: sanitizeText(b.email, 180),
-        phone: sanitizeText(b.phone, 64),
-        date: sanitizeText(b.date, 40),
-        pickup_time: sanitizeText(b.pickup_time, 40),
-        hotel: sanitizeText(b.hotel, 220),
-        comments: sanitizeText(b.comments, 1200),
-        cart: Array.isArray(b.cart) ? b.cart : [],
-        total: safeInt(b.total, NaN)
-    };
-
-    if (!payload.name || !payload.email || !payload.phone || !payload.date) {
-        return res.status(400).json({ error: 'Missing required fields' });
+    if (currency !== ORDER_CURRENCY) {
+        return res.status(400).json({ error: `Only ${ORDER_CURRENCY} orders are supported` });
+    }
+    if (paymentMethod === 'paypal' && !hasPayPalConfig()) {
+        return res.status(503).json({ error: 'PayPal is not configured' });
+    }
+    if (paymentMethod === 'bank_transfer' && !hasBankTransferConfig()) {
+        return res.status(503).json({ error: 'Bank transfer is not configured' });
     }
 
-    const computed = computeServerCartTotals(payload.cart);
+    const computed = computeServerCartTotals(cart);
     if (computed.error) {
         return res.status(400).json({ error: computed.error });
     }
 
-    if (!Number.isFinite(payload.total) || payload.total < 0) {
-        return res.status(400).json({ error: 'Invalid total amount' });
+    const paypalIntent = paymentMethod === 'paypal' ? inferPayPalIntentFromCart(computed.normalizedCart) : null;
+    res.json({
+        status: 'ok',
+        currency: ORDER_CURRENCY,
+        total: computed.totalUSD,
+        paymentMethod,
+        paypalIntent,
+        cart: computed.normalizedCart
+    });
+});
+
+app.post('/api/orders', (req, res) => {
+    const payload = normalizeCheckoutPayload(req.body, 'paypal');
+    const validationError = validateCheckoutPayload(payload, { requireTotal: true });
+    if (validationError) {
+        return res.status(400).json({ error: validationError });
     }
+
+    const customerToken = readCustomerToken(req);
+    const customerSession = customerToken ? loadCustomerSessionByToken(customerToken) : null;
+    if (customerSession && customerSession.email === normalizeEmail(payload.guestEmail)) {
+        payload.userId = customerSession.profilePublicId;
+    }
+
+    const created = createOrderRecord(payload);
+    if (created.error) {
+        return res.status(400).json({ error: created.error });
+    }
+
+    const portalSession = createCustomerPortalSession(created.aggregate.order);
+
+    res.json({
+        status: 'ok',
+        order: {
+            publicId: created.aggregate.order.public_id,
+            total: created.aggregate.order.total,
+            currency: created.aggregate.order.currency,
+            paymentMethod: created.aggregate.order.payment_method,
+            status: created.aggregate.order.status,
+            providerStatus: created.aggregate.order.provider_status,
+            paypalIntent: created.aggregate.order.paypal_intent,
+            expiresAt: created.aggregate.order.expires_at
+        },
+        payment: created.aggregate.payment ? {
+            id: created.aggregate.payment.id,
+            status: created.aggregate.payment.status,
+            providerStatus: created.aggregate.payment.provider_status,
+            bankReference: created.aggregate.payment.bank_reference
+        } : null,
+        bankTransfer: created.aggregate.order.payment_method === 'bank_transfer' ? {
+            bankName: BANK_TRANSFER_BANK_NAME,
+            beneficiary: BANK_TRANSFER_BENEFICIARY,
+            clabe: BANK_TRANSFER_CLABE,
+            account: BANK_TRANSFER_ACCOUNT || null,
+            swift: BANK_TRANSFER_SWIFT || null,
+            reference: created.aggregate.order.bank_reference,
+            expiresAt: created.aggregate.order.expires_at
+        } : null,
+        portal: portalSession
+    });
+});
+
+app.post('/api/payments/paypal/create-order', async (req, res) => {
+    const orderPublicId = sanitizeText(req.body && req.body.orderPublicId, 64);
+    const returnUrl = normalizePublicCheckoutUrl(req.body && req.body.returnUrl, req);
+    const cancelUrl = normalizePublicCheckoutUrl(req.body && req.body.cancelUrl, req);
+    if (!orderPublicId) {
+        return res.status(400).json({ error: 'Missing orderPublicId' });
+    }
+    if (!hasPayPalConfig()) {
+        return res.status(503).json({ error: 'PayPal is not configured' });
+    }
+
+    const aggregate = loadOrderAggregateByPublicId(orderPublicId);
+    if (!aggregate) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+    if (!aggregate.payment || aggregate.payment.provider !== 'paypal') {
+        return res.status(400).json({ error: 'Order is not configured for PayPal' });
+    }
+    if (aggregate.order.status === 'paid') {
+        return res.status(409).json({ error: 'Order is already paid' });
+    }
+
+    try {
+        if (aggregate.payment.paypal_order_id) {
+            return res.json({
+                status: 'ok',
+                orderPublicId: aggregate.order.public_id,
+                paypalOrderId: aggregate.payment.paypal_order_id,
+                intent: aggregate.payment.intent || aggregate.order.paypal_intent || 'CAPTURE'
+            });
+        }
+
+        const paypalOrder = await callPayPalApi('/v2/checkout/orders', {
+            method: 'POST',
+            headers: {
+                Prefer: 'return=representation',
+                'PayPal-Request-Id': `${aggregate.order.public_id}-create`
+            },
+            body: {
+                intent: aggregate.payment.intent || aggregate.order.paypal_intent || 'CAPTURE',
+                purchase_units: [{
+                    reference_id: aggregate.order.public_id,
+                    custom_id: aggregate.order.public_id,
+                    invoice_id: aggregate.order.public_id,
+                    description: buildOrderDescription(aggregate.items),
+                    amount: {
+                        currency_code: aggregate.order.currency,
+                        value: toPayPalAmount(aggregate.order.total)
+                    }
+                }],
+                ...(returnUrl && cancelUrl ? {
+                    payment_source: {
+                        paypal: {
+                            experience_context: {
+                                user_action: 'PAY_NOW',
+                                return_url: returnUrl,
+                                cancel_url: cancelUrl
+                            }
+                        }
+                    }
+                } : {})
+            }
+        });
+
+        const approvalLink = Array.isArray(paypalOrder.links)
+            ? paypalOrder.links.find((link) => link && link.rel === 'approve')
+            : null;
+
+        persistPaymentPatch(aggregate.payment.id, {
+            status: 'created',
+            provider_status: sanitizeText(paypalOrder.status, 40) || 'CREATED',
+            paypal_order_id: sanitizeText(paypalOrder.id, 64),
+            metadata_json: paypalOrder
+        });
+        persistOrderPatch(aggregate.order.id, {
+            provider_status: sanitizeText(paypalOrder.status, 40) || 'CREATED'
+        });
+        logAudit('guest', aggregate.order.guest_email, 'paypal.order_created', 'order', aggregate.order.public_id, {
+            paypalOrderId: paypalOrder.id,
+            intent: aggregate.payment.intent || aggregate.order.paypal_intent || 'CAPTURE'
+        });
+
+        res.json({
+            status: 'ok',
+            orderPublicId: aggregate.order.public_id,
+            paypalOrderId: paypalOrder.id,
+            intent: aggregate.payment.intent || aggregate.order.paypal_intent || 'CAPTURE',
+            approveUrl: approvalLink ? approvalLink.href : null
+        });
+    } catch (error) {
+        console.error('PayPal create order error:', error);
+        res.status(502).json({ error: error.message || 'PayPal order creation failed' });
+    }
+});
+
+app.post('/api/payments/paypal/finalize', async (req, res) => {
+    const orderPublicId = sanitizeText(req.body && req.body.orderPublicId, 64);
+    const paypalOrderId = sanitizeText(req.body && req.body.paypalOrderId, 64);
+    if (!orderPublicId || !paypalOrderId) {
+        return res.status(400).json({ error: 'Missing orderPublicId or paypalOrderId' });
+    }
+
+    const aggregate = loadOrderAggregateByPublicId(orderPublicId);
+    if (!aggregate || !aggregate.payment) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+    if (aggregate.payment.provider !== 'paypal') {
+        return res.status(400).json({ error: 'Order is not configured for PayPal' });
+    }
+    if (aggregate.payment.paypal_order_id && aggregate.payment.paypal_order_id !== paypalOrderId) {
+        return res.status(409).json({ error: 'PayPal order mismatch' });
+    }
+
+    try {
+        const isAuthorize = (aggregate.payment.intent || aggregate.order.paypal_intent) === 'AUTHORIZE';
+        const endpoint = isAuthorize
+            ? `/v2/checkout/orders/${paypalOrderId}/authorize`
+            : `/v2/checkout/orders/${paypalOrderId}/capture`;
+        const requestId = `${aggregate.order.public_id}-${isAuthorize ? 'authorize' : 'capture'}`;
+        const paypalResult = await callPayPalApi(endpoint, {
+            method: 'POST',
+            headers: {
+                Prefer: 'return=representation',
+                'PayPal-Request-Id': requestId
+            },
+            body: {}
+        });
+
+        if (isAuthorize) {
+            const authorization = extractPayPalAuthorization(paypalResult);
+            const authorizationStatus = sanitizeText(authorization && authorization.status, 40)
+                || sanitizeText(paypalResult.status, 40)
+                || 'CREATED';
+            const authorized = authorizationStatus === 'CREATED' || authorizationStatus === 'AUTHORIZED';
+            const paymentStatus = authorized ? 'authorized' : 'authorization_pending';
+            const orderStatus = authorized ? 'payment_authorized' : 'payment_pending';
+
+            syncOrderAndPaymentFromPayPal(aggregate.payment, {
+                payment: {
+                    status: paymentStatus,
+                    provider_status: authorizationStatus,
+                    paypal_order_id: sanitizeText(paypalResult.id, 64) || paypalOrderId,
+                    paypal_authorization_id: sanitizeText(authorization && authorization.id, 64),
+                    metadata_json: paypalResult
+                },
+                order: {
+                    status: orderStatus,
+                    provider_status: authorizationStatus
+                }
+            });
+        } else {
+            const capture = extractPayPalCapture(paypalResult);
+            const providerStatus = sanitizeText(capture && capture.status, 40) || sanitizeText(paypalResult.status, 40) || 'COMPLETED';
+            const paid = providerStatus === 'COMPLETED';
+
+            syncOrderAndPaymentFromPayPal(aggregate.payment, {
+                payment: {
+                    status: paid ? 'paid' : 'pending_review',
+                    provider_status: providerStatus,
+                    paypal_order_id: sanitizeText(paypalResult.id, 64) || paypalOrderId,
+                    paypal_capture_id: sanitizeText(capture && capture.id, 64),
+                    seller_protection_status: sanitizeText(capture && capture.seller_protection && capture.seller_protection.status, 40),
+                    paid_at: paid ? nowAsSqlDateTime() : null,
+                    metadata_json: paypalResult
+                },
+                order: {
+                    status: paid ? 'paid' : 'payment_pending',
+                    provider_status: providerStatus
+                }
+            });
+        }
+
+        logAudit('guest', aggregate.order.guest_email, 'paypal.finalized', 'order', aggregate.order.public_id, {
+            paypalOrderId,
+            intent: aggregate.payment.intent || aggregate.order.paypal_intent
+        });
+
+        const refreshed = loadOrderAggregateByPublicId(orderPublicId);
+        res.json({
+            status: 'ok',
+            order: {
+                publicId: refreshed.order.public_id,
+                status: refreshed.order.status,
+                providerStatus: refreshed.order.provider_status
+            },
+            payment: refreshed.payment ? {
+                id: refreshed.payment.id,
+                status: refreshed.payment.status,
+                providerStatus: refreshed.payment.provider_status,
+                paypalOrderId: refreshed.payment.paypal_order_id,
+                paypalAuthorizationId: refreshed.payment.paypal_authorization_id,
+                paypalCaptureId: refreshed.payment.paypal_capture_id
+            } : null
+        });
+    } catch (error) {
+        console.error('PayPal finalize error:', error);
+        res.status(502).json({ error: error.message || 'PayPal finalize failed' });
+    }
+});
+
+function downloadPrivateOrderDocument(order, documentId, res) {
+    const document = db.prepare('SELECT * FROM documents WHERE id = ? AND order_id = ? LIMIT 1').get(documentId, order.id);
+    if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const filePath = resolvePrivatePath(document.storage_path);
+    if (!filePath || !fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Stored document not found' });
+    }
+
+    return res.download(filePath);
+}
+
+function handleTransferProofUpload(req, res, aggregate, actorType, actorId) {
+    if (!aggregate || !aggregate.payment) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+    if (aggregate.payment.provider !== 'bank_transfer') {
+        return res.status(400).json({ error: 'Order is not configured for bank transfer' });
+    }
+    if (!req.file) {
+        return res.status(400).json({ error: 'Proof file is required' });
+    }
+
+    const submittedReference = sanitizeText(req.body && req.body.submitted_reference, 64).toUpperCase();
+    const submittedAmount = safeInt(req.body && req.body.submitted_amount, NaN);
+    const expectedReference = sanitizeText(aggregate.payment.bank_reference || aggregate.order.bank_reference, 64).toUpperCase();
+    let matchScore = 0;
+
+    if (submittedReference && expectedReference && submittedReference === expectedReference) {
+        matchScore += 50;
+    }
+    if (Number.isFinite(submittedAmount) && submittedAmount === aggregate.payment.amount) {
+        matchScore += 50;
+    }
+
+    const relativeProofPath = path.relative(__dirname, req.file.path);
+    const tx = db.transaction(() => {
+        db.prepare(`
+            INSERT INTO bank_transfer_submissions(
+                payment_id, proof_path, submitted_reference, submitted_amount, match_score, review_status, reviewed_by, reviewed_at
+            ) VALUES(?,?,?,?,?,?,?,?)
+        `).run(
+            aggregate.payment.id,
+            relativeProofPath,
+            submittedReference || null,
+            Number.isFinite(submittedAmount) ? submittedAmount : null,
+            matchScore,
+            'pending',
+            null,
+            null
+        );
+        db.prepare(`
+            INSERT INTO documents(order_id, document_type, storage_path, visibility)
+            VALUES(?,?,?,?)
+        `).run(aggregate.order.id, 'transfer_proof', relativeProofPath, 'private');
+    });
+    tx();
+
+    persistPaymentPatch(aggregate.payment.id, {
+        status: 'transfer_submitted',
+        provider_status: 'proof_uploaded'
+    });
+    persistOrderPatch(aggregate.order.id, {
+        status: 'transfer_submitted',
+        provider_status: 'proof_uploaded'
+    });
+    logAudit(actorType, actorId, 'bank_transfer.proof_uploaded', 'order', aggregate.order.public_id, {
+        matchScore,
+        submittedReference: submittedReference || null
+    });
+
+    return res.json({
+        status: 'ok',
+        orderPublicId: aggregate.order.public_id,
+        paymentId: aggregate.payment.id,
+        matchScore
+    });
+}
+
+app.post('/api/auth/customer/request-code', (req, res) => {
+    const email = normalizeEmail(req.body && req.body.email);
+    const fullName = sanitizeText(req.body && req.body.fullName, 180);
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+    }
+    if (!CUSTOMER_AUTH_DEBUG) {
+        return res.status(503).json({ error: 'Customer email delivery is not configured yet' });
+    }
+
+    const code = createCustomerAuthCode();
+    const expiresAt = addMsToNow(CUSTOMER_AUTH_CODE_TTL_MS);
+    const existingOrders = countGuestOrdersByEmail(email);
+
+    db.prepare('DELETE FROM customer_auth_codes WHERE email = ? AND purpose = ?').run(email, 'login');
+    db.prepare(`
+        INSERT INTO customer_auth_codes(email, code_hash, purpose, expires_at)
+        VALUES(?,?,?,?)
+    `).run(email, hashSecret(code), 'login', expiresAt);
+
+    if (fullName) {
+        upsertCustomerProfile(email, fullName);
+    }
+
+    logAudit('guest', email, 'customer_auth.code_requested', 'customer_profile', email, {
+        existingOrders
+    });
+
+    res.json({
+        status: 'ok',
+        email,
+        expiresAt,
+        existingOrders,
+        debugCode: CUSTOMER_AUTH_DEBUG ? code : undefined
+    });
+});
+
+app.post('/api/auth/customer/verify-code', (req, res) => {
+    const email = normalizeEmail(req.body && req.body.email);
+    const code = sanitizeText(req.body && req.body.code, 12);
+    const fullName = sanitizeText(req.body && req.body.fullName, 180);
+    if (!email || !code) {
+        return res.status(400).json({ error: 'Email and code are required' });
+    }
+
+    const consumed = consumeCustomerAuthCode(email, code, 'login');
+    if (!consumed) {
+        return res.status(401).json({ error: 'Invalid or expired code' });
+    }
+
+    let profile = upsertCustomerProfile(email, fullName);
+    profile = markCustomerEmailVerified(profile.public_id);
+    const claimedOrderIds = claimOrdersForCustomer(profile, email, 'email_otp');
+    const session = createCustomerSession(profile);
+
+    logAudit('guest', email, 'customer_auth.verified', 'customer_profile', profile.public_id, {
+        claimedOrders: claimedOrderIds.length
+    });
+
+    res.json({
+        status: 'ok',
+        token: session.token,
+        expiresAt: session.expiresAt,
+        profile: serializeCustomerProfile(profile),
+        claimedOrders: claimedOrderIds
+    });
+});
+
+app.post('/api/auth/customer/logout', requireCustomerAuth, (req, res) => {
+    db.prepare('DELETE FROM customer_sessions WHERE token_hash = ?').run(hashSecret(req.customerToken));
+    logAudit('customer', req.customer.profilePublicId, 'customer_auth.logout', 'customer_profile', req.customer.profilePublicId, null);
+    res.json({ status: 'ok' });
+});
+
+app.get('/api/me', requireCustomerAuth, (req, res) => {
+    const orders = listOrdersForCustomer(req.customer.profilePublicId);
+    res.json({
+        status: 'ok',
+        profile: serializeCustomerProfile(findCustomerProfileByPublicIdStmt.get(req.customer.profilePublicId)),
+        session: {
+            expiresAt: req.customer.expiresAt
+        },
+        ordersCount: orders.length
+    });
+});
+
+app.get('/api/me/orders', requireCustomerAuth, (req, res) => {
+    const rows = listOrdersForCustomer(req.customer.profilePublicId);
+    res.json({
+        status: 'ok',
+        profile: serializeCustomerProfile(findCustomerProfileByPublicIdStmt.get(req.customer.profilePublicId)),
+        session: {
+            expiresAt: req.customer.expiresAt
+        },
+        orders: rows.map(serializeCustomerOrderSummary)
+    });
+});
+
+app.get('/api/me/orders/:publicId', requireCustomerAuth, (req, res) => {
+    const publicId = sanitizeText(req.params.publicId, 64);
+    const aggregate = loadOrderAggregateForCustomer(req.customer.profilePublicId, publicId);
+    if (!aggregate) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json({
+        status: 'ok',
+        data: serializeCustomerPortalAggregate(aggregate),
+        session: {
+            expiresAt: req.customer.expiresAt
+        }
+    });
+});
+
+app.get('/api/me/orders/:publicId/documents/:documentId/download', requireCustomerAuth, (req, res) => {
+    const publicId = sanitizeText(req.params.publicId, 64);
+    const documentId = safeInt(req.params.documentId, NaN);
+    if (!publicId || !Number.isFinite(documentId)) {
+        return res.status(400).json({ error: 'Invalid document request' });
+    }
+
+    const aggregate = loadOrderAggregateForCustomer(req.customer.profilePublicId, publicId);
+    if (!aggregate) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    return downloadPrivateOrderDocument(aggregate.order, documentId, res);
+});
+
+app.post('/api/me/orders/:publicId/transfer-proof', requireCustomerAuth, uploadTransferProof.single('proof'), (req, res) => {
+    const publicId = sanitizeText(req.params.publicId, 64);
+    const aggregate = loadOrderAggregateForCustomer(req.customer.profilePublicId, publicId);
+    if (!aggregate) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    return handleTransferProofUpload(req, res, aggregate, 'customer', req.customer.profilePublicId);
+});
+
+app.post('/api/orders/lookup', (req, res) => {
+    const publicId = sanitizeText(req.body && req.body.publicId, 64);
+    const guestEmail = normalizeEmail(req.body && req.body.email);
+    if (!publicId || !guestEmail) {
+        return res.status(400).json({ error: 'publicId and email are required' });
+    }
+
+    const aggregate = loadOrderAggregateByPublicId(publicId);
+    if (!aggregate || normalizeEmail(aggregate.order.guest_email) !== guestEmail) {
+        return res.status(404).json({ error: 'Order not found for this email' });
+    }
+
+    const portalSession = createCustomerPortalSession(aggregate.order);
+    logAudit('guest', guestEmail, 'order.portal_lookup', 'order', publicId, null);
+
+    res.json({
+        status: 'ok',
+        portal: portalSession,
+        data: serializeCustomerPortalAggregate(aggregate)
+    });
+});
+
+app.get('/api/orders/:publicId/portal', requireCustomerPortal, (req, res) => {
+    const aggregate = loadOrderAggregateByPublicId(sanitizeText(req.params.publicId, 64));
+    if (!aggregate) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json({
+        status: 'ok',
+        data: serializeCustomerPortalAggregate(aggregate),
+        portal: {
+            expiresAt: req.customerPortal.expiresAt
+        }
+    });
+});
+
+app.get('/api/orders/:publicId/documents/:documentId/download', requireCustomerPortal, (req, res) => {
+    const publicId = sanitizeText(req.params.publicId, 64);
+    const documentId = safeInt(req.params.documentId, NaN);
+    if (!publicId || !Number.isFinite(documentId)) {
+        return res.status(400).json({ error: 'Invalid document request' });
+    }
+
+    const order = findOrderByPublicIdStmt.get(publicId);
+    if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    return downloadPrivateOrderDocument(order, documentId, res);
+});
+
+app.post('/api/orders/:publicId/transfer-proof', requireCustomerPortal, uploadTransferProof.single('proof'), (req, res) => {
+    const publicId = sanitizeText(req.params.publicId, 64);
+    const aggregate = loadOrderAggregateByPublicId(publicId);
+    return handleTransferProofUpload(req, res, aggregate, 'guest', aggregate && aggregate.order ? aggregate.order.guest_email : 'guest');
+});
+
+// POST booking
+app.post('/api/bookings', (req, res) => {
+    const payload = normalizeCheckoutPayload(req.body, 'manual_contact');
+    const validationError = validateCheckoutPayload(payload, { requireTotal: true });
+    if (validationError) {
+        return res.status(400).json({ error: validationError });
+    }
+
+    const computed = computeServerCartTotals(payload.cart);
+    if (computed.error) return res.status(400).json({ error: computed.error });
     if (payload.total !== computed.totalUSD) {
         return res.status(400).json({ error: 'Total mismatch. Refresh your cart and try again.' });
     }
@@ -605,11 +2184,11 @@ app.post('/api/bookings', (req, res) => {
         ) VALUES(?,?,?,?,?,?,?,?,?,?)
     `);
     const r = stmt.run(
-        payload.name,
-        payload.email,
-        payload.phone,
-        payload.date,
-        payload.pickup_time || '',
+        payload.guestName,
+        payload.guestEmail,
+        payload.guestPhone,
+        payload.serviceDate,
+        payload.pickupTime || '',
         payload.hotel || '',
         payload.comments || '',
         JSON.stringify(computed.normalizedCart),
@@ -617,7 +2196,20 @@ app.post('/api/bookings', (req, res) => {
         'pending'
     );
 
-    res.json({ id: r.lastInsertRowid, status: 'ok' });
+    const orderResult = createOrderRecord({
+        ...payload,
+        paymentMethod: 'manual_contact',
+        source: 'legacy_booking'
+    });
+    if (orderResult.error) {
+        return res.status(500).json({ error: orderResult.error });
+    }
+
+    res.json({
+        id: r.lastInsertRowid,
+        status: 'ok',
+        orderPublicId: orderResult.publicId
+    });
 });
 
 // GET bookings (admin, summary without raw PII)
@@ -687,6 +2279,208 @@ app.get('/api/bookings/:id', requireAdmin, (req, res) => {
     });
 });
 
+app.get('/api/admin/orders', requireAdmin, (req, res) => {
+    const rows = db.prepare(`
+        SELECT
+            o.public_id,
+            o.guest_name,
+            o.guest_email,
+            o.guest_phone,
+            o.currency,
+            o.total,
+            o.status,
+            o.payment_method,
+            o.provider_status,
+            o.expires_at,
+            o.service_date,
+            o.created_at,
+            p.id AS payment_id,
+            p.status AS payment_status,
+            p.intent AS payment_intent
+        FROM orders o
+        LEFT JOIN payments p ON p.id = (
+            SELECT id FROM payments p2 WHERE p2.order_id = o.id ORDER BY p2.id DESC LIMIT 1
+        )
+        ORDER BY o.created_at DESC
+    `).all();
+
+    res.json(rows.map((row) => ({
+        public_id: row.public_id,
+        guest_name: sanitizeText(row.guest_name, 180),
+        guest_email_masked: maskEmail(row.guest_email),
+        guest_phone_masked: maskPhone(row.guest_phone),
+        currency: row.currency,
+        total: row.total,
+        status: row.status,
+        payment_method: row.payment_method,
+        provider_status: row.provider_status,
+        expires_at: row.expires_at,
+        service_date: row.service_date,
+        created_at: row.created_at,
+        payment_id: row.payment_id,
+        payment_status: row.payment_status,
+        payment_intent: row.payment_intent
+    })));
+});
+
+app.get('/api/admin/orders/:publicId', requireAdmin, (req, res) => {
+    const publicId = sanitizeText(req.params.publicId, 64);
+    const aggregate = loadOrderAggregateByPublicId(publicId);
+    if (!aggregate) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const transferSubmissions = aggregate.payment
+        ? db.prepare('SELECT * FROM bank_transfer_submissions WHERE payment_id = ? ORDER BY created_at DESC').all(aggregate.payment.id)
+        : [];
+    const documents = db.prepare('SELECT * FROM documents WHERE order_id = ? ORDER BY created_at DESC').all(aggregate.order.id);
+
+    res.json({
+        order: aggregate.order,
+        items: aggregate.items.map((item) => ({
+            ...item,
+            add_ons: parseJsonSafely(item.add_ons_json || '[]', [])
+        })),
+        payment: aggregate.payment,
+        transferSubmissions,
+        documents
+    });
+});
+
+app.get('/api/admin/orders/:publicId/documents/:documentId/download', requireAdmin, (req, res) => {
+    const publicId = sanitizeText(req.params.publicId, 64);
+    const documentId = safeInt(req.params.documentId, NaN);
+    if (!publicId || !Number.isFinite(documentId)) {
+        return res.status(400).json({ error: 'Invalid document request' });
+    }
+
+    const order = findOrderByPublicIdStmt.get(publicId);
+    if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const document = db.prepare('SELECT * FROM documents WHERE id = ? AND order_id = ? LIMIT 1').get(documentId, order.id);
+    if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const filePath = resolvePrivatePath(document.storage_path);
+    if (!filePath || !fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Stored document not found' });
+    }
+
+    res.download(filePath);
+});
+
+app.post('/api/admin/payments/:id/capture', requireAdmin, async (req, res) => {
+    const paymentId = safeInt(req.params.id, NaN);
+    if (!Number.isFinite(paymentId)) {
+        return res.status(400).json({ error: 'Invalid payment id' });
+    }
+
+    const payment = findPaymentByIdStmt.get(paymentId);
+    if (!payment) {
+        return res.status(404).json({ error: 'Payment not found' });
+    }
+    if (payment.provider !== 'paypal' || payment.intent !== 'AUTHORIZE' || !payment.paypal_authorization_id) {
+        return res.status(400).json({ error: 'Payment is not a capturable PayPal authorization' });
+    }
+
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(payment.order_id);
+    if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    try {
+        const paypalResult = await callPayPalApi(`/v2/payments/authorizations/${payment.paypal_authorization_id}/capture`, {
+            method: 'POST',
+            headers: {
+                Prefer: 'return=representation',
+                'PayPal-Request-Id': `${order.public_id}-admin-capture-${payment.id}`
+            },
+            body: {}
+        });
+        const providerStatus = sanitizeText(paypalResult.status, 40) || 'COMPLETED';
+        const paid = providerStatus === 'COMPLETED';
+
+        syncOrderAndPaymentFromPayPal(payment, {
+            payment: {
+                status: paid ? 'paid' : 'pending_review',
+                provider_status: providerStatus,
+                paypal_capture_id: sanitizeText(paypalResult.id, 64),
+                seller_protection_status: sanitizeText(paypalResult.seller_protection && paypalResult.seller_protection.status, 40),
+                paid_at: paid ? nowAsSqlDateTime() : null,
+                metadata_json: paypalResult
+            },
+            order: {
+                status: paid ? 'paid' : 'payment_pending',
+                provider_status: providerStatus
+            }
+        });
+
+        logAudit('admin', req.admin.username, 'paypal.authorization_captured', 'payment', payment.id, {
+            orderPublicId: order.public_id,
+            authorizationId: payment.paypal_authorization_id
+        });
+
+        const refreshed = findPaymentByIdStmt.get(paymentId);
+        res.json({ status: 'ok', payment: refreshed });
+    } catch (error) {
+        console.error('Admin PayPal capture error:', error);
+        res.status(502).json({ error: error.message || 'PayPal capture failed' });
+    }
+});
+
+app.post('/api/admin/payments/:id/confirm-transfer', requireAdmin, (req, res) => {
+    const paymentId = safeInt(req.params.id, NaN);
+    if (!Number.isFinite(paymentId)) {
+        return res.status(400).json({ error: 'Invalid payment id' });
+    }
+
+    const payment = findPaymentByIdStmt.get(paymentId);
+    if (!payment) {
+        return res.status(404).json({ error: 'Payment not found' });
+    }
+    if (payment.provider !== 'bank_transfer') {
+        return res.status(400).json({ error: 'Payment is not a bank transfer' });
+    }
+
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(payment.order_id);
+    if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const now = nowAsSqlDateTime();
+    const tx = db.transaction(() => {
+        persistPaymentPatch(payment.id, {
+            status: 'paid',
+            provider_status: 'bank_reconciled',
+            paid_at: now
+        });
+        persistOrderPatch(order.id, {
+            status: 'paid',
+            provider_status: 'bank_reconciled'
+        });
+        db.prepare(`
+            UPDATE bank_transfer_submissions
+            SET review_status = ?, reviewed_by = ?, reviewed_at = ?
+            WHERE id = (
+                SELECT id FROM bank_transfer_submissions
+                WHERE payment_id = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            )
+        `).run('confirmed', req.admin.username, now, payment.id);
+    });
+    tx();
+
+    logAudit('admin', req.admin.username, 'bank_transfer.confirmed', 'payment', payment.id, {
+        orderPublicId: order.public_id
+    });
+
+    res.json({ status: 'ok', payment: findPaymentByIdStmt.get(payment.id) });
+});
+
 // Config endpoint
 app.get('/api/config', (req, res) => {
     res.json({
@@ -695,7 +2489,31 @@ app.get('/api/config', (req, res) => {
             serviceId: 'lindo_Tours',
             templateId: 'template_ms3160x'
         },
-        whatsapp: { phone: '5219981440320' }
+        whatsapp: { phone: '5219981440320' },
+        auth: {
+            customer: {
+                enabled: true,
+                debugOtp: CUSTOMER_AUTH_DEBUG,
+                codeTtlMs: CUSTOMER_AUTH_CODE_TTL_MS,
+                sessionTtlMs: CUSTOMER_SESSION_TTL_MS
+            }
+        },
+        payments: {
+            currency: ORDER_CURRENCY,
+            paypal: {
+                enabled: hasPayPalConfig(),
+                clientId: PAYPAL_CLIENT_ID || null
+            },
+            bankTransfer: {
+                enabled: hasBankTransferConfig(),
+                bankName: BANK_TRANSFER_BANK_NAME || null,
+                beneficiary: BANK_TRANSFER_BENEFICIARY || null,
+                clabe: BANK_TRANSFER_CLABE || null,
+                account: BANK_TRANSFER_ACCOUNT || null,
+                swift: BANK_TRANSFER_SWIFT || null,
+                referencePrefix: BANK_TRANSFER_REFERENCE_PREFIX
+            }
+        }
     });
 });
 
@@ -703,7 +2521,12 @@ app.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {
         return res.status(400).json({ error: err.message });
     }
-    if (err && err.message && err.message.includes('JPG/JPEG')) {
+    if (err && err.message && (
+        err.message.includes('JPG/JPEG')
+        || err.message.includes('transfer proofs')
+        || err.message.includes('PNG')
+        || err.message.includes('PDF')
+    )) {
         return res.status(400).json({ error: err.message });
     }
     next(err);
@@ -713,6 +2536,19 @@ app.get('/{*path}', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`Lindo Tours running on http://localhost:${PORT}`);
-});
+function startServer(port) {
+    const listenPort = port || PORT;
+    return app.listen(listenPort, () => {
+        console.log(`Lindo Tours running on http://localhost:${listenPort}`);
+    });
+}
+
+if (require.main === module) {
+    startServer(PORT);
+}
+
+module.exports = {
+    app,
+    db,
+    startServer
+};

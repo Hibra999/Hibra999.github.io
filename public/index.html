@@ -29,6 +29,13 @@
                 </svg>
                 <span data-es="Nosotros" data-en="About Us">About Us</span>
             </button>
+            <button class="about-btn" onclick="navigateTo('orders')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+                <span data-i18n="myOrdersNav">Mis compras</span>
+            </button>
             <div class="selector" id="language-selector-container">
                 <div class="selector-current" onclick="toggleLanguageDropdown()">
                     <img id="lang-flag" src="imagenes/flags/es.jpg" alt="flag" class="lang-flag">
@@ -151,6 +158,99 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+    <section id="orders-view" class="about-section orders-section" style="display:none;">
+        <div class="about-container orders-container">
+            <div class="about-nav">
+                <button class="back-btn" onclick="navigateTo('catalog')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12" />
+                        <polyline points="12 19 5 12 12 5" />
+                    </svg>
+                    <span data-es="Volver a Inicio" data-en="Back to Home">Back to Home</span>
+                </button>
+            </div>
+            <div class="orders-portal-layout">
+                <div class="orders-portal-intro">
+                    <h2 data-i18n="myOrdersTitle">Mis compras</h2>
+                    <div class="about-divider"></div>
+                    <p class="about-text" data-i18n="myOrdersIntro">Consulta el estado de tu orden, pagos y documentos usando tu número de orden y el email de compra.</p>
+                    <div class="orders-portal-note">
+                        <strong data-i18n="orderNumber">Número de orden</strong>
+                        <p data-i18n="myOrdersHint">Lo encuentras en el email de confirmación, en PayPal o en el mensaje de WhatsApp generado al reservar.</p>
+                    </div>
+                </div>
+
+                <div class="orders-portal-card">
+                    <form id="order-lookup-form" onsubmit="handleOrderLookup(event)">
+                        <div class="form-group">
+                            <label for="order-lookup-public-id" data-i18n="orderNumber">Número de orden</label>
+                            <input type="text" id="order-lookup-public-id" autocomplete="off" placeholder="LT-ABCD1234" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="order-lookup-email" data-i18n="email">Email</label>
+                            <input type="email" id="order-lookup-email" autocomplete="email" placeholder="you@example.com" required>
+                        </div>
+                        <div class="form-buttons" style="border-top:none; padding-top:0; margin-top:0;">
+                            <button type="submit" class="btn btn-primary" id="order-lookup-submit">
+                                <span data-i18n="lookupOrderButton">Consultar orden</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="clearCustomerPortalSession(true)">
+                                <span data-i18n="clearLookupButton">Limpiar</span>
+                            </button>
+                        </div>
+                    </form>
+                    <div class="booking-status" id="order-lookup-status" aria-live="polite"></div>
+                </div>
+            </div>
+
+            <div class="orders-account-layout">
+                <div class="orders-portal-card orders-auth-card">
+                    <div class="orders-auth-header">
+                        <h3 data-i18n="accountAccessTitle">Acceso por email</h3>
+                        <p data-i18n="accountAccessIntro">Pide un código de un solo uso para reclamar tus compras y ver todas las órdenes ligadas a tu email.</p>
+                    </div>
+                    <form id="customer-auth-request-form" onsubmit="requestCustomerAuthCode(event)">
+                        <div class="form-group">
+                            <label for="customer-auth-email" data-i18n="email">Email</label>
+                            <input type="email" id="customer-auth-email" autocomplete="email" placeholder="you@example.com" required>
+                        </div>
+                        <div class="form-buttons" style="border-top:none; padding-top:0; margin-top:0;">
+                            <button type="submit" class="btn btn-primary" id="customer-auth-request-btn">
+                                <span data-i18n="requestCodeButton">Enviar código</span>
+                            </button>
+                        </div>
+                    </form>
+                    <form id="customer-auth-verify-form" onsubmit="verifyCustomerAuthCode(event)">
+                        <div class="form-group">
+                            <label for="customer-auth-code" data-i18n="accountCodeLabel">Código</label>
+                            <input type="text" id="customer-auth-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" required>
+                        </div>
+                        <div class="form-buttons" style="border-top:none; padding-top:0; margin-top:0;">
+                            <button type="submit" class="btn btn-primary" id="customer-auth-verify-btn">
+                                <span data-i18n="verifyCodeButton">Verificar código</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="customer-auth-logout-btn" onclick="customerLogout()" hidden>
+                                <span data-i18n="customerLogoutButton">Cerrar sesión</span>
+                            </button>
+                        </div>
+                    </form>
+                    <div class="booking-status" id="customer-auth-status" aria-live="polite"></div>
+                    <div class="orders-portal-note" id="customer-auth-debug-note" hidden>
+                        <strong data-i18n="customerAuthDebugTitle">Código de prueba</strong>
+                        <p id="customer-auth-debug-code">123456</p>
+                    </div>
+                </div>
+
+                <div class="orders-portal-result" id="customer-orders-list-panel" hidden>
+                    <p class="admin-orders-empty" data-i18n="customerOrdersEmpty">Inicia sesión con tu email para ver todas tus órdenes.</p>
+                </div>
+            </div>
+
+            <div class="orders-portal-result" id="orders-portal-result">
+                <p class="admin-orders-empty" data-i18n="myOrdersEmpty">Ingresa tu número de orden y email para ver tus compras.</p>
             </div>
         </div>
     </section>
@@ -355,9 +455,9 @@
                             <span data-es="Confirma tu Reservación" data-en="Confirm Your Booking">Confirm Your Booking</span>
                         </h4>
                         <p class="confirm-step-text"
-                            data-es="Revisa todos los datos antes de enviar por Email o WhatsApp."
-                            data-en="Review all details before sending by Email or WhatsApp.">
-                            Review all details before sending by Email or WhatsApp.
+                            data-es="Revisa los datos y elige un método de pago o contacto para continuar."
+                            data-en="Review your details and choose a payment or contact method to continue.">
+                            Review your details and choose a payment or contact method to continue.
                         </p>
 
                         <div class="confirm-grid">
@@ -371,6 +471,56 @@
                                 <div class="confirm-total">
                                     <span data-i18n="total">Total</span>
                                     <strong id="confirm-total-amount">$0 USD</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="payment-selection-card" id="payment-selection-card">
+                            <div class="payment-selection-header">
+                                <h5 data-i18n="paymentMethod">Método de pago</h5>
+                                <p data-i18n="paymentMethodHelp">Elige la forma más conveniente para completar tu reservación.</p>
+                            </div>
+                            <div class="payment-methods" id="payment-methods">
+                                <label class="payment-method-option" id="payment-option-paypal" data-payment-method="paypal">
+                                    <input type="radio" name="payment_method" value="paypal">
+                                    <span class="payment-method-copy">
+                                        <strong data-i18n="paymentPayPal">PayPal</strong>
+                                        <small data-i18n="paymentPayPalDesc">Pago inmediato con PayPal o tarjeta.</small>
+                                    </span>
+                                </label>
+                                <label class="payment-method-option" id="payment-option-bank-transfer" data-payment-method="bank_transfer">
+                                    <input type="radio" name="payment_method" value="bank_transfer">
+                                    <span class="payment-method-copy">
+                                        <strong data-i18n="paymentTransfer">Transferencia bancaria</strong>
+                                        <small data-i18n="paymentTransferDesc">Recibe CLABE, referencia exacta y sube tu comprobante.</small>
+                                    </span>
+                                </label>
+                                <label class="payment-method-option" id="payment-option-manual-contact" data-payment-method="manual_contact">
+                                    <input type="radio" name="payment_method" value="manual_contact">
+                                    <span class="payment-method-copy">
+                                        <strong data-i18n="paymentManual">Reservar por contacto</strong>
+                                        <small data-i18n="paymentManualDesc">Envía tu solicitud por WhatsApp o email para confirmación manual.</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="checkout-result-card" id="checkout-result-card" hidden>
+                            <div class="checkout-result-header">
+                                <span data-i18n="orderNumber">Número de orden</span>
+                                <strong id="checkout-result-order-id">LT-XXXX</strong>
+                            </div>
+                            <p class="checkout-result-text" id="checkout-result-message"></p>
+                            <div class="checkout-result-grid" id="checkout-result-grid"></div>
+
+                            <div class="transfer-proof-box" id="transfer-proof-box" hidden>
+                                <h6 data-i18n="uploadProofTitle">Subir comprobante</h6>
+                                <p data-i18n="uploadProofHelp">El screenshot no confirma pago por sí solo, pero nos ayuda a iniciar la revisión.</p>
+                                <div class="transfer-proof-fields">
+                                    <input type="file" id="transfer-proof-file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                                    <button type="button" class="btn btn-secondary" id="upload-transfer-proof-btn" onclick="uploadTransferProof()">
+                                        <span data-i18n="uploadProofButton">Subir comprobante</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -414,6 +564,14 @@
                     <button type="button" class="btn btn-primary" id="confirm-btn" onclick="proceedToConfirmation()"
                         style="display:none;"><span data-es="Continuar a Confirmar" data-en="Continue to Confirm">Continue
                             to Confirm</span></button>
+                    <button type="button" class="btn btn-primary" id="pay-paypal-btn" onclick="startPayPalCheckout()"
+                        style="display:none;">
+                        <span data-i18n="continueWithPayPal">Pagar con PayPal</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" id="bank-transfer-btn" onclick="startBankTransferCheckout()"
+                        style="display:none;">
+                        <span data-i18n="getTransferInstructions">Ver datos para transferencia</span>
+                    </button>
                     <button type="button" class="btn btn-primary" id="send-email-btn" onclick="sendBookingEmail()"
                         style="display:none;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -421,7 +579,7 @@
                             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                             <polyline points="22,6 12,13 2,6" />
                         </svg>
-                        <span data-es="Enviar Reservación" data-en="Send Booking">Send Booking</span>
+                        <span data-i18n="sendReservationEmail">Enviar reservación por email</span>
                     </button>
                     <button type="button" class="btn btn-whatsapp" id="send-whatsapp-btn" onclick="sendToWhatsApp()"
                         style="display:none;">
@@ -429,7 +587,7 @@
                             <path
                                 d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                         </svg>
-                        <span data-es="Enviar por WhatsApp" data-en="Send via WhatsApp">Send via WhatsApp</span>
+                        <span data-i18n="sendReservationWhatsApp">Enviar por WhatsApp</span>
                     </button>
                 </div>
             </div>
@@ -626,6 +784,72 @@
                 </button>
             </div>
             <div class="admin-dashboard-content">
+                <section class="admin-orders-section">
+                    <div class="admin-orders-header">
+                        <div>
+                            <h3 data-es="Órdenes y Pagos" data-en="Orders and Payments">Orders and Payments</h3>
+                            <p data-es="Revisa pagos PayPal, transferencias pendientes y detalle operativo de cada orden."
+                                data-en="Review PayPal payments, pending transfers, and operational details for each order.">
+                                Review PayPal payments, pending transfers, and operational details for each order.
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-secondary admin-refresh-btn" onclick="loadAdminOrders(true)">
+                            <span data-es="Actualizar órdenes" data-en="Refresh orders">Refresh orders</span>
+                        </button>
+                    </div>
+
+                    <div class="admin-order-metrics" id="admin-order-metrics">
+                        <div class="admin-order-metric">
+                            <span data-es="Órdenes" data-en="Orders">Orders</span>
+                            <strong id="admin-metric-orders">0</strong>
+                        </div>
+                        <div class="admin-order-metric">
+                            <span data-es="Pendientes" data-en="Pending">Pending</span>
+                            <strong id="admin-metric-pending">0</strong>
+                        </div>
+                        <div class="admin-order-metric">
+                            <span data-es="Pagadas" data-en="Paid">Paid</span>
+                            <strong id="admin-metric-paid">0</strong>
+                        </div>
+                        <div class="admin-order-metric">
+                            <span data-es="Transferencias" data-en="Transfers">Transfers</span>
+                            <strong id="admin-metric-transfers">0</strong>
+                        </div>
+                    </div>
+
+                    <div class="admin-orders-grid">
+                        <div class="admin-card">
+                            <div class="admin-card-header">
+                                <h4 data-es="Lista de órdenes" data-en="Order list">Order list</h4>
+                            </div>
+                            <div class="admin-card-body">
+                                <div class="admin-orders-list" id="admin-orders-list">
+                                    <p class="admin-orders-empty"
+                                        data-es="Inicia sesión y actualiza para ver órdenes."
+                                        data-en="Sign in and refresh to view orders.">
+                                        Sign in and refresh to view orders.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="admin-card">
+                            <div class="admin-card-header">
+                                <h4 data-es="Detalle de orden" data-en="Order detail">Order detail</h4>
+                            </div>
+                            <div class="admin-card-body">
+                                <div class="admin-order-detail" id="admin-order-detail">
+                                    <p class="admin-orders-empty"
+                                        data-es="Selecciona una orden para ver el detalle y las acciones disponibles."
+                                        data-en="Select an order to view details and available actions.">
+                                        Select an order to view details and available actions.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <div class="admin-dashboard-banner">
                     <div class="admin-banner-icon">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"

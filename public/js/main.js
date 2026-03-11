@@ -7,12 +7,30 @@ let state = {
     addOns: {},
     cart: [],
     checkoutMode: false,
-    checkoutStep: 1
+    checkoutStep: 1,
+    selectedPaymentMethod: 'manual_contact',
+    latestCheckoutOrder: null
 };
 
 let TOURS = {};
 let HOTELS = [];
-let CONFIG = { emailjs: {}, whatsapp: {} };
+let CONFIG = {
+    emailjs: {},
+    whatsapp: {},
+    auth: {
+        customer: {
+            enabled: false,
+            debugOtp: false,
+            codeTtlMs: 0,
+            sessionTtlMs: 0
+        }
+    },
+    payments: {
+        currency: 'USD',
+        paypal: { enabled: false, clientId: null },
+        bankTransfer: { enabled: false }
+    }
+};
 
 let galleryState = { current: 0, total: 0 };
 let galleryAutoSlide = null;
@@ -21,6 +39,25 @@ let heroIndex = 0;
 let revealObserver = null;
 let bookingSubmissionInProgress = false;
 let lastFocusedBeforeCartModal = null;
+let adminOrdersState = {
+    rows: [],
+    selectedPublicId: '',
+    detail: null
+};
+let customerAccountState = {
+    session: null,
+    profile: null,
+    orders: [],
+    selectedPublicId: ''
+};
+let customerPortalState = {
+    session: null,
+    data: null,
+    source: 'portal'
+};
+
+var CUSTOMER_PORTAL_SESSION_KEY = 'lindotours_customer_portal';
+var CUSTOMER_AUTH_SESSION_KEY = 'lindotours_customer_auth';
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -94,7 +131,119 @@ const I18N = {
         confirmLineAdults: 'Adultos',
         confirmLineChildren: 'Niños',
         backToCart: 'Volver al carrito',
-        editDetails: 'Editar datos'
+        editDetails: 'Editar datos',
+        paymentMethod: 'Método de pago',
+        paymentMethodHelp: 'Elige la forma más conveniente para completar tu reservación.',
+        paymentPayPal: 'PayPal',
+        paymentPayPalDesc: 'Pago inmediato con PayPal o tarjeta.',
+        paymentTransfer: 'Transferencia bancaria',
+        paymentTransferDesc: 'Recibe CLABE, referencia exacta y sube tu comprobante.',
+        paymentManual: 'Reservar por contacto',
+        paymentManualDesc: 'Envía tu solicitud por WhatsApp o email para confirmación manual.',
+        continueWithPayPal: 'Pagar con PayPal',
+        getTransferInstructions: 'Ver datos para transferencia',
+        sendReservationEmail: 'Enviar reservación por email',
+        sendReservationWhatsApp: 'Enviar por WhatsApp',
+        orderNumber: 'Número de orden',
+        bankName: 'Banco',
+        beneficiary: 'Beneficiario',
+        clabe: 'CLABE',
+        swift: 'SWIFT / BIC',
+        reference: 'Referencia',
+        expiresAt: 'Vence',
+        uploadProofTitle: 'Subir comprobante',
+        uploadProofHelp: 'El screenshot no confirma pago por sí solo, pero nos ayuda a iniciar la revisión.',
+        uploadProofButton: 'Subir comprobante',
+        uploadProofSuccess: 'Comprobante subido. Revisaremos tu transferencia.',
+        uploadProofError: 'No se pudo subir el comprobante.',
+        transferInstructionsReady: 'Orden creada. Usa exactamente estos datos para tu transferencia.',
+        transferExactMatchNote: 'La conciliación requiere coincidencia exacta de monto y referencia.',
+        paypalRedirecting: 'Redirigiendo a PayPal...',
+        paypalCheckoutCancelled: 'El pago en PayPal fue cancelado.',
+        paypalPaymentCompleted: 'Pago completado. Tu orden quedó registrada.',
+        paypalPaymentPending: 'La orden quedó autorizada o pendiente. La confirmación final depende del webhook.',
+        paypalPaymentError: 'No se pudo finalizar el pago con PayPal.',
+        paymentMethodUnavailable: 'Este método de pago no está disponible en este momento.',
+        manualOrderCreated: 'Tu solicitud fue registrada. Te contactaremos para confirmar.',
+        manualOrderReference: 'Comparte tu número de orden si nos contactas por WhatsApp.',
+        transferProofMissing: 'Selecciona un archivo antes de subir el comprobante.',
+        adminOrdersTitle: 'Órdenes',
+        adminPaymentsTitle: 'Pagos',
+        adminLoadingOrders: 'Cargando órdenes...',
+        adminNoOrders: 'No hay órdenes registradas todavía.',
+        adminOrderDetailEmpty: 'Selecciona una orden para ver detalle.',
+        adminCustomer: 'Cliente',
+        adminPayment: 'Pago',
+        adminOrderItems: 'Servicios',
+        adminDocuments: 'Documentos',
+        adminTransferSubmissions: 'Transferencias enviadas',
+        adminRefreshSuccess: 'Órdenes actualizadas.',
+        adminActionFailed: 'No se pudo completar la acción.',
+        adminCapturePayment: 'Capturar PayPal',
+        adminConfirmTransfer: 'Confirmar transferencia',
+        adminCaptureSuccess: 'Pago PayPal capturado.',
+        adminTransferConfirmed: 'Transferencia confirmada.',
+        adminDownloadDocument: 'Descargar comprobante',
+        adminNoDocuments: 'Sin documentos privados.',
+        adminNoTransfers: 'Sin comprobantes enviados.',
+        adminPaymentId: 'Pago ID',
+        adminIntent: 'Intent',
+        adminProviderStatus: 'Estado proveedor',
+        adminOrderStatus: 'Estado orden',
+        adminPaymentStatus: 'Estado pago',
+        adminServiceDate: 'Fecha servicio',
+        adminCreatedAt: 'Creada',
+        adminGuestEmail: 'Email',
+        adminGuestPhone: 'Teléfono',
+        adminMethod: 'Método',
+        adminAmount: 'Monto',
+        adminMatchScore: 'Coincidencia',
+        adminReviewedBy: 'Revisado por',
+        adminStatusPaid: 'Pagada',
+        adminStatusPending: 'Pendiente',
+        adminStatusAwaitingTransfer: 'Esperando transferencia',
+        adminStatusTransferSubmitted: 'Comprobante enviado',
+        adminStatusAuthorized: 'Autorizada',
+        adminStatusFailed: 'Fallida',
+        adminStatusVoid: 'Anulada',
+        myOrdersNav: 'Mis compras',
+        myOrdersTitle: 'Mis compras',
+        myOrdersIntro: 'Consulta el estado de tu orden, pagos y documentos usando tu número de orden y el email de compra.',
+        myOrdersHint: 'Lo encuentras en el email de confirmación, en PayPal o en el mensaje de WhatsApp generado al reservar.',
+        lookupOrderButton: 'Consultar orden',
+        clearLookupButton: 'Limpiar',
+        myOrdersEmpty: 'Ingresa tu número de orden y email para ver tus compras.',
+        portalLoading: 'Buscando tu orden...',
+        portalLookupSuccess: 'Orden encontrada.',
+        portalLookupError: 'No encontramos una orden con esos datos.',
+        portalSessionExpired: 'La sesión de esta orden expiró. Vuelve a consultarla.',
+        portalSessionCleared: 'Se limpió la consulta de tu orden.',
+        portalOrderSummary: 'Resumen de orden',
+        portalPaymentSummary: 'Pago',
+        portalServicesTitle: 'Servicios',
+        portalDocumentsTitle: 'Documentos',
+        portalTransfersTitle: 'Transferencias',
+        portalNoDocuments: 'Aún no hay documentos disponibles.',
+        portalNoTransfers: 'Aún no hemos recibido comprobantes.',
+        portalDownloadDocument: 'Descargar documento',
+        portalPaymentProvider: 'Proveedor',
+        portalSessionExpires: 'Sesión disponible hasta',
+        portalSubmittedAt: 'Enviado',
+        portalReviewStatus: 'Revisión',
+        accountAccessTitle: 'Acceso por email',
+        accountAccessIntro: 'Pide un código de un solo uso para reclamar tus compras y ver todas las órdenes ligadas a tu email.',
+        accountCodeLabel: 'Código',
+        requestCodeButton: 'Enviar código',
+        verifyCodeButton: 'Verificar código',
+        customerLogoutButton: 'Cerrar sesión',
+        customerAuthRequestSent: 'Código enviado. Revisa tu email o usa el código de prueba.',
+        customerAuthVerified: 'Acceso confirmado. Tus órdenes ya están disponibles.',
+        customerAuthInvalid: 'El código no es válido o ya venció.',
+        customerAuthDebugTitle: 'Código de prueba',
+        customerOrdersTitle: 'Tus órdenes',
+        customerOrdersEmpty: 'Inicia sesión con tu email para ver todas tus órdenes.',
+        customerOrdersHint: 'Las compras guest con el mismo email se enlazan después de verificar el código.',
+        customerLoggedOut: 'Sesión de cliente cerrada'
     },
     en: {
         from: 'From',
@@ -165,7 +314,119 @@ const I18N = {
         confirmLineAdults: 'Adults',
         confirmLineChildren: 'Children',
         backToCart: 'Back to cart',
-        editDetails: 'Edit details'
+        editDetails: 'Edit details',
+        paymentMethod: 'Payment method',
+        paymentMethodHelp: 'Choose how you want to complete your booking.',
+        paymentPayPal: 'PayPal',
+        paymentPayPalDesc: 'Immediate payment with PayPal or card.',
+        paymentTransfer: 'Bank transfer',
+        paymentTransferDesc: 'Get CLABE details, an exact reference, and upload your proof.',
+        paymentManual: 'Book by contact',
+        paymentManualDesc: 'Send your request by WhatsApp or email for manual confirmation.',
+        continueWithPayPal: 'Pay with PayPal',
+        getTransferInstructions: 'Get transfer instructions',
+        sendReservationEmail: 'Send booking by email',
+        sendReservationWhatsApp: 'Send via WhatsApp',
+        orderNumber: 'Order number',
+        bankName: 'Bank',
+        beneficiary: 'Beneficiary',
+        clabe: 'CLABE',
+        swift: 'SWIFT / BIC',
+        reference: 'Reference',
+        expiresAt: 'Expires',
+        uploadProofTitle: 'Upload proof',
+        uploadProofHelp: 'A screenshot alone does not confirm payment, but it helps us start the review.',
+        uploadProofButton: 'Upload proof',
+        uploadProofSuccess: 'Proof uploaded. We will review your transfer.',
+        uploadProofError: 'The proof could not be uploaded.',
+        transferInstructionsReady: 'Order created. Use these exact details for your transfer.',
+        transferExactMatchNote: 'Reconciliation requires an exact amount and exact reference.',
+        paypalRedirecting: 'Redirecting to PayPal...',
+        paypalCheckoutCancelled: 'The PayPal checkout was canceled.',
+        paypalPaymentCompleted: 'Payment completed. Your order is now registered.',
+        paypalPaymentPending: 'The order is authorized or pending. Final confirmation depends on the webhook.',
+        paypalPaymentError: 'The PayPal payment could not be finalized.',
+        paymentMethodUnavailable: 'This payment method is not available right now.',
+        manualOrderCreated: 'Your request was recorded. We will contact you to confirm.',
+        manualOrderReference: 'Share your order number if you contact us on WhatsApp.',
+        transferProofMissing: 'Select a file before uploading your proof.',
+        adminOrdersTitle: 'Orders',
+        adminPaymentsTitle: 'Payments',
+        adminLoadingOrders: 'Loading orders...',
+        adminNoOrders: 'No orders have been registered yet.',
+        adminOrderDetailEmpty: 'Select an order to view details.',
+        adminCustomer: 'Customer',
+        adminPayment: 'Payment',
+        adminOrderItems: 'Services',
+        adminDocuments: 'Documents',
+        adminTransferSubmissions: 'Submitted transfers',
+        adminRefreshSuccess: 'Orders refreshed.',
+        adminActionFailed: 'The action could not be completed.',
+        adminCapturePayment: 'Capture PayPal',
+        adminConfirmTransfer: 'Confirm transfer',
+        adminCaptureSuccess: 'PayPal payment captured.',
+        adminTransferConfirmed: 'Transfer confirmed.',
+        adminDownloadDocument: 'Download proof',
+        adminNoDocuments: 'No private documents.',
+        adminNoTransfers: 'No submitted proofs.',
+        adminPaymentId: 'Payment ID',
+        adminIntent: 'Intent',
+        adminProviderStatus: 'Provider status',
+        adminOrderStatus: 'Order status',
+        adminPaymentStatus: 'Payment status',
+        adminServiceDate: 'Service date',
+        adminCreatedAt: 'Created',
+        adminGuestEmail: 'Email',
+        adminGuestPhone: 'Phone',
+        adminMethod: 'Method',
+        adminAmount: 'Amount',
+        adminMatchScore: 'Match score',
+        adminReviewedBy: 'Reviewed by',
+        adminStatusPaid: 'Paid',
+        adminStatusPending: 'Pending',
+        adminStatusAwaitingTransfer: 'Awaiting transfer',
+        adminStatusTransferSubmitted: 'Proof submitted',
+        adminStatusAuthorized: 'Authorized',
+        adminStatusFailed: 'Failed',
+        adminStatusVoid: 'Voided',
+        myOrdersNav: 'My orders',
+        myOrdersTitle: 'My orders',
+        myOrdersIntro: 'Check your order status, payments, and documents using your order number and purchase email.',
+        myOrdersHint: 'You can find it in your confirmation email, in PayPal, or in the WhatsApp message generated during checkout.',
+        lookupOrderButton: 'Find order',
+        clearLookupButton: 'Clear',
+        myOrdersEmpty: 'Enter your order number and email to view your purchases.',
+        portalLoading: 'Looking up your order...',
+        portalLookupSuccess: 'Order found.',
+        portalLookupError: 'We could not find an order matching those details.',
+        portalSessionExpired: 'This order session expired. Look it up again.',
+        portalSessionCleared: 'Your order lookup was cleared.',
+        portalOrderSummary: 'Order summary',
+        portalPaymentSummary: 'Payment',
+        portalServicesTitle: 'Services',
+        portalDocumentsTitle: 'Documents',
+        portalTransfersTitle: 'Transfers',
+        portalNoDocuments: 'No documents are available yet.',
+        portalNoTransfers: 'We have not received any proofs yet.',
+        portalDownloadDocument: 'Download document',
+        portalPaymentProvider: 'Provider',
+        portalSessionExpires: 'Session available until',
+        portalSubmittedAt: 'Submitted',
+        portalReviewStatus: 'Review',
+        accountAccessTitle: 'Email access',
+        accountAccessIntro: 'Request a one-time code to claim your purchases and view all orders linked to your email.',
+        accountCodeLabel: 'Code',
+        requestCodeButton: 'Send code',
+        verifyCodeButton: 'Verify code',
+        customerLogoutButton: 'Sign out',
+        customerAuthRequestSent: 'Code sent. Check your email or use the debug code.',
+        customerAuthVerified: 'Access confirmed. Your orders are now available.',
+        customerAuthInvalid: 'The code is invalid or expired.',
+        customerAuthDebugTitle: 'Debug code',
+        customerOrdersTitle: 'Your orders',
+        customerOrdersEmpty: 'Sign in with your email to view all of your orders.',
+        customerOrdersHint: 'Guest purchases with the same email are linked after you verify the code.',
+        customerLoggedOut: 'Customer session closed'
     }
 };
 
@@ -247,6 +508,152 @@ function safeText(value) {
 function safeInt(value, fallback) {
     var n = Number(value);
     return Number.isFinite(n) ? Math.round(n) : fallback;
+}
+
+function parseJson(value, fallback) {
+    try {
+        return JSON.parse(value);
+    } catch (_) {
+        return fallback;
+    }
+}
+
+function formatDateTime(value) {
+    if (!value) return t('notSpecified');
+
+    var parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return safeText(value);
+
+    return parsed.toLocaleString(state.language === 'en' ? 'en-US' : 'es-MX', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+}
+
+function getConfiguredPaymentMethods() {
+    var methods = [];
+    if (CONFIG.payments && CONFIG.payments.paypal && CONFIG.payments.paypal.enabled) {
+        methods.push('paypal');
+    }
+    if (CONFIG.payments && CONFIG.payments.bankTransfer && CONFIG.payments.bankTransfer.enabled) {
+        methods.push('bank_transfer');
+    }
+    methods.push('manual_contact');
+    return methods;
+}
+
+function getDefaultPaymentMethod() {
+    var available = getConfiguredPaymentMethods();
+    return available[0] || 'manual_contact';
+}
+
+function ensureSelectedPaymentMethod() {
+    var available = getConfiguredPaymentMethods();
+    if (available.indexOf(state.selectedPaymentMethod) === -1) {
+        state.selectedPaymentMethod = getDefaultPaymentMethod();
+    }
+    return state.selectedPaymentMethod;
+}
+
+function clearCheckoutResult() {
+    state.latestCheckoutOrder = null;
+
+    var card = document.getElementById('checkout-result-card');
+    var message = document.getElementById('checkout-result-message');
+    var grid = document.getElementById('checkout-result-grid');
+    var proofBox = document.getElementById('transfer-proof-box');
+    var proofFile = document.getElementById('transfer-proof-file');
+
+    if (card) card.hidden = true;
+    if (message) message.textContent = '';
+    if (grid) grid.replaceChildren();
+    if (proofBox) proofBox.hidden = true;
+    if (proofFile) proofFile.value = '';
+}
+
+function appendCheckoutResultItem(container, label, value) {
+    if (!container) return;
+
+    var item = document.createElement('div');
+    item.className = 'checkout-result-item';
+
+    var labelEl = document.createElement('span');
+    labelEl.textContent = label;
+
+    var valueEl = document.createElement('strong');
+    valueEl.textContent = value;
+
+    item.appendChild(labelEl);
+    item.appendChild(valueEl);
+    container.appendChild(item);
+}
+
+function buildCurrentPageUrl(params) {
+    var url = new URL(window.location.pathname, window.location.origin);
+    Object.keys(params || {}).forEach(function (key) {
+        if (params[key] != null && params[key] !== '') {
+            url.searchParams.set(key, params[key]);
+        }
+    });
+    return url.toString();
+}
+
+function clearCheckoutQueryParams() {
+    var url = new URL(window.location.href);
+    ['paypal_return', 'paypal_cancel', 'order_public_id', 'token', 'PayerID'].forEach(function (key) {
+        url.searchParams.delete(key);
+    });
+    history.replaceState({}, '', url.pathname + (url.search ? url.search : '') + (url.hash || ''));
+}
+
+function formatCurrency(amount, currency) {
+    var normalizedCurrency = safeText(currency || (CONFIG.payments && CONFIG.payments.currency) || 'USD').toUpperCase();
+    return '$' + safeInt(amount, 0) + ' ' + normalizedCurrency;
+}
+
+function normalizePaymentMethodLabel(method) {
+    var value = safeText(method).toLowerCase();
+    if (value === 'paypal') return t('paymentPayPal');
+    if (value === 'bank_transfer') return t('paymentTransfer');
+    if (value === 'manual_contact') return t('paymentManual');
+    return value ? value.replace(/_/g, ' ') : t('notSpecified');
+}
+
+function normalizeStatusLabel(status) {
+    var value = safeText(status).toLowerCase();
+    if (value === 'paid') return t('adminStatusPaid');
+    if (value === 'awaiting_transfer') return t('adminStatusAwaitingTransfer');
+    if (value === 'transfer_submitted') return t('adminStatusTransferSubmitted');
+    if (value === 'payment_authorized' || value === 'authorized') return t('adminStatusAuthorized');
+    if (value === 'payment_failed' || value === 'denied') return t('adminStatusFailed');
+    if (value === 'voided' || value === 'payment_voided') return t('adminStatusVoid');
+    if (value === 'pending_payment' || value === 'payment_pending' || value === 'pending_review' || value === 'pending_checkout' || value === 'created') return t('adminStatusPending');
+    return value ? value.replace(/_/g, ' ') : t('notSpecified');
+}
+
+function toStatusClass(status) {
+    var value = safeText(status).toLowerCase();
+    if (value === 'paid') return 'status-paid';
+    if (
+        value === 'awaiting_transfer'
+        || value === 'transfer_submitted'
+        || value === 'payment_pending'
+        || value === 'pending_payment'
+        || value === 'payment_authorized'
+        || value === 'authorized'
+        || value === 'pending_review'
+        || value === 'created'
+        || value === 'pending_checkout'
+    ) {
+        return 'status-pending';
+    }
+    if (value === 'payment_failed' || value === 'denied' || value === 'voided' || value === 'payment_voided') {
+        return 'status-failed';
+    }
+    return '';
 }
 
 function getDateFormatByLanguage() {
@@ -555,10 +962,851 @@ function clearAdminSession() {
     sessionStorage.removeItem('admin_token');
     sessionStorage.removeItem('admin_expires_at');
     sessionStorage.removeItem('admin_auth');
+    adminOrdersState = {
+        rows: [],
+        selectedPublicId: '',
+        detail: null
+    };
 }
 
 function isAdminLoggedIn() {
     return Boolean(getAdminToken());
+}
+
+function readStoredCustomerAuthSession() {
+    try {
+        var raw = sessionStorage.getItem(CUSTOMER_AUTH_SESSION_KEY);
+        if (!raw) return null;
+
+        var session = JSON.parse(raw);
+        if (!session || !session.token || !session.profile || !session.profile.publicId) return null;
+        if (Date.parse(session.expiresAt || '') <= Date.now()) {
+            sessionStorage.removeItem(CUSTOMER_AUTH_SESSION_KEY);
+            return null;
+        }
+        return session;
+    } catch (_) {
+        sessionStorage.removeItem(CUSTOMER_AUTH_SESSION_KEY);
+        return null;
+    }
+}
+
+function getCustomerAuthSession() {
+    if (
+        customerAccountState.session
+        && customerAccountState.session.expiresAt
+        && Date.parse(customerAccountState.session.expiresAt) > Date.now()
+    ) {
+        return customerAccountState.session;
+    }
+
+    customerAccountState.session = readStoredCustomerAuthSession();
+    if (customerAccountState.session) {
+        customerAccountState.profile = customerAccountState.session.profile || null;
+    }
+    return customerAccountState.session;
+}
+
+function setCustomerAuthStatus(status, message) {
+    var statusEl = document.getElementById('customer-auth-status');
+    if (!statusEl) return;
+
+    statusEl.classList.remove('loading', 'success', 'error');
+    if (!status || status === 'idle') {
+        statusEl.textContent = '';
+        return;
+    }
+
+    statusEl.textContent = message || '';
+    if (status === 'loading' || status === 'success' || status === 'error') {
+        statusEl.classList.add(status);
+    }
+}
+
+function renderCustomerAuthDebugCode(code) {
+    var note = document.getElementById('customer-auth-debug-note');
+    var value = document.getElementById('customer-auth-debug-code');
+    if (!note || !value) return;
+
+    if (!code) {
+        note.hidden = true;
+        value.textContent = '';
+        return;
+    }
+
+    note.hidden = false;
+    value.textContent = code;
+}
+
+function syncCustomerAuthForm() {
+    var emailInput = document.getElementById('customer-auth-email');
+    var logoutBtn = document.getElementById('customer-auth-logout-btn');
+    var session = getCustomerAuthSession();
+    var portalSession = getCustomerPortalSession();
+
+    if (emailInput) {
+        if (session && session.profile && session.profile.email) {
+            emailInput.value = session.profile.email;
+        } else if (!emailInput.value && portalSession && portalSession.email) {
+            emailInput.value = portalSession.email;
+        }
+    }
+
+    if (logoutBtn) logoutBtn.hidden = !session;
+}
+
+function rememberCustomerAuthSession(result) {
+    if (!result || !result.token || !result.profile || !result.profile.publicId) return null;
+
+    var session = {
+        token: safeText(result.token),
+        expiresAt: safeText(result.expiresAt),
+        profile: result.profile
+    };
+
+    customerAccountState.session = session;
+    customerAccountState.profile = result.profile || null;
+    try {
+        sessionStorage.setItem(CUSTOMER_AUTH_SESSION_KEY, JSON.stringify(session));
+    } catch (_) {
+        // ignore storage failures
+    }
+    syncCustomerAuthForm();
+    return session;
+}
+
+function clearCustomerOrdersList() {
+    var panel = document.getElementById('customer-orders-list-panel');
+    if (!panel) return;
+
+    if (!getCustomerAuthSession()) {
+        panel.hidden = true;
+        panel.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('customerOrdersEmpty')) + '</p>';
+        return;
+    }
+
+    panel.hidden = false;
+    panel.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('customerOrdersEmpty')) + '</p>';
+}
+
+function clearCustomerAuthSession(shouldToast) {
+    customerAccountState.session = null;
+    customerAccountState.profile = null;
+    customerAccountState.orders = [];
+    customerAccountState.selectedPublicId = '';
+    sessionStorage.removeItem(CUSTOMER_AUTH_SESSION_KEY);
+    syncCustomerAuthForm();
+    clearCustomerOrdersList();
+    setCustomerAuthStatus('idle');
+    renderCustomerAuthDebugCode('');
+
+    if (customerPortalState.source === 'account') {
+        customerPortalState.data = null;
+        customerPortalState.source = 'portal';
+        clearCustomerPortalResult();
+    }
+
+    if (shouldToast) {
+        showToast('info', t('myOrdersTitle'), t('customerLoggedOut'));
+    }
+}
+
+async function customerAuthFetch(url, options) {
+    var session = getCustomerAuthSession();
+    if (!session || !session.token) {
+        throw new Error(t('portalSessionExpired'));
+    }
+
+    var init = options || {};
+    var headers = new Headers(init.headers || {});
+    headers.set('Authorization', 'Bearer ' + session.token);
+
+    var response = await fetch(url, Object.assign({}, init, { headers: headers }));
+    if (response.status === 401) {
+        clearCustomerAuthSession(false);
+        throw new Error(t('portalSessionExpired'));
+    }
+
+    return response;
+}
+
+function readStoredCustomerPortalSession() {
+    try {
+        var raw = sessionStorage.getItem(CUSTOMER_PORTAL_SESSION_KEY);
+        if (!raw) return null;
+
+        var session = JSON.parse(raw);
+        if (!session || !session.publicId || !session.token) return null;
+        if (safeInt(session.expiresAt, 0) <= Date.now()) {
+            sessionStorage.removeItem(CUSTOMER_PORTAL_SESSION_KEY);
+            return null;
+        }
+
+        return {
+            publicId: safeText(session.publicId),
+            token: safeText(session.token),
+            expiresAt: safeInt(session.expiresAt, 0),
+            email: safeText(session.email).toLowerCase()
+        };
+    } catch (_) {
+        sessionStorage.removeItem(CUSTOMER_PORTAL_SESSION_KEY);
+        return null;
+    }
+}
+
+function getCustomerPortalSession() {
+    if (customerPortalState.session && safeInt(customerPortalState.session.expiresAt, 0) > Date.now()) {
+        return customerPortalState.session;
+    }
+
+    customerPortalState.session = readStoredCustomerPortalSession();
+    return customerPortalState.session;
+}
+
+function rememberCustomerPortalSession(publicId, portal, email) {
+    if (!publicId || !portal || !portal.token) return null;
+
+    var session = {
+        publicId: safeText(publicId),
+        token: safeText(portal.token),
+        expiresAt: safeInt(portal.expiresAt, Date.now() + 1000 * 60 * 30),
+        email: safeText(email).toLowerCase()
+    };
+
+    customerPortalState.session = session;
+    try {
+        sessionStorage.setItem(CUSTOMER_PORTAL_SESSION_KEY, JSON.stringify(session));
+    } catch (_) {
+        // ignore storage failures
+    }
+    syncCustomerPortalLookupForm();
+    return session;
+}
+
+function ensureCustomerPortalSessionForOrder(publicId) {
+    var session = getCustomerPortalSession();
+    if (session && session.publicId === publicId) return session;
+
+    if (
+        state.latestCheckoutOrder
+        && state.latestCheckoutOrder.order
+        && state.latestCheckoutOrder.portal
+        && state.latestCheckoutOrder.order.publicId === publicId
+    ) {
+        return rememberCustomerPortalSession(
+            publicId,
+            state.latestCheckoutOrder.portal,
+            state.latestCheckoutOrder.lookupEmail
+        );
+    }
+
+    return null;
+}
+
+function setOrderLookupStatus(status, message) {
+    var statusEl = document.getElementById('order-lookup-status');
+    if (!statusEl) return;
+
+    statusEl.classList.remove('loading', 'success', 'error');
+    if (!status || status === 'idle') {
+        statusEl.textContent = '';
+        return;
+    }
+
+    statusEl.textContent = message || '';
+    if (status === 'loading' || status === 'success' || status === 'error') {
+        statusEl.classList.add(status);
+    }
+}
+
+function clearCustomerPortalResult() {
+    var container = document.getElementById('orders-portal-result');
+    if (!container) return;
+    container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('myOrdersEmpty')) + '</p>';
+}
+
+function syncCustomerPortalLookupForm() {
+    var form = document.getElementById('order-lookup-form');
+    var publicIdInput = document.getElementById('order-lookup-public-id');
+    var emailInput = document.getElementById('order-lookup-email');
+    var session = getCustomerPortalSession();
+
+    if (!publicIdInput || !emailInput) return;
+    if (!session) {
+        if (form) form.reset();
+        return;
+    }
+
+    publicIdInput.value = safeText(session.publicId);
+    if (session.email) emailInput.value = session.email;
+}
+
+function clearCustomerPortalSession(shouldToast) {
+    customerPortalState.session = null;
+    if (customerPortalState.source === 'portal') {
+        customerPortalState.data = null;
+    }
+    sessionStorage.removeItem(CUSTOMER_PORTAL_SESSION_KEY);
+    syncCustomerPortalLookupForm();
+    if (customerPortalState.source === 'portal') {
+        clearCustomerPortalResult();
+    }
+    setOrderLookupStatus('idle');
+
+    if (shouldToast) {
+        showToast('info', t('myOrdersTitle'), t('portalSessionCleared'));
+    }
+}
+
+async function customerPortalFetch(url, options) {
+    var session = getCustomerPortalSession();
+    if (!session) {
+        throw new Error(t('portalSessionExpired'));
+    }
+
+    var init = options || {};
+    var headers = new Headers(init.headers || {});
+    headers.set('Authorization', 'Bearer ' + session.token);
+
+    var response = await fetch(url, Object.assign({}, init, { headers: headers }));
+    if (response.status === 401 || response.status === 403) {
+        clearCustomerPortalSession(false);
+        throw new Error(t('portalSessionExpired'));
+    }
+
+    return response;
+}
+
+function buildPortalDetailList(items) {
+    return items.map(function (item) {
+        return '<div class="orders-portal-item"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>';
+    }).join('');
+}
+
+function extractDownloadFilename(response, fallback) {
+    var header = response.headers.get('content-disposition') || '';
+    var utf8Match = header.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match && utf8Match[1]) {
+        return decodeURIComponent(utf8Match[1]);
+    }
+
+    var basicMatch = header.match(/filename=\"?([^\";]+)\"?/i);
+    if (basicMatch && basicMatch[1]) {
+        return basicMatch[1];
+    }
+
+    return fallback;
+}
+
+function canUploadTransferProofFromPortal(data) {
+    if (!data || !data.order) return false;
+    if (safeText(data.order.paymentMethod).toLowerCase() !== 'bank_transfer') return false;
+    return safeText(data.order.status).toLowerCase() !== 'paid';
+}
+
+function getActiveCustomerOrderAccess(publicId) {
+    var normalizedPublicId = safeText(publicId);
+    var authSession = getCustomerAuthSession();
+    if (
+        customerPortalState.source === 'account'
+        && authSession
+        && customerPortalState.data
+        && customerPortalState.data.order
+        && customerPortalState.data.order.publicId === normalizedPublicId
+    ) {
+        return {
+            type: 'account',
+            headers: {
+                Authorization: 'Bearer ' + authSession.token
+            },
+            documentPath: '/api/me/orders/' + encodeURIComponent(normalizedPublicId) + '/documents/',
+            transferPath: '/api/me/orders/' + encodeURIComponent(normalizedPublicId) + '/transfer-proof',
+            expiresAt: authSession.expiresAt
+        };
+    }
+
+    var portalSession = ensureCustomerPortalSessionForOrder(normalizedPublicId);
+    if (!portalSession) return null;
+    return {
+        type: 'portal',
+        headers: {
+            Authorization: 'Bearer ' + portalSession.token
+        },
+        documentPath: '/api/orders/' + encodeURIComponent(normalizedPublicId) + '/documents/',
+        transferPath: '/api/orders/' + encodeURIComponent(normalizedPublicId) + '/transfer-proof',
+        expiresAt: portalSession.expiresAt
+    };
+}
+
+function renderCustomerPortalResult() {
+    var container = document.getElementById('orders-portal-result');
+    if (!container) return;
+
+    var detail = customerPortalState.data;
+    var session = customerPortalState.source === 'account' ? getCustomerAuthSession() : getCustomerPortalSession();
+    if (!detail || !detail.order) {
+        clearCustomerPortalResult();
+        return;
+    }
+
+    var order = detail.order;
+    var payment = detail.payment || null;
+    var items = Array.isArray(detail.items) ? detail.items : [];
+    var documents = Array.isArray(detail.documents) ? detail.documents : [];
+    var transferSubmissions = Array.isArray(detail.transferSubmissions) ? detail.transferSubmissions : [];
+
+    var itemsHtml = items.length === 0
+        ? '<p class="admin-orders-empty">' + escapeHtml(t('cartEmpty')) + '</p>'
+        : items.map(function (item) {
+            var title = state.language === 'en'
+                ? safeText(item.titleEn || item.titleEs || item.tourSlug)
+                : safeText(item.titleEs || item.titleEn || item.tourSlug);
+            var addOns = Array.isArray(item.addOns) ? item.addOns : [];
+            var travelers = safeInt(item.adults, 0) + ' ' + t('adultUnit') + ', ' + safeInt(item.children, 0) + ' ' + t('childUnit');
+            if (addOns.length > 0) {
+                travelers += ' + ' + addOns.map(function (addOn) {
+                    return safeText(addOn.id || addOn.slug || addOn.name || 'add-on');
+                }).join(', ');
+            }
+
+            return ''
+                + '<div class="orders-portal-service">'
+                + '<strong>' + escapeHtml(title) + '</strong>'
+                + '<p>' + escapeHtml(travelers) + '</p>'
+                + '<p>' + escapeHtml((item.serviceDate || order.serviceDate || t('notSpecified')) + ' • ' + formatCurrency(item.subtotal, order.currency)) + '</p>'
+                + '</div>';
+        }).join('');
+
+    var documentsHtml = documents.length === 0
+        ? '<p class="admin-orders-empty">' + escapeHtml(t('portalNoDocuments')) + '</p>'
+        : documents.map(function (document) {
+            return ''
+                + '<div class="orders-portal-document">'
+                + '<strong>' + escapeHtml(safeText(document.document_type).replace(/_/g, ' ')) + '</strong>'
+                + '<p>' + escapeHtml(formatDateTime(document.created_at)) + '</p>'
+                + '<p><button type="button" class="btn btn-secondary" onclick="downloadCustomerDocument(' + safeInt(document.id, 0) + ')">' + escapeHtml(t('portalDownloadDocument')) + '</button></p>'
+                + '</div>';
+        }).join('');
+
+    var transfersHtml = transferSubmissions.length === 0
+        ? '<p class="admin-orders-empty">' + escapeHtml(t('portalNoTransfers')) + '</p>'
+        : transferSubmissions.map(function (submission) {
+            return ''
+                + '<div class="orders-portal-document">'
+                + '<strong>' + escapeHtml(normalizeStatusLabel(submission.review_status || 'pending')) + '</strong>'
+                + '<p>' + escapeHtml(t('adminMatchScore') + ': ' + safeInt(submission.match_score, 0)) + '</p>'
+                + '<p>' + escapeHtml(t('portalSubmittedAt') + ': ' + formatDateTime(submission.created_at)) + '</p>'
+                + '<p>' + escapeHtml(t('adminReviewedBy') + ': ' + (submission.reviewed_by || t('notSpecified'))) + '</p>'
+                + '</div>';
+        }).join('');
+
+    var transferUploadHtml = canUploadTransferProofFromPortal(detail) ? ''
+        + '<div class="transfer-proof-box">'
+        + '<h6>' + escapeHtml(t('uploadProofTitle')) + '</h6>'
+        + '<p>' + escapeHtml(t('uploadProofHelp')) + '</p>'
+        + '<div class="transfer-proof-fields">'
+        + '<input type="file" id="portal-transfer-proof-file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">'
+        + '<button type="button" class="btn btn-secondary" id="portal-upload-transfer-proof-btn" onclick="uploadCustomerPortalTransferProof()">'
+        + escapeHtml(t('uploadProofButton'))
+        + '</button>'
+        + '</div>'
+        + '</div>'
+        : '';
+
+    container.innerHTML = ''
+        + '<div class="orders-portal-header">'
+        + '<div><h3>' + escapeHtml(order.publicId) + '</h3><p>' + escapeHtml(formatDateTime(order.createdAt)) + '</p></div>'
+        + '<div class="admin-order-row-meta">'
+        + '<span class="admin-order-chip ' + escapeAttr(toStatusClass(order.status)) + '">' + escapeHtml(normalizeStatusLabel(order.status)) + '</span>'
+        + (payment ? '<span class="admin-order-chip ' + escapeAttr(toStatusClass(payment.status)) + '">' + escapeHtml(normalizeStatusLabel(payment.status)) + '</span>' : '')
+        + '</div>'
+        + '</div>'
+        + (session ? '<div class="orders-portal-note"><strong>' + escapeHtml(t('portalSessionExpires')) + '</strong><p>' + escapeHtml(formatDateTime(session.expiresAt)) + '</p></div>' : '')
+        + '<div class="orders-portal-grid">'
+        + '<div class="orders-portal-panel"><h4>' + escapeHtml(t('portalOrderSummary')) + '</h4><div class="orders-portal-list">' + buildPortalDetailList([
+            { label: t('name'), value: order.guestName || t('notSpecified') },
+            { label: t('email'), value: order.guestEmail || t('notSpecified') },
+            { label: t('phone'), value: order.guestPhone || t('notSpecified') },
+            { label: t('total'), value: formatCurrency(order.total, order.currency) },
+            { label: t('adminOrderStatus'), value: normalizeStatusLabel(order.status) },
+            { label: t('tourDate'), value: order.serviceDate || t('notSpecified') },
+            { label: t('pickupTime'), value: order.pickupTime || t('notSpecified') },
+            { label: t('hotel'), value: order.hotel || t('notSpecified') },
+            { label: t('comments'), value: order.comments || t('noComments') }
+        ]) + '</div></div>'
+        + '<div class="orders-portal-panel"><h4>' + escapeHtml(t('portalPaymentSummary')) + '</h4><div class="orders-portal-list">' + buildPortalDetailList([
+            { label: t('paymentMethod'), value: normalizePaymentMethodLabel(order.paymentMethod) },
+            { label: t('portalPaymentProvider'), value: payment ? normalizePaymentMethodLabel(payment.provider) : normalizePaymentMethodLabel(order.paymentMethod) },
+            { label: t('adminPaymentStatus'), value: payment ? normalizeStatusLabel(payment.status) : normalizeStatusLabel(order.status) },
+            { label: t('adminProviderStatus'), value: (payment && payment.providerStatus) || order.providerStatus || t('notSpecified') },
+            { label: t('reference'), value: order.bankReference || t('notSpecified') },
+            { label: t('expiresAt'), value: formatDateTime(order.expiresAt) }
+        ]) + '</div></div>'
+        + '</div>'
+        + '<div class="orders-portal-panel"><h4>' + escapeHtml(t('portalServicesTitle')) + '</h4><div class="orders-portal-services">' + itemsHtml + '</div></div>'
+        + '<div class="orders-portal-grid">'
+        + '<div class="orders-portal-panel"><h4>' + escapeHtml(t('portalDocumentsTitle')) + '</h4><div class="orders-portal-documents">' + documentsHtml + '</div></div>'
+        + '<div class="orders-portal-panel"><h4>' + escapeHtml(t('portalTransfersTitle')) + '</h4><div class="orders-portal-documents">' + transfersHtml + '</div>' + transferUploadHtml + '</div>'
+        + '</div>';
+}
+
+async function loadCustomerPortalDetail(options) {
+    var opts = Object.assign({ silent: false }, options || {});
+    var session = getCustomerPortalSession();
+    if (!session) {
+        customerPortalState.data = null;
+        clearCustomerPortalResult();
+        if (!opts.silent) setOrderLookupStatus('error', t('portalSessionExpired'));
+        return null;
+    }
+
+    if (!opts.silent) {
+        setOrderLookupStatus('loading', t('portalLoading'));
+    }
+
+    try {
+        var response = await customerPortalFetch('/api/orders/' + encodeURIComponent(session.publicId) + '/portal');
+        var result = await response.json();
+        if (!response.ok || (result && result.error)) {
+            throw new Error(result && result.error ? result.error : t('portalLookupError'));
+        }
+
+        if (result && result.portal && result.portal.expiresAt) {
+            rememberCustomerPortalSession(session.publicId, {
+                token: session.token,
+                expiresAt: result.portal.expiresAt
+            }, session.email);
+        }
+
+        customerPortalState.data = result.data || null;
+        customerPortalState.source = 'portal';
+        renderCustomerPortalResult();
+        if (!opts.silent) setOrderLookupStatus('success', t('portalLookupSuccess'));
+        return result;
+    } catch (error) {
+        customerPortalState.data = null;
+        clearCustomerPortalResult();
+        setOrderLookupStatus('error', error.message || t('portalLookupError'));
+        throw error;
+    }
+}
+
+async function handleOrderLookup(event) {
+    if (event) event.preventDefault();
+
+    var publicIdInput = document.getElementById('order-lookup-public-id');
+    var emailInput = document.getElementById('order-lookup-email');
+    if (!publicIdInput || !emailInput) return;
+
+    var publicId = safeText(publicIdInput.value).trim().toUpperCase();
+    var email = safeText(emailInput.value).trim().toLowerCase();
+    if (!publicId || !email) return;
+
+    publicIdInput.value = publicId;
+    emailInput.value = email;
+    setOrderLookupStatus('loading', t('portalLoading'));
+
+    try {
+        var response = await fetch('/api/orders/lookup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                publicId: publicId,
+                email: email
+            })
+        });
+        var result = await response.json().catch(function () { return {}; });
+
+        if (!response.ok || (result && result.error)) {
+            throw new Error(result && result.error ? result.error : t('portalLookupError'));
+        }
+
+        rememberCustomerPortalSession(publicId, result.portal, email);
+        customerPortalState.data = result.data || null;
+        customerPortalState.source = 'portal';
+        renderCustomerPortalResult();
+        setOrderLookupStatus('success', t('portalLookupSuccess'));
+    } catch (error) {
+        customerPortalState.data = null;
+        clearCustomerPortalResult();
+        setOrderLookupStatus('error', error.message || t('portalLookupError'));
+    }
+}
+
+function renderCustomerAccountOrders() {
+    var panel = document.getElementById('customer-orders-list-panel');
+    if (!panel) return;
+
+    var session = getCustomerAuthSession();
+    if (!session) {
+        clearCustomerOrdersList();
+        return;
+    }
+
+    panel.hidden = false;
+    var orders = Array.isArray(customerAccountState.orders) ? customerAccountState.orders : [];
+    if (orders.length === 0) {
+        panel.innerHTML = ''
+            + '<div class="orders-portal-header">'
+            + '<div><h3>' + escapeHtml(t('customerOrdersTitle')) + '</h3><p>' + escapeHtml(t('customerOrdersHint')) + '</p></div>'
+            + '</div>'
+            + '<p class="admin-orders-empty">' + escapeHtml(t('customerOrdersEmpty')) + '</p>';
+        return;
+    }
+
+    var html = ''
+        + '<div class="orders-portal-header">'
+        + '<div><h3>' + escapeHtml(t('customerOrdersTitle')) + '</h3><p>' + escapeHtml(t('customerOrdersHint')) + '</p></div>'
+        + '<div class="admin-order-row-meta"><span class="admin-order-chip">' + escapeHtml(String(orders.length)) + '</span></div>'
+        + '</div>';
+
+    orders.forEach(function (order) {
+        var activeClass = order.publicId === customerAccountState.selectedPublicId ? ' active' : '';
+        html += '<button type="button" class="admin-order-row' + activeClass + '" onclick="selectCustomerAccountOrder(\'' + escapeAttr(order.publicId) + '\')">';
+        html += '<div class="admin-order-row-top">';
+        html += '<div><div class="admin-order-row-id">' + escapeHtml(order.publicId) + '</div><div class="admin-order-row-name">' + escapeHtml(order.guestName || order.guestEmail || '') + '</div></div>';
+        html += '<div class="admin-order-row-total">' + escapeHtml(formatCurrency(order.total, order.currency)) + '</div>';
+        html += '</div>';
+        html += '<div class="admin-order-row-bottom">';
+        html += '<div class="admin-order-row-meta">';
+        html += '<span class="admin-order-chip ' + escapeAttr(toStatusClass(order.status)) + '">' + escapeHtml(normalizeStatusLabel(order.status)) + '</span>';
+        html += '<span class="admin-order-chip">' + escapeHtml(normalizePaymentMethodLabel(order.paymentMethod)) + '</span>';
+        html += '</div>';
+        html += '<div class="admin-order-row-name">' + escapeHtml(formatDateTime(order.createdAt)) + '</div>';
+        html += '</div>';
+        html += '</button>';
+    });
+
+    panel.innerHTML = html;
+}
+
+async function loadCustomerAccountOrders(options) {
+    var opts = Object.assign({ silent: false, autoSelect: true }, options || {});
+    var session = getCustomerAuthSession();
+    if (!session) {
+        clearCustomerOrdersList();
+        return null;
+    }
+
+    if (!opts.silent) {
+        setCustomerAuthStatus('loading', t('portalLoading'));
+    }
+
+    try {
+        var response = await customerAuthFetch('/api/me/orders');
+        var result = await response.json();
+        if (!response.ok || (result && result.error)) {
+            throw new Error(result && result.error ? result.error : t('adminActionFailed'));
+        }
+
+        rememberCustomerAuthSession({
+            token: session.token,
+            expiresAt: result.session && result.session.expiresAt ? result.session.expiresAt : session.expiresAt,
+            profile: result.profile || session.profile
+        });
+        customerAccountState.orders = Array.isArray(result.orders) ? result.orders : [];
+        renderCustomerAccountOrders();
+
+        if (customerAccountState.orders.length === 0 && customerPortalState.source === 'account') {
+            customerPortalState.data = null;
+            customerPortalState.source = 'portal';
+            clearCustomerPortalResult();
+        }
+
+        if (opts.autoSelect && customerAccountState.orders.length > 0) {
+            var selectedPublicId = customerAccountState.selectedPublicId || customerAccountState.orders[0].publicId;
+            await selectCustomerAccountOrder(selectedPublicId, { silent: true });
+        }
+
+        if (!opts.silent) {
+            setCustomerAuthStatus('success', t('customerAuthVerified'));
+        }
+        return result;
+    } catch (error) {
+        console.error(error);
+        customerAccountState.orders = [];
+        renderCustomerAccountOrders();
+        setCustomerAuthStatus('error', error.message || t('adminActionFailed'));
+        throw error;
+    }
+}
+
+async function selectCustomerAccountOrder(publicId, options) {
+    var opts = Object.assign({ silent: false }, options || {});
+    customerAccountState.selectedPublicId = publicId;
+    renderCustomerAccountOrders();
+
+    try {
+        var response = await customerAuthFetch('/api/me/orders/' + encodeURIComponent(publicId));
+        var result = await response.json();
+        if (!response.ok || (result && result.error)) {
+            throw new Error(result && result.error ? result.error : t('adminActionFailed'));
+        }
+
+        customerPortalState.data = result.data || null;
+        customerPortalState.source = 'account';
+        renderCustomerPortalResult();
+        renderCustomerAccountOrders();
+        if (!opts.silent) {
+            setCustomerAuthStatus('success', t('customerAuthVerified'));
+        }
+        return result;
+    } catch (error) {
+        console.error(error);
+        if (customerPortalState.source === 'account') {
+            customerPortalState.data = null;
+            customerPortalState.source = 'portal';
+            clearCustomerPortalResult();
+        }
+        if (!opts.silent) {
+            setCustomerAuthStatus('error', error.message || t('adminActionFailed'));
+        }
+        throw error;
+    }
+}
+
+async function requestCustomerAuthCode(event) {
+    if (event) event.preventDefault();
+
+    var emailInput = document.getElementById('customer-auth-email');
+    var button = document.getElementById('customer-auth-request-btn');
+    if (!emailInput) return;
+
+    var email = safeText(emailInput.value).trim().toLowerCase();
+    if (!email) return;
+
+    if (button) button.disabled = true;
+    setCustomerAuthStatus('loading', t('portalLoading'));
+    renderCustomerAuthDebugCode('');
+
+    try {
+        var response = await fetch('/api/auth/customer/request-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        var result = await response.json().catch(function () { return {}; });
+        if (!response.ok || (result && result.error)) {
+            throw new Error(result && result.error ? result.error : t('adminActionFailed'));
+        }
+
+        setCustomerAuthStatus('success', t('customerAuthRequestSent'));
+        renderCustomerAuthDebugCode(result.debugCode || '');
+        if (result.debugCode) {
+            var codeInput = document.getElementById('customer-auth-code');
+            if (codeInput) codeInput.value = result.debugCode;
+        }
+    } catch (error) {
+        console.error(error);
+        setCustomerAuthStatus('error', error.message || t('adminActionFailed'));
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+async function verifyCustomerAuthCode(event) {
+    if (event) event.preventDefault();
+
+    var emailInput = document.getElementById('customer-auth-email');
+    var codeInput = document.getElementById('customer-auth-code');
+    var button = document.getElementById('customer-auth-verify-btn');
+    if (!emailInput || !codeInput) return;
+
+    var email = safeText(emailInput.value).trim().toLowerCase();
+    var code = safeText(codeInput.value).trim();
+    if (!email || !code) return;
+
+    if (button) button.disabled = true;
+    setCustomerAuthStatus('loading', t('portalLoading'));
+
+    try {
+        var response = await fetch('/api/auth/customer/verify-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email,
+                code: code
+            })
+        });
+        var result = await response.json().catch(function () { return {}; });
+        if (!response.ok || (result && result.error)) {
+            throw new Error(result && result.error ? result.error : t('customerAuthInvalid'));
+        }
+
+        rememberCustomerAuthSession(result);
+        customerAccountState.selectedPublicId = '';
+        await loadCustomerAccountOrders({ silent: true, autoSelect: true });
+        setCustomerAuthStatus('success', t('customerAuthVerified'));
+        showToast('success', t('myOrdersTitle'), t('customerAuthVerified'));
+    } catch (error) {
+        console.error(error);
+        setCustomerAuthStatus('error', error.message || t('customerAuthInvalid'));
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+async function customerLogout() {
+    try {
+        await customerAuthFetch('/api/auth/customer/logout', { method: 'POST' });
+    } catch (_) {
+        // session may already be expired
+    }
+
+    clearCustomerAuthSession(true);
+    if (getCustomerPortalSession()) {
+        loadCustomerPortalDetail({ silent: true }).catch(function () {
+            clearCustomerPortalResult();
+        });
+    }
+}
+
+async function downloadCustomerDocument(documentId) {
+    var detail = customerPortalState.data;
+    if (!detail || !detail.order) {
+        showToast('error', t('myOrdersTitle'), t('portalSessionExpired'));
+        return;
+    }
+
+    var access = getActiveCustomerOrderAccess(detail.order.publicId);
+    if (!access) {
+        showToast('error', t('myOrdersTitle'), t('portalSessionExpired'));
+        return;
+    }
+
+    try {
+        var response = await fetch(access.documentPath + encodeURIComponent(documentId) + '/download', {
+            headers: access.headers
+        });
+        if (response.status === 401) {
+            if (access.type === 'account') {
+                clearCustomerAuthSession(false);
+            } else {
+                clearCustomerPortalSession(false);
+            }
+            throw new Error(t('portalSessionExpired'));
+        }
+        if (!response.ok) {
+            var errorBody = await response.json().catch(function () { return {}; });
+            throw new Error(errorBody && errorBody.error ? errorBody.error : t('adminActionFailed'));
+        }
+
+        var blob = await response.blob();
+        var fileName = extractDownloadFilename(response, 'document-' + safeInt(documentId, 0));
+        var objectUrl = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(function () {
+            URL.revokeObjectURL(objectUrl);
+        }, 1000);
+    } catch (error) {
+        console.error(error);
+        showToast('error', t('myOrdersTitle'), error.message || t('adminActionFailed'));
+    }
 }
 
 async function adminFetch(url, options) {
@@ -645,6 +1893,12 @@ async function initApp() {
         console.warn('initHotelAutocomplete error', e7);
     }
 
+    try {
+        initPaymentMethodOptions();
+    } catch (e8) {
+        console.warn('initPaymentMethodOptions error', e8);
+    }
+
     initRevealObserver();
     bindBookingPreviewListeners();
 
@@ -669,6 +1923,9 @@ async function initApp() {
 
     updateCartUI();
     setBookingStatus('idle');
+    handleCheckoutReturnFromPayPal().catch(function (error) {
+        console.error('handleCheckoutReturnFromPayPal error', error);
+    });
     handleHash();
 }
 
@@ -677,6 +1934,11 @@ function handleHash() {
 
     if (hash === 'about') {
         showAbout();
+        return;
+    }
+
+    if (hash === 'orders') {
+        showOrdersView();
         return;
     }
 
@@ -706,6 +1968,7 @@ function navigateTo(view, tourId) {
     if (view === 'catalog') window.location.hash = '';
     else if (view === 'detail' && tourId) window.location.hash = tourId;
     else if (view === 'about') window.location.hash = 'about';
+    else if (view === 'orders') window.location.hash = 'orders';
     else if (view === 'admin') window.location.hash = 'admin';
     else if (view === 'dashboard') window.location.hash = 'dashboard';
 }
@@ -717,6 +1980,7 @@ function hideAllViews() {
     var mainView = document.getElementById('main-view');
     var detailView = document.getElementById('detail-view');
     var aboutView = document.getElementById('about-view');
+    var ordersView = document.getElementById('orders-view');
     var adminLoginView = document.getElementById('admin-login-view');
     var adminDashboardView = document.getElementById('admin-dashboard-view');
     var testimonials = document.getElementById('testimonials');
@@ -725,6 +1989,7 @@ function hideAllViews() {
     if (mainView) mainView.style.display = 'none';
     if (detailView) detailView.style.display = 'none';
     if (aboutView) aboutView.style.display = 'none';
+    if (ordersView) ordersView.style.display = 'none';
     if (adminLoginView) adminLoginView.style.display = 'none';
     if (adminDashboardView) adminDashboardView.style.display = 'none';
     if (testimonials) testimonials.style.display = 'none';
@@ -776,6 +2041,41 @@ function showAbout() {
     window.scrollTo(0, 0);
 }
 
+function showOrdersView() {
+    state.currentView = 'orders';
+    hideAllViews();
+    document.getElementById('orders-view').style.display = '';
+    syncCustomerPortalLookupForm();
+    syncCustomerAuthForm();
+    applyLanguage({ rerender: false, persist: false });
+
+    var hasCustomerAuth = Boolean(getCustomerAuthSession());
+
+    if (hasCustomerAuth) {
+        loadCustomerAccountOrders({ silent: true, autoSelect: true }).catch(function (error) {
+            console.error('loadCustomerAccountOrders error', error);
+            setCustomerAuthStatus('error', error.message || t('adminActionFailed'));
+        });
+    } else {
+        clearCustomerOrdersList();
+        setCustomerAuthStatus('idle');
+    }
+
+    if (!hasCustomerAuth && getCustomerPortalSession() && customerPortalState.source !== 'account') {
+        loadCustomerPortalDetail({ silent: true }).catch(function (error) {
+            console.error('loadCustomerPortalDetail error', error);
+            setOrderLookupStatus('error', error.message || t('portalLookupError'));
+        });
+    } else {
+        if (!customerPortalState.data || customerPortalState.source !== 'account') {
+            clearCustomerPortalResult();
+        }
+        setOrderLookupStatus('idle');
+    }
+
+    window.scrollTo(0, 0);
+}
+
 function showAdminLogin() {
     state.currentView = 'admin';
     hideAllViews();
@@ -795,6 +2095,9 @@ function showAdminDashboard() {
     hideAllViews();
     document.getElementById('admin-dashboard-view').style.display = '';
     applyLanguage({ rerender: false, persist: false });
+    loadAdminOrders(false).catch(function (error) {
+        console.error('loadAdminOrders error', error);
+    });
     window.scrollTo(0, 0);
 }
 
@@ -851,6 +2154,239 @@ async function adminLogout() {
     clearAdminSession();
     navigateTo('catalog');
     showToast('info', t('signedOut'), '');
+}
+
+function renderAdminOrderMetrics() {
+    var rows = adminOrdersState.rows || [];
+    var pendingCount = 0;
+    var paidCount = 0;
+    var transferCount = 0;
+
+    rows.forEach(function (row) {
+        var status = safeText(row.status).toLowerCase();
+        var paymentMethod = safeText(row.payment_method).toLowerCase();
+        if (status === 'paid') paidCount += 1;
+        if (status !== 'paid') pendingCount += 1;
+        if (paymentMethod === 'bank_transfer') transferCount += 1;
+    });
+
+    var ordersEl = document.getElementById('admin-metric-orders');
+    var pendingEl = document.getElementById('admin-metric-pending');
+    var paidEl = document.getElementById('admin-metric-paid');
+    var transfersEl = document.getElementById('admin-metric-transfers');
+
+    if (ordersEl) ordersEl.textContent = String(rows.length);
+    if (pendingEl) pendingEl.textContent = String(pendingCount);
+    if (paidEl) paidEl.textContent = String(paidCount);
+    if (transfersEl) transfersEl.textContent = String(transferCount);
+}
+
+function renderAdminOrdersList() {
+    var container = document.getElementById('admin-orders-list');
+    if (!container) return;
+
+    var rows = adminOrdersState.rows || [];
+    if (rows.length === 0) {
+        container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminNoOrders')) + '</p>';
+        return;
+    }
+
+    var html = '';
+    rows.forEach(function (row) {
+        var activeClass = row.public_id === adminOrdersState.selectedPublicId ? ' active' : '';
+        html += '<button type="button" class="admin-order-row' + activeClass + '" onclick="selectAdminOrder(\'' + escapeAttr(row.public_id) + '\')">';
+        html += '<div class="admin-order-row-top">';
+        html += '<div><div class="admin-order-row-id">' + escapeHtml(row.public_id) + '</div><div class="admin-order-row-name">' + escapeHtml(row.guest_name || row.guest_email_masked || '') + '</div></div>';
+        html += '<div class="admin-order-row-total">' + escapeHtml(formatCurrency(row.total, row.currency)) + '</div>';
+        html += '</div>';
+        html += '<div class="admin-order-row-bottom">';
+        html += '<div class="admin-order-row-meta">';
+        html += '<span class="admin-order-chip ' + escapeAttr(toStatusClass(row.status)) + '">' + escapeHtml(normalizeStatusLabel(row.status)) + '</span>';
+        html += '<span class="admin-order-chip">' + escapeHtml(normalizeStatusLabel(row.payment_status || row.payment_method)) + '</span>';
+        html += '<span class="admin-order-chip">' + escapeHtml(safeText(row.payment_method || '').replace(/_/g, ' ') || t('notSpecified')) + '</span>';
+        html += '</div>';
+        html += '<div class="admin-order-row-name">' + escapeHtml(formatDateTime(row.created_at)) + '</div>';
+        html += '</div>';
+        html += '</button>';
+    });
+
+    container.innerHTML = html;
+}
+
+function buildAdminDetailList(items) {
+    return items.map(function (item) {
+        return '<div class="admin-detail-item"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>';
+    }).join('');
+}
+
+function renderAdminOrderDetail() {
+    var container = document.getElementById('admin-order-detail');
+    if (!container) return;
+
+    var detail = adminOrdersState.detail;
+    if (!detail || !detail.order) {
+        container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminOrderDetailEmpty')) + '</p>';
+        return;
+    }
+
+    var order = detail.order;
+    var payment = detail.payment || null;
+    var items = Array.isArray(detail.items) ? detail.items : [];
+    var documents = Array.isArray(detail.documents) ? detail.documents : [];
+    var transferSubmissions = Array.isArray(detail.transferSubmissions) ? detail.transferSubmissions : [];
+
+    var actionsHtml = '';
+    if (payment && payment.provider === 'paypal' && payment.intent === 'AUTHORIZE' && payment.paypal_authorization_id && payment.status !== 'paid') {
+        actionsHtml += '<button type="button" class="btn btn-primary" onclick="captureAdminPayment(' + safeInt(payment.id, 0) + ')">' + escapeHtml(t('adminCapturePayment')) + '</button>';
+    }
+    if (payment && payment.provider === 'bank_transfer' && payment.status !== 'paid') {
+        actionsHtml += '<button type="button" class="btn btn-primary" onclick="confirmAdminTransfer(' + safeInt(payment.id, 0) + ')">' + escapeHtml(t('adminConfirmTransfer')) + '</button>';
+    }
+
+    var itemHtml = items.length === 0 ? '<p class="admin-orders-empty">' + escapeHtml(t('cartEmpty')) + '</p>' : items.map(function (item) {
+        var addOns = Array.isArray(item.add_ons) ? item.add_ons : [];
+        var description = safeInt(item.adults, 0) + ' ' + t('adultUnit') + ', ' + safeInt(item.children, 0) + ' ' + t('childUnit');
+        if (addOns.length > 0) {
+            description += ' + ' + addOns.map(function (addOn) {
+                return safeText(addOn.id || addOn.slug || 'add-on');
+            }).join(', ');
+        }
+
+        return '<div class="admin-order-item"><strong>' + escapeHtml(item.tour_title_en || item.tour_slug) + '</strong><p>' + escapeHtml(description) + '</p><p>' + escapeHtml(formatCurrency(item.subtotal, order.currency)) + '</p></div>';
+    }).join('');
+
+    var documentsHtml = documents.length === 0 ? '<p class="admin-orders-empty">' + escapeHtml(t('adminNoDocuments')) + '</p>' : documents.map(function (document) {
+        var downloadHref = '/api/admin/orders/' + encodeURIComponent(order.public_id) + '/documents/' + encodeURIComponent(document.id) + '/download';
+        return '<div class="admin-order-document"><strong>' + escapeHtml(document.document_type) + '</strong><p>' + escapeHtml(formatDateTime(document.created_at)) + '</p><p><a href="' + escapeAttr(downloadHref) + '" target="_blank" rel="noopener">' + escapeHtml(t('adminDownloadDocument')) + '</a></p></div>';
+    }).join('');
+
+    var transfersHtml = transferSubmissions.length === 0 ? '<p class="admin-orders-empty">' + escapeHtml(t('adminNoTransfers')) + '</p>' : transferSubmissions.map(function (submission) {
+        return '<div class="admin-order-document"><strong>' + escapeHtml((submission.review_status || 'pending').replace(/_/g, ' ')) + '</strong><p>' + escapeHtml(t('adminMatchScore') + ': ' + safeInt(submission.match_score, 0)) + '</p><p>' + escapeHtml(t('reference') + ': ' + (submission.submitted_reference || t('notSpecified'))) + '</p><p>' + escapeHtml(t('adminReviewedBy') + ': ' + (submission.reviewed_by || t('notSpecified'))) + '</p></div>';
+    }).join('');
+
+    container.innerHTML = ''
+        + '<div class="admin-detail-header">'
+        + '<div><h5>' + escapeHtml(order.public_id) + '</h5><p class="admin-detail-subtitle">' + escapeHtml(formatDateTime(order.created_at)) + '</p></div>'
+        + '<div class="admin-order-row-meta"><span class="admin-order-chip ' + escapeAttr(toStatusClass(order.status)) + '">' + escapeHtml(normalizeStatusLabel(order.status)) + '</span></div>'
+        + '</div>'
+        + (actionsHtml ? '<div class="admin-detail-actions">' + actionsHtml + '</div>' : '')
+        + '<div class="admin-detail-grid">'
+        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminCustomer')) + '</h6><div class="admin-detail-list">' + buildAdminDetailList([
+            { label: t('name'), value: order.guest_name || t('notSpecified') },
+            { label: t('adminGuestEmail'), value: order.guest_email || t('notSpecified') },
+            { label: t('adminGuestPhone'), value: order.guest_phone || t('notSpecified') },
+            { label: t('hotel'), value: order.hotel || t('notSpecified') },
+            { label: t('comments'), value: order.comments || t('noComments') }
+        ]) + '</div></div>'
+        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminPayment')) + '</h6><div class="admin-detail-list">' + buildAdminDetailList([
+            { label: t('adminMethod'), value: order.payment_method || t('notSpecified') },
+            { label: t('adminAmount'), value: formatCurrency(order.total, order.currency) },
+            { label: t('adminOrderStatus'), value: normalizeStatusLabel(order.status) },
+            { label: t('adminProviderStatus'), value: order.provider_status || t('notSpecified') },
+            { label: t('adminServiceDate'), value: order.service_date || t('notSpecified') },
+            { label: t('pickupTime'), value: order.pickup_time || t('notSpecified') }
+        ].concat(payment ? [
+            { label: t('adminPaymentId'), value: String(payment.id) },
+            { label: t('adminPaymentStatus'), value: normalizeStatusLabel(payment.status) },
+            { label: t('adminIntent'), value: payment.intent || t('notSpecified') }
+        ] : [])) + '</div></div>'
+        + '</div>'
+        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminOrderItems')) + '</h6><div class="admin-order-items">' + itemHtml + '</div></div>'
+        + '<div class="admin-detail-grid">'
+        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminDocuments')) + '</h6><div class="admin-order-documents">' + documentsHtml + '</div></div>'
+        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminTransferSubmissions')) + '</h6><div class="admin-order-documents">' + transfersHtml + '</div></div>'
+        + '</div>';
+}
+
+async function loadAdminOrders(showSuccessToast) {
+    var list = document.getElementById('admin-orders-list');
+    var detail = document.getElementById('admin-order-detail');
+    if (list) list.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminLoadingOrders')) + '</p>';
+    if (detail && !adminOrdersState.selectedPublicId) {
+        detail.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminLoadingOrders')) + '</p>';
+    }
+
+    var response = await adminFetch('/api/admin/orders');
+    var rows = await response.json();
+
+    adminOrdersState.rows = Array.isArray(rows) ? rows : [];
+    renderAdminOrderMetrics();
+
+    if (adminOrdersState.rows.length === 0) {
+        adminOrdersState.selectedPublicId = '';
+        adminOrdersState.detail = null;
+        renderAdminOrdersList();
+        renderAdminOrderDetail();
+    } else {
+        var selectedExists = adminOrdersState.rows.some(function (row) {
+            return row.public_id === adminOrdersState.selectedPublicId;
+        });
+        if (!selectedExists) {
+            adminOrdersState.selectedPublicId = adminOrdersState.rows[0].public_id;
+        }
+        renderAdminOrdersList();
+        await selectAdminOrder(adminOrdersState.selectedPublicId, { silent: true });
+    }
+
+    if (showSuccessToast) {
+        showToast('success', t('adminOrdersTitle'), t('adminRefreshSuccess'));
+    }
+}
+
+async function selectAdminOrder(publicId, options) {
+    var opts = Object.assign({ silent: false }, options || {});
+    adminOrdersState.selectedPublicId = publicId;
+    renderAdminOrdersList();
+
+    var container = document.getElementById('admin-order-detail');
+    if (container && !opts.silent) {
+        container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminLoadingOrders')) + '</p>';
+    }
+
+    try {
+        var response = await adminFetch('/api/admin/orders/' + encodeURIComponent(publicId));
+        adminOrdersState.detail = await response.json();
+        renderAdminOrderDetail();
+    } catch (error) {
+        console.error(error);
+        adminOrdersState.detail = null;
+        renderAdminOrderDetail();
+        showToast('error', t('adminOrdersTitle'), error.message || t('adminActionFailed'));
+    }
+}
+
+async function captureAdminPayment(paymentId) {
+    try {
+        var response = await adminFetch('/api/admin/payments/' + encodeURIComponent(paymentId) + '/capture', {
+            method: 'POST'
+        });
+        var result = await response.json();
+        if (!response.ok || (result && result.error)) {
+            throw new Error(result && result.error ? result.error : t('adminActionFailed'));
+        }
+        showToast('success', t('adminPaymentsTitle'), t('adminCaptureSuccess'));
+        await loadAdminOrders(false);
+    } catch (error) {
+        console.error(error);
+        showToast('error', t('adminPaymentsTitle'), error.message || t('adminActionFailed'));
+    }
+}
+
+async function confirmAdminTransfer(paymentId) {
+    try {
+        var response = await adminFetch('/api/admin/payments/' + encodeURIComponent(paymentId) + '/confirm-transfer', {
+            method: 'POST'
+        });
+        var result = await response.json();
+        if (!response.ok || (result && result.error)) {
+            throw new Error(result && result.error ? result.error : t('adminActionFailed'));
+        }
+        showToast('success', t('adminPaymentsTitle'), t('adminTransferConfirmed'));
+        await loadAdminOrders(false);
+    } catch (error) {
+        console.error(error);
+        showToast('error', t('adminPaymentsTitle'), error.message || t('adminActionFailed'));
+    }
 }
 
 function initLanguage() {
@@ -914,11 +2450,21 @@ function changeLanguage(lang, options) {
             renderCatalog();
         } else if (state.currentTour && TOURS[state.currentTour]) {
             renderTourDetail(TOURS[state.currentTour]);
+        } else if (state.currentView === 'orders') {
+            renderCustomerAccountOrders();
+            renderCustomerPortalResult();
+        } else if (state.currentView === 'dashboard') {
+            renderAdminOrderMetrics();
+            renderAdminOrdersList();
+            renderAdminOrderDetail();
         }
     }
 
     applyDataTranslations();
     if (isCartModalActive()) updateCartUI();
+    if (state.latestCheckoutOrder && state.latestCheckoutOrder.order) {
+        renderCheckoutResult(state.latestCheckoutOrder, state.latestCheckoutOrder.order.paymentMethod);
+    }
 }
 
 function applyDataTranslations() {
@@ -947,6 +2493,281 @@ function applyDataTranslations() {
     var closeCartBtn = document.querySelector('.close-modal');
     if (closeCartBtn) {
         closeCartBtn.setAttribute('aria-label', t('closeCart'));
+    }
+}
+
+function getSelectedPaymentMethod() {
+    ensureSelectedPaymentMethod();
+
+    var selected = document.querySelector('input[name="payment_method"]:checked');
+    if (selected) {
+        state.selectedPaymentMethod = selected.value;
+    }
+    return state.selectedPaymentMethod;
+}
+
+function setSelectedPaymentMethod(method) {
+    if (state.selectedPaymentMethod !== method && state.latestCheckoutOrder) {
+        clearCheckoutResult();
+    }
+
+    state.selectedPaymentMethod = method;
+
+    var input = document.querySelector('input[name="payment_method"][value="' + method + '"]');
+    if (input) input.checked = true;
+
+    updatePaymentMethodUI();
+}
+
+function updatePaymentMethodUI() {
+    var selected = ensureSelectedPaymentMethod();
+    var available = getConfiguredPaymentMethods();
+
+    document.querySelectorAll('.payment-method-option').forEach(function (option) {
+        var method = option.getAttribute('data-payment-method');
+        var input = option.querySelector('input');
+        var enabled = available.indexOf(method) !== -1;
+        option.classList.toggle('disabled', !enabled);
+        option.classList.toggle('active', enabled && method === selected);
+        if (input) {
+            input.disabled = !enabled;
+            input.checked = enabled && method === selected;
+        }
+    });
+
+    var manualSelected = selected === 'manual_contact';
+    var previewsVisible = state.checkoutStep === 3 && manualSelected;
+    var whatsappPreview = document.getElementById('whatsapp-preview');
+    var emailPreview = document.getElementById('email-preview');
+    if (whatsappPreview && !manualSelected) whatsappPreview.style.display = 'none';
+    if (emailPreview && !manualSelected) emailPreview.style.display = 'none';
+    if (state.checkoutStep === 3 && previewsVisible) updatePreviews();
+
+    syncCheckoutActionButtons();
+}
+
+function syncCheckoutActionButtons() {
+    var hasItems = state.cart.length > 0;
+    var nextStep = state.checkoutStep;
+    var selected = getSelectedPaymentMethod();
+    var hasActiveResult = Boolean(
+        state.latestCheckoutOrder
+        && state.latestCheckoutOrder.order
+        && state.latestCheckoutOrder.order.paymentMethod === selected
+    );
+
+    var checkoutBtn = document.getElementById('checkout-btn');
+    var confirmBtn = document.getElementById('confirm-btn');
+    var backToCartBtn = document.getElementById('back-to-cart-btn');
+    var editDetailsBtn = document.getElementById('edit-details-btn');
+    var sendEmailBtn = document.getElementById('send-email-btn');
+    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
+    var payPayPalBtn = document.getElementById('pay-paypal-btn');
+    var bankTransferBtn = document.getElementById('bank-transfer-btn');
+
+    if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
+    if (confirmBtn) confirmBtn.style.display = hasItems && nextStep === 2 ? 'flex' : 'none';
+    if (backToCartBtn) backToCartBtn.style.display = hasItems && nextStep >= 2 ? 'flex' : 'none';
+    if (editDetailsBtn) editDetailsBtn.style.display = hasItems && nextStep === 3 ? 'flex' : 'none';
+
+    if (payPayPalBtn) payPayPalBtn.style.display = hasItems && nextStep === 3 && selected === 'paypal' && !hasActiveResult ? 'flex' : 'none';
+    if (bankTransferBtn) bankTransferBtn.style.display = hasItems && nextStep === 3 && selected === 'bank_transfer' && !hasActiveResult ? 'flex' : 'none';
+    if (sendEmailBtn) sendEmailBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
+    if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
+}
+
+function initPaymentMethodOptions() {
+    document.querySelectorAll('input[name="payment_method"]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            setSelectedPaymentMethod(input.value);
+        });
+    });
+
+    state.selectedPaymentMethod = getDefaultPaymentMethod();
+    updatePaymentMethodUI();
+}
+
+async function createCheckoutOrder(paymentMethod) {
+    var payload = buildBookingPayload();
+    payload.paymentMethod = paymentMethod;
+    payload.currency = CONFIG.payments && CONFIG.payments.currency ? CONFIG.payments.currency : 'USD';
+    var customerSession = getCustomerAuthSession();
+    var headers = { 'Content-Type': 'application/json' };
+    if (customerSession && customerSession.token) {
+        headers.Authorization = 'Bearer ' + customerSession.token;
+    }
+
+    var response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        var message = t('bookingFailed');
+        try {
+            var body = await response.json();
+            if (body && body.error) message = body.error;
+        } catch (_) {
+            // ignore json parse errors
+        }
+        throw new Error(message);
+    }
+
+    var result = await response.json();
+    if (result && result.order) {
+        result.lookupEmail = safeText(payload.email).trim().toLowerCase();
+        state.latestCheckoutOrder = result;
+    }
+    if (result && result.order && result.portal) {
+        rememberCustomerPortalSession(result.order.publicId, result.portal, payload.email);
+    }
+    if (customerSession && customerSession.token) {
+        loadCustomerAccountOrders({ silent: true, autoSelect: false }).catch(function () {
+            // keep checkout flow resilient if account refresh fails
+        });
+    }
+
+    return result;
+}
+
+async function createPayPalRedirectOrder(orderPublicId) {
+    var returnUrl = buildCurrentPageUrl({
+        paypal_return: '1',
+        order_public_id: orderPublicId
+    });
+    var cancelUrl = buildCurrentPageUrl({
+        paypal_cancel: '1',
+        order_public_id: orderPublicId
+    });
+
+    var response = await fetch('/api/payments/paypal/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            orderPublicId: orderPublicId,
+            returnUrl: returnUrl,
+            cancelUrl: cancelUrl
+        })
+    });
+
+    if (!response.ok) {
+        var message = t('paypalPaymentError');
+        try {
+            var body = await response.json();
+            if (body && body.error) message = body.error;
+        } catch (_) {
+            // ignore
+        }
+        throw new Error(message);
+    }
+
+    return response.json();
+}
+
+async function finalizePayPalOrder(orderPublicId, paypalOrderId) {
+    var response = await fetch('/api/payments/paypal/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            orderPublicId: orderPublicId,
+            paypalOrderId: paypalOrderId
+        })
+    });
+
+    if (!response.ok) {
+        var message = t('paypalPaymentError');
+        try {
+            var body = await response.json();
+            if (body && body.error) message = body.error;
+        } catch (_) {
+            // ignore
+        }
+        throw new Error(message);
+    }
+
+    return response.json();
+}
+
+function renderCheckoutResult(orderResult, mode) {
+    state.latestCheckoutOrder = orderResult;
+
+    var card = document.getElementById('checkout-result-card');
+    var orderId = document.getElementById('checkout-result-order-id');
+    var message = document.getElementById('checkout-result-message');
+    var grid = document.getElementById('checkout-result-grid');
+    var proofBox = document.getElementById('transfer-proof-box');
+
+    if (!card || !orderId || !message || !grid) return;
+
+    card.hidden = false;
+    orderId.textContent = orderResult && orderResult.order ? orderResult.order.publicId : 'LT-XXXX';
+    grid.replaceChildren();
+    if (proofBox) proofBox.hidden = true;
+
+    if (mode === 'bank_transfer' && orderResult.bankTransfer) {
+        message.textContent = t('transferInstructionsReady') + ' ' + t('transferExactMatchNote');
+        appendCheckoutResultItem(grid, t('total'), '$' + safeInt(orderResult.order.total, 0) + ' ' + safeText(orderResult.order.currency || 'USD'));
+        appendCheckoutResultItem(grid, t('bankName'), safeText(orderResult.bankTransfer.bankName || t('notSpecified')));
+        appendCheckoutResultItem(grid, t('beneficiary'), safeText(orderResult.bankTransfer.beneficiary || t('notSpecified')));
+        appendCheckoutResultItem(grid, t('clabe'), safeText(orderResult.bankTransfer.clabe || t('notSpecified')));
+        appendCheckoutResultItem(grid, t('reference'), safeText(orderResult.bankTransfer.reference || t('notSpecified')));
+        if (orderResult.bankTransfer.swift) {
+            appendCheckoutResultItem(grid, t('swift'), safeText(orderResult.bankTransfer.swift));
+        }
+        appendCheckoutResultItem(grid, t('expiresAt'), formatDateTime(orderResult.bankTransfer.expiresAt));
+        if (proofBox) proofBox.hidden = false;
+        return;
+    }
+
+    if (mode === 'manual_contact') {
+        message.textContent = t('manualOrderCreated') + ' ' + t('manualOrderReference');
+        appendCheckoutResultItem(grid, t('total'), '$' + safeInt(orderResult.order.total, 0) + ' ' + safeText(orderResult.order.currency || 'USD'));
+        appendCheckoutResultItem(grid, t('paymentMethod'), t('paymentManual'));
+        return;
+    }
+
+    message.textContent = '';
+}
+
+async function handleCheckoutReturnFromPayPal() {
+    var url = new URL(window.location.href);
+    var orderPublicId = safeText(url.searchParams.get('order_public_id'));
+    var paypalOrderId = safeText(url.searchParams.get('token'));
+
+    if (url.searchParams.get('paypal_cancel') === '1') {
+        clearCheckoutQueryParams();
+        showToast('error', t('whatsappErrorTitle'), t('paypalCheckoutCancelled'));
+        return;
+    }
+
+    if (url.searchParams.get('paypal_return') !== '1' || !orderPublicId || !paypalOrderId) {
+        return;
+    }
+
+    try {
+        setBookingStatus('loading');
+        var result = await finalizePayPalOrder(orderPublicId, paypalOrderId);
+        if (ensureCustomerPortalSessionForOrder(orderPublicId)) {
+            try {
+                await loadCustomerPortalDetail({ silent: true });
+            } catch (_) {
+                // Keep checkout flow resilient even if portal refresh fails.
+            }
+        }
+        clearCheckoutQueryParams();
+        if (result && result.order && result.order.status === 'paid') {
+            setBookingStatus('success');
+            showToast('success', t('bookingSentTitle'), t('paypalPaymentCompleted'));
+        } else {
+            setBookingStatus('success');
+            showToast('success', t('bookingSentTitle'), t('paypalPaymentPending'));
+        }
+        completeCheckout();
+    } catch (error) {
+        clearCheckoutQueryParams();
+        setBookingStatus('error');
+        showToast('error', t('whatsappErrorTitle'), error.message || t('paypalPaymentError'));
     }
 }
 
@@ -1564,6 +3385,7 @@ function updateCartUI() {
 
         totalSection.style.display = 'none';
         hideBookingPreviews();
+        clearCheckoutResult();
 
         state.checkoutMode = false;
         state.checkoutStep = 1;
@@ -1844,21 +3666,9 @@ function goToCheckoutStep(step, options) {
     }
 
     var checkoutForm = document.getElementById('checkout-form');
-    var checkoutBtn = document.getElementById('checkout-btn');
-    var confirmBtn = document.getElementById('confirm-btn');
-    var backToCartBtn = document.getElementById('back-to-cart-btn');
-    var editDetailsBtn = document.getElementById('edit-details-btn');
-    var sendEmailBtn = document.getElementById('send-email-btn');
-    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
-    var hasItems = state.cart.length > 0;
 
     if (checkoutForm) checkoutForm.classList.toggle('active', nextStep === 2);
-    if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
-    if (confirmBtn) confirmBtn.style.display = hasItems && nextStep === 2 ? 'flex' : 'none';
-    if (backToCartBtn) backToCartBtn.style.display = hasItems && nextStep >= 2 ? 'flex' : 'none';
-    if (editDetailsBtn) editDetailsBtn.style.display = hasItems && nextStep === 3 ? 'flex' : 'none';
-    if (sendEmailBtn) sendEmailBtn.style.display = hasItems && nextStep === 3 ? 'flex' : 'none';
-    if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = hasItems && nextStep === 3 ? 'flex' : 'none';
+    updatePaymentMethodUI();
 
     updateProgressIndicator(nextStep);
 
@@ -1885,7 +3695,8 @@ function goToCheckoutStep(step, options) {
     return true;
 }
 
-function buildWhatsAppMessage() {
+function buildWhatsAppMessage(options) {
+    var opts = options || {};
     var lines = [];
 
     lines.push(t('newBooking'));
@@ -1911,6 +3722,11 @@ function buildWhatsAppMessage() {
     var total = getCartTotalUSD();
     lines.push('');
     lines.push('*TOTAL: $' + total + ' USD*');
+
+    if (opts.orderPublicId) {
+        lines.push('');
+        lines.push('*' + t('orderNumber').toUpperCase() + ':* ' + opts.orderPublicId);
+    }
 
     var comments = document.getElementById('customer-comments').value.trim();
     if (comments) {
@@ -1942,6 +3758,12 @@ function updatePreviews() {
     var form = document.getElementById('booking-form');
     if (!form || !form.checkValidity()) {
         hideBookingPreviews();
+        return;
+    }
+
+    if (getSelectedPaymentMethod() !== 'manual_contact') {
+        hideBookingPreviews();
+        if (state.checkoutStep === 3) renderConfirmSummary();
         return;
     }
 
@@ -2024,32 +3846,28 @@ function buildBookingPayload() {
     };
 }
 
-async function persistBooking(payload) {
-    var response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-        var message = t('bookingFailed');
-        try {
-            var body = await response.json();
-            if (body && body.error) message = body.error;
-        } catch (_) {
-            // ignore json parse errors
-        }
-        throw new Error(message);
+function validateCheckoutSubmission() {
+    if (state.cart.length === 0) return false;
+    if (state.checkoutStep !== 3) {
+        if (!goToCheckoutStep(3)) return false;
     }
 
-    return response.json();
+    var form = document.getElementById('booking-form');
+    if (!form || !form.checkValidity()) {
+        if (form) form.reportValidity();
+        return false;
+    }
+
+    return true;
 }
 
 function setBookingButtonsLoading(loading) {
     var sendEmailBtn = document.getElementById('send-email-btn');
     var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
+    var payPayPalBtn = document.getElementById('pay-paypal-btn');
+    var bankTransferBtn = document.getElementById('bank-transfer-btn');
 
-    [sendEmailBtn, sendWhatsAppBtn].forEach(function (btn) {
+    [sendEmailBtn, sendWhatsAppBtn, payPayPalBtn, bankTransferBtn].forEach(function (btn) {
         if (!btn) return;
         btn.disabled = loading;
         btn.classList.toggle('loading', loading);
@@ -2103,6 +3921,9 @@ function resetBookingForm() {
     closeAC();
     setHotelNoMatchHint(false);
     hideBookingPreviews();
+    clearCheckoutResult();
+    state.selectedPaymentMethod = getDefaultPaymentMethod();
+    updatePaymentMethodUI();
 }
 
 function completeCheckout() {
@@ -2125,17 +3946,7 @@ function completeCheckout() {
 }
 
 async function sendBookingEmail() {
-    if (bookingSubmissionInProgress) return;
-    if (state.cart.length === 0) return;
-    if (state.checkoutStep !== 3) {
-        if (!goToCheckoutStep(3)) return;
-    }
-
-    var form = document.getElementById('booking-form');
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
+    if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
 
     updateProgressIndicator(3);
     bookingSubmissionInProgress = true;
@@ -2144,7 +3955,7 @@ async function sendBookingEmail() {
 
     try {
         var payload = buildBookingPayload();
-        await persistBooking(payload);
+        var orderResult = await createCheckoutOrder('manual_contact');
 
         var summary = state.cart.map(function (item) {
             var line = getCartItemName(item) + ': ' + safeInt(item.adults, 0) + ' ' + t('adultUnit') + ', ' + safeInt(item.children, 0) + ' ' + t('childUnit');
@@ -2164,12 +3975,13 @@ async function sendBookingEmail() {
                 customer_hotel: payload.hotel || t('notSpecified'),
                 customer_comments: payload.comments || t('noComments'),
                 cart_summary: summary,
-                total_amount: '$' + payload.total + ' USD'
+                total_amount: '$' + payload.total + ' USD',
+                order_public_id: orderResult.order.publicId
             });
         }
 
         setBookingStatus('success');
-        showToast('success', t('bookingSentTitle'), t('bookingSentMessage'));
+        showToast('success', t('bookingSentTitle'), t('manualOrderCreated'));
         completeCheckout();
     } catch (e) {
         console.error(e);
@@ -2182,17 +3994,7 @@ async function sendBookingEmail() {
 }
 
 async function sendToWhatsApp() {
-    if (bookingSubmissionInProgress) return;
-    if (state.cart.length === 0) return;
-    if (state.checkoutStep !== 3) {
-        if (!goToCheckoutStep(3)) return;
-    }
-
-    var form = document.getElementById('booking-form');
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
+    if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
 
     updateProgressIndicator(3);
     bookingSubmissionInProgress = true;
@@ -2200,10 +4002,9 @@ async function sendToWhatsApp() {
     setBookingStatus('loading');
 
     try {
-        var payload = buildBookingPayload();
-        await persistBooking(payload);
+        var orderResult = await createCheckoutOrder('manual_contact');
 
-        var message = buildWhatsAppMessage();
+        var message = buildWhatsAppMessage({ orderPublicId: orderResult.order.publicId });
         window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(message), '_blank');
 
         setBookingStatus('success');
@@ -2216,6 +4017,171 @@ async function sendToWhatsApp() {
     } finally {
         bookingSubmissionInProgress = false;
         setBookingButtonsLoading(false);
+    }
+}
+
+async function startPayPalCheckout() {
+    if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
+    if (!CONFIG.payments || !CONFIG.payments.paypal || !CONFIG.payments.paypal.enabled) {
+        showToast('error', t('whatsappErrorTitle'), t('paymentMethodUnavailable'));
+        return;
+    }
+
+    updateProgressIndicator(3);
+    bookingSubmissionInProgress = true;
+    setBookingButtonsLoading(true);
+    setBookingStatus('loading');
+
+    try {
+        var orderResult = await createCheckoutOrder('paypal');
+        var paypalOrder = await createPayPalRedirectOrder(orderResult.order.publicId);
+        if (!paypalOrder.approveUrl) {
+            throw new Error(t('paypalPaymentError'));
+        }
+
+        setBookingStatus('loading');
+        showToast('success', t('bookingSaved'), t('paypalRedirecting'));
+        window.location.href = paypalOrder.approveUrl;
+    } catch (error) {
+        console.error(error);
+        setBookingStatus('error');
+        showToast('error', t('whatsappErrorTitle'), error.message || t('paypalPaymentError'));
+        bookingSubmissionInProgress = false;
+        setBookingButtonsLoading(false);
+    }
+}
+
+async function startBankTransferCheckout() {
+    if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
+    if (!CONFIG.payments || !CONFIG.payments.bankTransfer || !CONFIG.payments.bankTransfer.enabled) {
+        showToast('error', t('whatsappErrorTitle'), t('paymentMethodUnavailable'));
+        return;
+    }
+
+    updateProgressIndicator(3);
+    bookingSubmissionInProgress = true;
+    setBookingButtonsLoading(true);
+    setBookingStatus('loading');
+
+    try {
+        var orderResult = await createCheckoutOrder('bank_transfer');
+        renderCheckoutResult(orderResult, 'bank_transfer');
+        setBookingStatus('success');
+        showToast('success', t('bookingSaved'), t('transferInstructionsReady'));
+        syncCheckoutActionButtons();
+    } catch (error) {
+        console.error(error);
+        setBookingStatus('error');
+        showToast('error', t('whatsappErrorTitle'), error.message || t('bookingFailed'));
+    } finally {
+        bookingSubmissionInProgress = false;
+        setBookingButtonsLoading(false);
+    }
+}
+
+async function submitTransferProofUpload(options) {
+    var opts = options || {};
+    var publicId = safeText(opts.publicId);
+    var fileInput = opts.fileInput;
+    var button = opts.button;
+    var total = safeInt(opts.amount, 0);
+    var reference = safeText(opts.reference);
+    var access = getActiveCustomerOrderAccess(publicId);
+
+    if (!access) {
+        throw new Error(t('portalSessionExpired'));
+    }
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        throw new Error(t('transferProofMissing'));
+    }
+
+    var formData = new FormData();
+    formData.append('proof', fileInput.files[0]);
+    formData.append('submitted_reference', reference);
+    formData.append('submitted_amount', String(total));
+
+    if (button) button.disabled = true;
+    try {
+        var response = await fetch(access.transferPath, {
+            method: 'POST',
+            headers: access.headers,
+            body: formData
+        });
+
+        if (!response.ok) {
+            var message = t('uploadProofError');
+            try {
+                var body = await response.json();
+                if (body && body.error) message = body.error;
+            } catch (_) {
+                // ignore
+            }
+            throw new Error(message);
+        }
+
+        fileInput.value = '';
+        return response.json();
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+async function uploadTransferProof() {
+    var orderResult = state.latestCheckoutOrder;
+    var proofInput = document.getElementById('transfer-proof-file');
+    var uploadBtn = document.getElementById('upload-transfer-proof-btn');
+
+    if (!orderResult || !orderResult.order || orderResult.order.paymentMethod !== 'bank_transfer') return;
+    if (!proofInput || !proofInput.files || !proofInput.files[0]) {
+        showToast('error', t('whatsappErrorTitle'), t('transferProofMissing'));
+        return;
+    }
+
+    try {
+        await submitTransferProofUpload({
+            publicId: orderResult.order.publicId,
+            amount: orderResult.order.total,
+            reference: orderResult.bankTransfer && orderResult.bankTransfer.reference ? orderResult.bankTransfer.reference : '',
+            fileInput: proofInput,
+            button: uploadBtn
+        });
+        showToast('success', t('bookingSaved'), t('uploadProofSuccess'));
+    } catch (error) {
+        console.error(error);
+        showToast('error', t('whatsappErrorTitle'), error.message || t('uploadProofError'));
+    }
+}
+
+async function uploadCustomerPortalTransferProof() {
+    var detail = customerPortalState.data;
+    var proofInput = document.getElementById('portal-transfer-proof-file');
+    var uploadBtn = document.getElementById('portal-upload-transfer-proof-btn');
+    if (!detail || !detail.order) return;
+
+    try {
+        await submitTransferProofUpload({
+            publicId: detail.order.publicId,
+            amount: detail.order.total,
+            reference: detail.order.bankReference || '',
+            fileInput: proofInput,
+            button: uploadBtn
+        });
+        if (customerPortalState.source === 'account') {
+            await selectCustomerAccountOrder(detail.order.publicId, { silent: true });
+            setCustomerAuthStatus('success', t('uploadProofSuccess'));
+        } else {
+            await loadCustomerPortalDetail({ silent: true });
+            setOrderLookupStatus('success', t('uploadProofSuccess'));
+        }
+        showToast('success', t('myOrdersTitle'), t('uploadProofSuccess'));
+    } catch (error) {
+        console.error(error);
+        if (customerPortalState.source === 'account') {
+            setCustomerAuthStatus('error', error.message || t('uploadProofError'));
+        } else {
+            setOrderLookupStatus('error', error.message || t('uploadProofError'));
+        }
+        showToast('error', t('myOrdersTitle'), error.message || t('uploadProofError'));
     }
 }
 

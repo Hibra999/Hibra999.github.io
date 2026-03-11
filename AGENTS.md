@@ -1,46 +1,25 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `server.js`: Express API + static server, including SQLite bootstrap (`db/schema.sql` and optional `db/seed.sql`).
-- `public/`: Frontend files (`index.html`, `css/styles.css`, `js/main.js`, `js/hotels.js`) plus images in `public/imagenes/`.
-- `db/`: Database schema, seed data, and local SQLite files (`lindotours.db`, `-wal`, `-shm`).
-- Keep new tour media under `public/imagenes/servicios/<tour_slug>/` and keep filenames numeric (`1.jpg`, `2.jpg`, ...).
+`server.js` is the application entry point: it starts Express, initializes SQLite from `db/schema.sql`, optionally seeds from `db/seed.sql`, and serves the SPA. `public/` contains the frontend (`index.html`, `css/styles.css`, `js/main.js`, `js/hotels.js`) plus static media in `public/imagenes/`. Store tour galleries in `public/imagenes/servicios/<tour_slug>/` and keep image names numeric, for example `1.jpg`, `2.jpg`. Treat `db/*.db` as local runtime state; ship schema or seed changes instead of database files.
 
 ## Build, Test, and Development Commands
 ```bash
-npm install          # Install dependencies
-npm start            # Start server on http://localhost:3000
-PORT=4000 npm start  # Start server on a custom port
+npm install
+npm start
+PORT=4000 npm start
+curl http://localhost:3000/api/tours
 ```
-- There is no build step in this repository.
-- `npm test` is currently a placeholder and exits with an error by design.
+`npm install` installs dependencies. `npm start` runs the site and API on `http://localhost:3000`. Setting `PORT` overrides the default port. Use a quick `curl` call to confirm the API is responding. There is no separate build step in this repository.
 
 ## Coding Style & Naming Conventions
-- Stack: Node.js (CommonJS) + vanilla JS/CSS/HTML.
-- Match existing formatting: 4 spaces in JS (`server.js`, `public/js/*.js`) and 2 spaces in CSS.
-- Use semicolons in JavaScript.
-- Naming:
-  - `camelCase` for functions/variables.
-  - `UPPER_SNAKE_CASE` for constants/env defaults.
-  - `snake_case` for tour slugs and service image folders (for consistency with current assets).
-- No ESLint/Prettier is configured; keep changes style-consistent with surrounding code.
+This project uses Node.js CommonJS on the backend and vanilla HTML, CSS, and JavaScript on the frontend. Match the existing formatting: 4 spaces in JavaScript, 2 spaces in CSS, and semicolons in JS files. Use `camelCase` for variables and functions, `UPPER_SNAKE_CASE` for constants, and `snake_case` for tour slugs and service image folders. Keep bilingual fields paired consistently as `*_en` and `*_es`.
 
 ## Testing Guidelines
-- No automated test suite is configured yet.
-- For each change, run a manual smoke test:
-  1. Start app with `npm start` and confirm boot without errors.
-  2. Verify key endpoints: `GET /api/tours`, `GET /api/hotels`, `POST /api/bookings`.
-  3. If admin-related, validate `POST /api/admin/login` and protected booking routes.
-  4. Check UI flows in both languages and on mobile/desktop widths.
+No automated test suite is configured yet; `npm test` is still a placeholder and fails by design. For each change, run a manual smoke test: start the app, verify `GET /api/tours` and `GET /api/hotels`, then exercise any changed booking or admin flow such as `POST /api/bookings` or `POST /api/admin/login`. For UI work, check both language modes and at least one mobile-sized viewport.
 
 ## Commit & Pull Request Guidelines
-- Git history mostly uses Conventional Commit prefixes (`feat:`, `refactor:`), with some inconsistent legacy messages.
-- Preferred format: `<type>: <short imperative summary>` (example: `feat: add booking status filter`).
-- Keep commits focused by concern (API, UI, DB).
-- PRs should include: purpose, impacted files, manual test evidence, and screenshots for UI changes.
-- If schema/seed changes are included, call them out explicitly in the PR description.
+Recent history mixes informal commits with Conventional Commit prefixes like `feat:`, `fix:`, and `chore:`. Prefer `<type>: <short imperative summary>`, for example `fix: validate booking totals on the server`. Keep commits focused on one concern. Pull requests should describe behavior changes, note added assets or schema updates, link related issues, and include screenshots plus manual test notes for visible UI changes.
 
 ## Security & Configuration Tips
-- Configure runtime values via environment variables: `PORT`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_TOKEN_TTL_MS`.
-- Do not commit secrets or sensitive production data.
-- Override default admin credentials outside local development.
+Configure runtime settings with `PORT`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_TOKEN_TTL_MS`. Do not depend on default admin credentials outside local development. Keep `.env`, local SQLite files, and temporary uploaded test data out of commits.
