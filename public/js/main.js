@@ -205,6 +205,7 @@ const I18N = {
         adminStatusTransferSubmitted: 'Comprobante enviado',
         adminStatusAuthorized: 'Autorizada',
         adminStatusFailed: 'Fallida',
+        adminStatusCancelled: 'Cancelada',
         adminStatusVoid: 'Anulada',
         myOrdersNav: 'Mis compras',
         myOrdersTitle: 'Mis compras',
@@ -388,6 +389,7 @@ const I18N = {
         adminStatusTransferSubmitted: 'Proof submitted',
         adminStatusAuthorized: 'Authorized',
         adminStatusFailed: 'Failed',
+        adminStatusCancelled: 'Cancelled',
         adminStatusVoid: 'Voided',
         myOrdersNav: 'My orders',
         myOrdersTitle: 'My orders',
@@ -628,6 +630,7 @@ function normalizeStatusLabel(status) {
     if (value === 'awaiting_transfer') return t('adminStatusAwaitingTransfer');
     if (value === 'transfer_submitted') return t('adminStatusTransferSubmitted');
     if (value === 'payment_authorized' || value === 'authorized') return t('adminStatusAuthorized');
+    if (value === 'payment_cancelled' || value === 'cancelled') return t('adminStatusCancelled');
     if (value === 'payment_failed' || value === 'denied') return t('adminStatusFailed');
     if (value === 'voided' || value === 'payment_voided') return t('adminStatusVoid');
     if (value === 'pending_payment' || value === 'payment_pending' || value === 'pending_review' || value === 'pending_checkout' || value === 'created') return t('adminStatusPending');
@@ -650,7 +653,14 @@ function toStatusClass(status) {
     ) {
         return 'status-pending';
     }
-    if (value === 'payment_failed' || value === 'denied' || value === 'voided' || value === 'payment_voided') {
+    if (
+        value === 'payment_failed'
+        || value === 'denied'
+        || value === 'voided'
+        || value === 'payment_voided'
+        || value === 'payment_cancelled'
+        || value === 'cancelled'
+    ) {
         return 'status-failed';
     }
     return '';
@@ -2689,6 +2699,29 @@ async function finalizePayPalOrder(orderPublicId, paypalOrderId) {
     return response.json();
 }
 
+async function cancelPayPalOrder(orderPublicId, paypalOrderId) {
+    var response = await fetch('/api/payments/paypal/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            orderPublicId: orderPublicId,
+            paypalOrderId: paypalOrderId
+        })
+    });
+
+    if (!response.ok) {
+        try {
+            var body = await response.json();
+            if (body && body.error) throw new Error(body.error);
+        } catch (error) {
+            if (error instanceof Error) throw error;
+        }
+        throw new Error(t('paypalPaymentError'));
+    }
+
+    return response.json();
+}
+
 function renderCheckoutResult(orderResult, mode) {
     state.latestCheckoutOrder = orderResult;
 
@@ -2736,6 +2769,17 @@ async function handleCheckoutReturnFromPayPal() {
     var paypalOrderId = safeText(url.searchParams.get('token'));
 
     if (url.searchParams.get('paypal_cancel') === '1') {
+        if (orderPublicId) {
+            try {
+                await cancelPayPalOrder(orderPublicId, paypalOrderId);
+                if (ensureCustomerPortalSessionForOrder(orderPublicId)) {
+                    await loadCustomerPortalDetail({ silent: true });
+                }
+            } catch (_) {
+                // Keep cancellation feedback resilient even if the backend state update fails.
+            }
+        }
+        setBookingStatus('idle');
         clearCheckoutQueryParams();
         showToast('error', t('whatsappErrorTitle'), t('paypalCheckoutCancelled'));
         return;

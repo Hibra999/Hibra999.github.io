@@ -8,8 +8,17 @@ const Database = require('better-sqlite3');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SQLITE_DB_PATH = String(process.env.SQLITE_DB_PATH || '').trim()
+    ? path.resolve(__dirname, String(process.env.SQLITE_DB_PATH || '').trim())
+    : path.join(__dirname, 'db', 'lindotours.db');
+const PRIVATE_STORAGE_PATH = String(process.env.PRIVATE_STORAGE_PATH || '').trim()
+    ? path.resolve(__dirname, String(process.env.PRIVATE_STORAGE_PATH || '').trim())
+    : path.join(__dirname, 'storage');
 
-const db = new Database(path.join(__dirname, 'db', 'lindotours.db'));
+fs.mkdirSync(path.dirname(SQLITE_DB_PATH), { recursive: true });
+fs.mkdirSync(PRIVATE_STORAGE_PATH, { recursive: true });
+
+const db = new Database(SQLITE_DB_PATH);
 db.pragma('journal_mode=WAL');
 db.pragma('foreign_keys=ON');
 
@@ -93,9 +102,8 @@ function resolvePublicPath(relativePath) {
 }
 
 function resolvePrivatePath(relativePath) {
-    const projectRoot = path.resolve(__dirname);
-    const privateRoot = path.resolve(__dirname, 'storage');
-    const absolutePath = path.resolve(projectRoot, String(relativePath || ''));
+    const privateRoot = PRIVATE_STORAGE_PATH;
+    const absolutePath = path.resolve(__dirname, String(relativePath || ''));
     if (absolutePath !== privateRoot && !absolutePath.startsWith(privateRoot + path.sep)) return null;
     return absolutePath;
 }
@@ -1154,7 +1162,7 @@ const TRANSFER_PROOF_MIME_TYPES = new Set([
 const transferProofStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const publicId = sanitizeText(req.params && req.params.publicId, 64);
-        const dir = path.join(__dirname, 'storage', 'transfer-proofs', publicId || 'unknown');
+        const dir = path.join(PRIVATE_STORAGE_PATH, 'transfer-proofs', publicId || 'unknown');
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
@@ -1779,6 +1787,60 @@ app.post('/api/payments/paypal/create-order', async (req, res) => {
         console.error('PayPal create order error:', error);
         res.status(502).json({ error: error.message || 'PayPal order creation failed' });
     }
+});
+
+app.post('/api/payments/paypal/cancel', (req, res) => {
+    const orderPublicId = sanitizeText(req.body && req.body.orderPublicId, 64);
+    const paypalOrderId = sanitizeText(req.body && req.body.paypalOrderId, 64);
+    if (!orderPublicId) {
+        return res.status(400).json({ error: 'Missing orderPublicId' });
+    }
+
+    const aggregate = loadOrderAggregateByPublicId(orderPublicId);
+    if (!aggregate || !aggregate.payment) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+    if (aggregate.payment.provider !== 'paypal') {
+        return res.status(400).json({ error: 'Order is not configured for PayPal' });
+    }
+    if (aggregate.payment.paypal_order_id && paypalOrderId && aggregate.payment.paypal_order_id !== paypalOrderId) {
+        return res.status(409).json({ error: 'PayPal order mismatch' });
+    }
+    if (aggregate.order.status === 'paid') {
+        return res.status(409).json({ error: 'Order is already paid' });
+    }
+
+    syncOrderAndPaymentFromPayPal(aggregate.payment, {
+        payment: {
+            status: 'cancelled',
+            provider_status: 'CHECKOUT_CANCELLED',
+            paypal_order_id: aggregate.payment.paypal_order_id || paypalOrderId || null
+        },
+        order: {
+            status: 'payment_cancelled',
+            provider_status: 'CHECKOUT_CANCELLED'
+        }
+    });
+
+    logAudit('guest', aggregate.order.guest_email, 'paypal.cancelled', 'order', aggregate.order.public_id, {
+        paypalOrderId: aggregate.payment.paypal_order_id || paypalOrderId || null
+    });
+
+    const refreshed = loadOrderAggregateByPublicId(orderPublicId);
+    res.json({
+        status: 'ok',
+        order: {
+            publicId: refreshed.order.public_id,
+            status: refreshed.order.status,
+            providerStatus: refreshed.order.provider_status
+        },
+        payment: refreshed.payment ? {
+            id: refreshed.payment.id,
+            status: refreshed.payment.status,
+            providerStatus: refreshed.payment.provider_status,
+            paypalOrderId: refreshed.payment.paypal_order_id
+        } : null
+    });
 });
 
 app.post('/api/payments/paypal/finalize', async (req, res) => {
@@ -2538,9 +2600,12 @@ app.get('/{*path}', (req, res) => {
 
 function startServer(port) {
     const listenPort = port || PORT;
-    return app.listen(listenPort, () => {
-        console.log(`Lindo Tours running on http://localhost:${listenPort}`);
+    const server = app.listen(listenPort, () => {
+        const address = server.address();
+        const boundPort = address && typeof address === 'object' ? address.port : listenPort;
+        console.log(`Lindo Tours running on http://localhost:${boundPort}`);
     });
+    return server;
 }
 
 if (require.main === module) {
@@ -2550,5 +2615,7 @@ if (require.main === module) {
 module.exports = {
     app,
     db,
-    startServer
+    startServer,
+    SQLITE_DB_PATH,
+    PRIVATE_STORAGE_PATH
 };

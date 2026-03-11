@@ -5,7 +5,13 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "smoke": "node scripts/smoke.js all",
+    "smoke:orders": "node scripts/smoke.js orders",
+    "smoke:customer-auth": "node scripts/smoke.js customer-auth",
+    "smoke:bank-transfer": "node scripts/smoke.js bank-transfer",
+    "smoke:admin": "node scripts/smoke.js admin",
+    "smoke:paypal": "node scripts/smoke.js paypal",
+    "test": "node scripts/smoke.js all"
   },
   "repository": {
     "type": "git",
