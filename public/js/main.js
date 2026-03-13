@@ -8,7 +8,7 @@ let state = {
     cart: [],
     checkoutMode: false,
     checkoutStep: 1,
-    selectedPaymentMethod: 'manual_contact',
+    selectedPaymentMethod: 'bank_transfer',
     latestCheckoutOrder: null
 };
 
@@ -27,8 +27,8 @@ let CONFIG = {
     },
     payments: {
         currency: 'USD',
-        paypal: { enabled: false, clientId: null },
-        bankTransfer: { enabled: false }
+        paypal: { enabled: false, clientId: null, feePercent: 0 },
+        bankTransfer: { enabled: false, bankName: null, account: null, cardNumber: null, feePercent: 0 }
     }
 };
 
@@ -122,7 +122,7 @@ const I18N = {
         invalidSlug: 'El slug del tour no es válido.',
         tourSaved: 'Tour guardado correctamente',
         saveError: 'No se pudo guardar el tour',
-        totalToPay: 'Total a pagar',
+        totalToPay: 'Total final',
         closeCart: 'Cerrar carrito',
         removeFromCartAria: 'Eliminar tour del carrito',
         confirmStepInvalid: 'Completa los campos obligatorios antes de confirmar.',
@@ -133,24 +133,41 @@ const I18N = {
         backToCart: 'Volver al carrito',
         editDetails: 'Editar datos',
         paymentMethod: 'Método de pago',
-        paymentMethodHelp: 'Elige la forma más conveniente para completar tu reservación.',
-        paymentPayPal: 'PayPal',
-        paymentPayPalDesc: 'Pago inmediato con PayPal o tarjeta.',
+        paymentMethodHelp: 'Elige cómo quieres completar tu reservación.',
+        paymentPayPal: 'PayPal / Tarjeta',
+        paymentPayPalDesc: 'Paga online con comisión.',
         paymentTransfer: 'Transferencia bancaria',
-        paymentTransferDesc: 'Recibe CLABE, referencia exacta y sube tu comprobante.',
+        paymentTransferDesc: 'Recibe CLABE, cuenta y referencia exacta para transferir.',
         paymentManual: 'Reservar por contacto',
         paymentManualDesc: 'Envía tu solicitud por WhatsApp o email para confirmación manual.',
-        continueWithPayPal: 'Pagar con PayPal',
+        continueWithPayPal: 'Pagar online',
         getTransferInstructions: 'Ver datos para transferencia',
         sendReservationEmail: 'Enviar reservación por email',
         sendReservationWhatsApp: 'Enviar por WhatsApp',
         orderNumber: 'Número de orden',
+        subtotal: 'Subtotal',
+        commission: 'Comisión',
+        totalFinal: 'Total final',
         bankName: 'Banco',
         beneficiary: 'Beneficiario',
         clabe: 'CLABE',
+        account: 'Cuenta',
+        depositCard: 'Tarjeta para depósito',
         swift: 'SWIFT / BIC',
         reference: 'Referencia',
         expiresAt: 'Vence',
+        copy: 'Copiar',
+        copiedTitle: 'Copiado',
+        copiedMessage: 'Dato copiado al portapapeles.',
+        copyFailed: 'No se pudo copiar el dato.',
+        paymentHelpTitle: '¿Necesitas ayuda para pagar?',
+        paymentHelpText: 'Te apoyamos por WhatsApp sin cambiar el método de pago de tu orden.',
+        paymentHelpWhatsApp: 'Ayuda por WhatsApp',
+        paymentLegendPayPal: 'PayPal / Tarjeta',
+        paymentLegendTransfer: 'Transferencia',
+        noCommission: 'Sin comisión',
+        supportPaymentMessage: 'Hola, necesito ayuda para completar el pago de mi reservación.',
+        selectedPaymentMethod: 'Método elegido',
         uploadProofTitle: 'Subir comprobante',
         uploadProofHelp: 'El screenshot no confirma pago por sí solo, pero nos ayuda a iniciar la revisión.',
         uploadProofButton: 'Subir comprobante',
@@ -306,7 +323,7 @@ const I18N = {
         invalidSlug: 'The tour slug is invalid.',
         tourSaved: 'Tour saved successfully',
         saveError: 'Tour could not be saved',
-        totalToPay: 'Total to pay',
+        totalToPay: 'Final total',
         closeCart: 'Close cart',
         removeFromCartAria: 'Remove tour from cart',
         confirmStepInvalid: 'Complete required fields before confirming.',
@@ -318,23 +335,40 @@ const I18N = {
         editDetails: 'Edit details',
         paymentMethod: 'Payment method',
         paymentMethodHelp: 'Choose how you want to complete your booking.',
-        paymentPayPal: 'PayPal',
-        paymentPayPalDesc: 'Immediate payment with PayPal or card.',
+        paymentPayPal: 'PayPal / Card',
+        paymentPayPalDesc: 'Pay online with a fee.',
         paymentTransfer: 'Bank transfer',
-        paymentTransferDesc: 'Get CLABE details, an exact reference, and upload your proof.',
+        paymentTransferDesc: 'Get CLABE, account, and the exact transfer reference.',
         paymentManual: 'Book by contact',
         paymentManualDesc: 'Send your request by WhatsApp or email for manual confirmation.',
-        continueWithPayPal: 'Pay with PayPal',
+        continueWithPayPal: 'Pay online',
         getTransferInstructions: 'Get transfer instructions',
         sendReservationEmail: 'Send booking by email',
         sendReservationWhatsApp: 'Send via WhatsApp',
         orderNumber: 'Order number',
+        subtotal: 'Subtotal',
+        commission: 'Fee',
+        totalFinal: 'Final total',
         bankName: 'Bank',
         beneficiary: 'Beneficiary',
         clabe: 'CLABE',
+        account: 'Account',
+        depositCard: 'Deposit card',
         swift: 'SWIFT / BIC',
         reference: 'Reference',
         expiresAt: 'Expires',
+        copy: 'Copy',
+        copiedTitle: 'Copied',
+        copiedMessage: 'Copied to clipboard.',
+        copyFailed: 'The value could not be copied.',
+        paymentHelpTitle: 'Need help paying?',
+        paymentHelpText: 'We can help you on WhatsApp without changing your order payment method.',
+        paymentHelpWhatsApp: 'WhatsApp help',
+        paymentLegendPayPal: 'PayPal / Card',
+        paymentLegendTransfer: 'Transfer',
+        noCommission: 'No fee',
+        supportPaymentMessage: 'Hi, I need help completing the payment for my booking.',
+        selectedPaymentMethod: 'Selected method',
         uploadProofTitle: 'Upload proof',
         uploadProofHelp: 'A screenshot alone does not confirm payment, but it helps us start the review.',
         uploadProofButton: 'Upload proof',
@@ -512,6 +546,16 @@ function safeInt(value, fallback) {
     return Number.isFinite(n) ? Math.round(n) : fallback;
 }
 
+function safeNumber(value, fallback) {
+    var n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+function roundCurrencyAmount(value) {
+    var n = safeNumber(value, NaN);
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+}
+
 function parseJson(value, fallback) {
     try {
         return JSON.parse(value);
@@ -537,19 +581,18 @@ function formatDateTime(value) {
 
 function getConfiguredPaymentMethods() {
     var methods = [];
-    if (CONFIG.payments && CONFIG.payments.paypal && CONFIG.payments.paypal.enabled) {
-        methods.push('paypal');
-    }
     if (CONFIG.payments && CONFIG.payments.bankTransfer && CONFIG.payments.bankTransfer.enabled) {
         methods.push('bank_transfer');
     }
-    methods.push('manual_contact');
+    if (CONFIG.payments && CONFIG.payments.paypal && CONFIG.payments.paypal.enabled) {
+        methods.push('paypal');
+    }
     return methods;
 }
 
 function getDefaultPaymentMethod() {
     var available = getConfiguredPaymentMethods();
-    return available[0] || 'manual_contact';
+    return available[0] || '';
 }
 
 function ensureSelectedPaymentMethod() {
@@ -576,8 +619,33 @@ function clearCheckoutResult() {
     if (proofFile) proofFile.value = '';
 }
 
-function appendCheckoutResultItem(container, label, value) {
+async function copyTextValue(value) {
+    var text = safeText(value);
+    if (!text) return;
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            var helper = document.createElement('textarea');
+            helper.value = text;
+            helper.setAttribute('readonly', 'readonly');
+            helper.style.position = 'absolute';
+            helper.style.left = '-9999px';
+            document.body.appendChild(helper);
+            helper.select();
+            document.execCommand('copy');
+            document.body.removeChild(helper);
+        }
+        showToast('success', t('copiedTitle'), t('copiedMessage'));
+    } catch (_) {
+        showToast('error', t('whatsappErrorTitle'), t('copyFailed'));
+    }
+}
+
+function appendCheckoutResultItem(container, label, value, options) {
     if (!container) return;
+    var opts = options || {};
 
     var item = document.createElement('div');
     item.className = 'checkout-result-item';
@@ -585,11 +653,27 @@ function appendCheckoutResultItem(container, label, value) {
     var labelEl = document.createElement('span');
     labelEl.textContent = label;
 
+    var valueWrap = document.createElement('div');
+    valueWrap.className = 'checkout-result-item-value';
+
     var valueEl = document.createElement('strong');
     valueEl.textContent = value;
 
     item.appendChild(labelEl);
-    item.appendChild(valueEl);
+    valueWrap.appendChild(valueEl);
+
+    if (opts.copyValue) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'checkout-copy-btn';
+        button.textContent = t('copy');
+        button.addEventListener('click', function () {
+            copyTextValue(opts.copyValue);
+        });
+        valueWrap.appendChild(button);
+    }
+
+    item.appendChild(valueWrap);
     container.appendChild(item);
 }
 
@@ -613,15 +697,115 @@ function clearCheckoutQueryParams() {
 
 function formatCurrency(amount, currency) {
     var normalizedCurrency = safeText(currency || (CONFIG.payments && CONFIG.payments.currency) || 'USD').toUpperCase();
-    return '$' + safeInt(amount, 0) + ' ' + normalizedCurrency;
+    var normalizedAmount = roundCurrencyAmount(amount);
+    var amountText = normalizedAmount % 1 === 0 ? String(normalizedAmount.toFixed(0)) : normalizedAmount.toFixed(2);
+    return '$' + amountText + ' ' + normalizedCurrency;
 }
 
-function normalizePaymentMethodLabel(method) {
+function formatFeePercent(value) {
+    var amount = roundCurrencyAmount(value);
+    return amount % 1 === 0 ? String(amount.toFixed(0)) : amount.toFixed(2);
+}
+
+function getPaymentFeePercent(method) {
+    if (method === 'paypal') {
+        return roundCurrencyAmount(CONFIG.payments && CONFIG.payments.paypal ? CONFIG.payments.paypal.feePercent : 0);
+    }
+    if (method === 'bank_transfer') {
+        return roundCurrencyAmount(CONFIG.payments && CONFIG.payments.bankTransfer ? CONFIG.payments.bankTransfer.feePercent : 0);
+    }
+    return 0;
+}
+
+function getCartPricingBreakdown(method) {
+    var subtotal = roundCurrencyAmount(getCartTotalUSD());
+    var feePercent = getPaymentFeePercent(method || getSelectedPaymentMethod());
+    var feeAmount = roundCurrencyAmount(subtotal * (feePercent / 100));
+    return {
+        subtotal: subtotal,
+        feePercent: feePercent,
+        feeAmount: feeAmount,
+        totalFinal: roundCurrencyAmount(subtotal + feeAmount)
+    };
+}
+
+function getPaymentTitle(method, feePercentOverride) {
+    var bankName = safeText(CONFIG.payments && CONFIG.payments.bankTransfer ? CONFIG.payments.bankTransfer.bankName : '').trim();
+    var feePercentValue = Number.isFinite(safeNumber(feePercentOverride, NaN)) ? roundCurrencyAmount(feePercentOverride) : getPaymentFeePercent(method);
+    var feePercent = formatFeePercent(feePercentValue);
+
+    if (method === 'paypal') {
+        return t('paymentPayPal') + (feePercentValue > 0 ? ' +' + feePercent + '%' : '');
+    }
+    if (method === 'bank_transfer') {
+        return t('paymentTransfer') + (bankName ? ' ' + bankName : '');
+    }
+    if (method === 'manual_contact') return t('paymentManual');
+    return safeText(method).replace(/_/g, ' ') || t('notSpecified');
+}
+
+function getPaymentDescription(method) {
+    var bankName = safeText(CONFIG.payments && CONFIG.payments.bankTransfer ? CONFIG.payments.bankTransfer.bankName : '').trim();
+    var feePercentValue = getPaymentFeePercent(method);
+    var feePercent = formatFeePercent(feePercentValue);
+
+    if (method === 'paypal') {
+        if (feePercentValue > 0) {
+            return state.language === 'en'
+                ? 'Pay online with PayPal or card. +' + feePercent + '% fee.'
+                : 'Paga online con PayPal o tarjeta. +' + feePercent + '% de comisión.';
+        }
+        return state.language === 'en'
+            ? 'Pay online with PayPal or card.'
+            : 'Paga online con PayPal o tarjeta.';
+    }
+    if (method === 'bank_transfer') {
+        if (state.language === 'en') {
+            return (bankName ? bankName + '. ' : '') + 'No fee. Get CLABE, account, and the exact transfer reference.';
+        }
+        return (bankName ? bankName + '. ' : '') + 'Sin comisión. Recibe CLABE, cuenta y la referencia exacta para transferir.';
+    }
+    return t('paymentManualDesc');
+}
+
+function getPayPalCtaLabel() {
+    var feePercent = getPaymentFeePercent('paypal');
+    if (feePercent > 0) {
+        return state.language === 'en'
+            ? 'Pay online +' + formatFeePercent(feePercent) + '%'
+            : 'Pagar online +' + formatFeePercent(feePercent) + '%';
+    }
+    return t('continueWithPayPal');
+}
+
+function normalizePaymentMethodLabel(method, feePercentOverride) {
     var value = safeText(method).toLowerCase();
-    if (value === 'paypal') return t('paymentPayPal');
-    if (value === 'bank_transfer') return t('paymentTransfer');
+    if (value === 'paypal') return getPaymentTitle('paypal', feePercentOverride);
+    if (value === 'bank_transfer') return getPaymentTitle('bank_transfer', feePercentOverride);
     if (value === 'manual_contact') return t('paymentManual');
     return value ? value.replace(/_/g, ' ') : t('notSpecified');
+}
+
+function renderPaymentMethodCopy() {
+    var paypalTitle = document.getElementById('payment-option-paypal-title');
+    var paypalDesc = document.getElementById('payment-option-paypal-desc');
+    var transferTitle = document.getElementById('payment-option-bank-transfer-title');
+    var transferDesc = document.getElementById('payment-option-bank-transfer-desc');
+    var transferLegend = document.getElementById('payment-legend-transfer');
+    var paypalLegend = document.getElementById('payment-legend-paypal');
+    var payLabel = document.getElementById('pay-paypal-label');
+
+    if (paypalTitle) paypalTitle.textContent = getPaymentTitle('paypal');
+    if (paypalDesc) paypalDesc.textContent = getPaymentDescription('paypal');
+    if (transferTitle) transferTitle.textContent = getPaymentTitle('bank_transfer');
+    if (transferDesc) transferDesc.textContent = getPaymentDescription('bank_transfer');
+    if (transferLegend) {
+        transferLegend.textContent = t('paymentLegendTransfer') + ': ' + (getPaymentFeePercent('bank_transfer') > 0 ? '+' + formatFeePercent(getPaymentFeePercent('bank_transfer')) + '%' : t('noCommission'));
+    }
+    if (paypalLegend) {
+        paypalLegend.textContent = t('paymentLegendPayPal') + ': ' + (getPaymentFeePercent('paypal') > 0 ? '+' + formatFeePercent(getPaymentFeePercent('paypal')) + '%' : t('noCommission'));
+    }
+    if (payLabel) payLabel.textContent = getPayPalCtaLabel();
 }
 
 function normalizeStatusLabel(status) {
@@ -1348,6 +1532,16 @@ function getActiveCustomerOrderAccess(publicId) {
     };
 }
 
+function buildPricingDetailItems(record) {
+    var feePercent = roundCurrencyAmount(record && record.feePercent);
+    var totalValue = record && (record.totalFinal != null ? record.totalFinal : (record.total != null ? record.total : record.amount));
+    return [
+        { label: t('subtotal'), value: formatCurrency(record && record.subtotal, record && record.currency) },
+        { label: t('commission') + (feePercent > 0 ? ' (+' + formatFeePercent(feePercent) + '%)' : ''), value: feePercent > 0 ? formatCurrency(record && record.feeAmount, record && record.currency) : t('noCommission') },
+        { label: t('totalFinal'), value: formatCurrency(totalValue, record && record.currency) }
+    ];
+}
+
 function renderCustomerPortalResult() {
     var container = document.getElementById('orders-portal-result');
     if (!container) return;
@@ -1437,21 +1631,26 @@ function renderCustomerPortalResult() {
             { label: t('name'), value: order.guestName || t('notSpecified') },
             { label: t('email'), value: order.guestEmail || t('notSpecified') },
             { label: t('phone'), value: order.guestPhone || t('notSpecified') },
-            { label: t('total'), value: formatCurrency(order.total, order.currency) },
             { label: t('adminOrderStatus'), value: normalizeStatusLabel(order.status) },
             { label: t('tourDate'), value: order.serviceDate || t('notSpecified') },
             { label: t('pickupTime'), value: order.pickupTime || t('notSpecified') },
             { label: t('hotel'), value: order.hotel || t('notSpecified') },
             { label: t('comments'), value: order.comments || t('noComments') }
-        ]) + '</div></div>'
+        ].concat(buildPricingDetailItems(order))) + '</div></div>'
         + '<div class="orders-portal-panel"><h4>' + escapeHtml(t('portalPaymentSummary')) + '</h4><div class="orders-portal-list">' + buildPortalDetailList([
-            { label: t('paymentMethod'), value: normalizePaymentMethodLabel(order.paymentMethod) },
-            { label: t('portalPaymentProvider'), value: payment ? normalizePaymentMethodLabel(payment.provider) : normalizePaymentMethodLabel(order.paymentMethod) },
+            { label: t('paymentMethod'), value: normalizePaymentMethodLabel(order.paymentMethod, order.feePercent) },
+            { label: t('portalPaymentProvider'), value: payment ? normalizePaymentMethodLabel(payment.provider, payment.feePercent) : normalizePaymentMethodLabel(order.paymentMethod, order.feePercent) },
             { label: t('adminPaymentStatus'), value: payment ? normalizeStatusLabel(payment.status) : normalizeStatusLabel(order.status) },
             { label: t('adminProviderStatus'), value: (payment && payment.providerStatus) || order.providerStatus || t('notSpecified') },
             { label: t('reference'), value: order.bankReference || t('notSpecified') },
             { label: t('expiresAt'), value: formatDateTime(order.expiresAt) }
-        ]) + '</div></div>'
+        ].concat(payment ? buildPricingDetailItems(payment) : []).concat(detail.bankTransfer ? [
+            { label: t('bankName'), value: detail.bankTransfer.bankName || t('notSpecified') },
+            { label: t('beneficiary'), value: detail.bankTransfer.beneficiary || t('notSpecified') },
+            { label: t('clabe'), value: detail.bankTransfer.clabe || t('notSpecified') },
+            { label: t('account'), value: detail.bankTransfer.account || t('notSpecified') },
+            { label: t('depositCard'), value: detail.bankTransfer.cardNumber || t('notSpecified') }
+        ] : [])) + '</div></div>'
         + '</div>'
         + '<div class="orders-portal-panel"><h4>' + escapeHtml(t('portalServicesTitle')) + '</h4><div class="orders-portal-services">' + itemsHtml + '</div></div>'
         + '<div class="orders-portal-grid">'
@@ -1580,7 +1779,7 @@ function renderCustomerAccountOrders() {
         html += '<div class="admin-order-row-bottom">';
         html += '<div class="admin-order-row-meta">';
         html += '<span class="admin-order-chip ' + escapeAttr(toStatusClass(order.status)) + '">' + escapeHtml(normalizeStatusLabel(order.status)) + '</span>';
-        html += '<span class="admin-order-chip">' + escapeHtml(normalizePaymentMethodLabel(order.paymentMethod)) + '</span>';
+        html += '<span class="admin-order-chip">' + escapeHtml(normalizePaymentMethodLabel(order.paymentMethod, order.feePercent)) + '</span>';
         html += '</div>';
         html += '<div class="admin-order-row-name">' + escapeHtml(formatDateTime(order.createdAt)) + '</div>';
         html += '</div>';
@@ -2213,7 +2412,7 @@ function renderAdminOrdersList() {
         html += '<div class="admin-order-row-meta">';
         html += '<span class="admin-order-chip ' + escapeAttr(toStatusClass(row.status)) + '">' + escapeHtml(normalizeStatusLabel(row.status)) + '</span>';
         html += '<span class="admin-order-chip">' + escapeHtml(normalizeStatusLabel(row.payment_status || row.payment_method)) + '</span>';
-        html += '<span class="admin-order-chip">' + escapeHtml(safeText(row.payment_method || '').replace(/_/g, ' ') || t('notSpecified')) + '</span>';
+        html += '<span class="admin-order-chip">' + escapeHtml(normalizePaymentMethodLabel(row.payment_method, row.fee_percent)) + '</span>';
         html += '</div>';
         html += '<div class="admin-order-row-name">' + escapeHtml(formatDateTime(row.created_at)) + '</div>';
         html += '</div>';
@@ -2289,13 +2488,25 @@ function renderAdminOrderDetail() {
             { label: t('comments'), value: order.comments || t('noComments') }
         ]) + '</div></div>'
         + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminPayment')) + '</h6><div class="admin-detail-list">' + buildAdminDetailList([
-            { label: t('adminMethod'), value: order.payment_method || t('notSpecified') },
-            { label: t('adminAmount'), value: formatCurrency(order.total, order.currency) },
+            { label: t('adminMethod'), value: normalizePaymentMethodLabel(order.payment_method, order.fee_percent) },
             { label: t('adminOrderStatus'), value: normalizeStatusLabel(order.status) },
             { label: t('adminProviderStatus'), value: order.provider_status || t('notSpecified') },
             { label: t('adminServiceDate'), value: order.service_date || t('notSpecified') },
             { label: t('pickupTime'), value: order.pickup_time || t('notSpecified') }
-        ].concat(payment ? [
+        ].concat(buildPricingDetailItems({
+            subtotal: order.subtotal,
+            feePercent: order.fee_percent,
+            feeAmount: order.fee_amount,
+            totalFinal: order.total_final || order.total,
+            currency: order.currency
+        })).concat(detail.bankTransfer ? [
+            { label: t('bankName'), value: detail.bankTransfer.bankName || t('notSpecified') },
+            { label: t('beneficiary'), value: detail.bankTransfer.beneficiary || t('notSpecified') },
+            { label: t('clabe'), value: detail.bankTransfer.clabe || t('notSpecified') },
+            { label: t('account'), value: detail.bankTransfer.account || t('notSpecified') },
+            { label: t('depositCard'), value: detail.bankTransfer.cardNumber || t('notSpecified') }
+        ] : []).concat(payment ? [
+            { label: t('adminAmount'), value: formatCurrency(payment.total_final || payment.amount, order.currency) },
             { label: t('adminPaymentId'), value: String(payment.id) },
             { label: t('adminPaymentStatus'), value: normalizeStatusLabel(payment.status) },
             { label: t('adminIntent'), value: payment.intent || t('notSpecified') }
@@ -2504,6 +2715,9 @@ function applyDataTranslations() {
     if (closeCartBtn) {
         closeCartBtn.setAttribute('aria-label', t('closeCart'));
     }
+
+    renderPaymentMethodCopy();
+    renderCheckoutPricingSummary();
 }
 
 function getSelectedPaymentMethod() {
@@ -2545,14 +2759,12 @@ function updatePaymentMethodUI() {
         }
     });
 
-    var manualSelected = selected === 'manual_contact';
-    var previewsVisible = state.checkoutStep === 3 && manualSelected;
     var whatsappPreview = document.getElementById('whatsapp-preview');
     var emailPreview = document.getElementById('email-preview');
-    if (whatsappPreview && !manualSelected) whatsappPreview.style.display = 'none';
-    if (emailPreview && !manualSelected) emailPreview.style.display = 'none';
-    if (state.checkoutStep === 3 && previewsVisible) updatePreviews();
+    if (whatsappPreview) whatsappPreview.style.display = 'none';
+    if (emailPreview) emailPreview.style.display = 'none';
 
+    renderCheckoutPricingSummary();
     syncCheckoutActionButtons();
 }
 
@@ -2574,6 +2786,7 @@ function syncCheckoutActionButtons() {
     var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
     var payPayPalBtn = document.getElementById('pay-paypal-btn');
     var bankTransferBtn = document.getElementById('bank-transfer-btn');
+    var paymentHelpCard = document.getElementById('payment-help-card');
 
     if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
     if (confirmBtn) confirmBtn.style.display = hasItems && nextStep === 2 ? 'flex' : 'none';
@@ -2584,6 +2797,7 @@ function syncCheckoutActionButtons() {
     if (bankTransferBtn) bankTransferBtn.style.display = hasItems && nextStep === 3 && selected === 'bank_transfer' && !hasActiveResult ? 'flex' : 'none';
     if (sendEmailBtn) sendEmailBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
     if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
+    if (paymentHelpCard) paymentHelpCard.hidden = !(hasItems && nextStep === 3 && CONFIG.whatsapp && CONFIG.whatsapp.phone);
 }
 
 function initPaymentMethodOptions() {
@@ -2738,13 +2952,35 @@ function renderCheckoutResult(orderResult, mode) {
     grid.replaceChildren();
     if (proofBox) proofBox.hidden = true;
 
+    if (orderResult && orderResult.order) {
+        var finalTotal = orderResult.order.totalFinal != null ? orderResult.order.totalFinal : orderResult.order.total;
+        appendCheckoutResultItem(grid, t('subtotal'), formatCurrency(orderResult.order.subtotal, orderResult.order.currency));
+        appendCheckoutResultItem(
+            grid,
+            t('commission') + (orderResult.order.feePercent > 0 ? ' (+' + formatFeePercent(orderResult.order.feePercent) + '%)' : ''),
+            orderResult.order.feePercent > 0 ? formatCurrency(orderResult.order.feeAmount, orderResult.order.currency) : t('noCommission')
+        );
+        appendCheckoutResultItem(grid, t('totalFinal'), formatCurrency(finalTotal, orderResult.order.currency));
+    }
+
     if (mode === 'bank_transfer' && orderResult.bankTransfer) {
         message.textContent = t('transferInstructionsReady') + ' ' + t('transferExactMatchNote');
-        appendCheckoutResultItem(grid, t('total'), '$' + safeInt(orderResult.order.total, 0) + ' ' + safeText(orderResult.order.currency || 'USD'));
         appendCheckoutResultItem(grid, t('bankName'), safeText(orderResult.bankTransfer.bankName || t('notSpecified')));
         appendCheckoutResultItem(grid, t('beneficiary'), safeText(orderResult.bankTransfer.beneficiary || t('notSpecified')));
-        appendCheckoutResultItem(grid, t('clabe'), safeText(orderResult.bankTransfer.clabe || t('notSpecified')));
-        appendCheckoutResultItem(grid, t('reference'), safeText(orderResult.bankTransfer.reference || t('notSpecified')));
+        appendCheckoutResultItem(grid, t('clabe'), safeText(orderResult.bankTransfer.clabe || t('notSpecified')), {
+            copyValue: orderResult.bankTransfer.clabe || ''
+        });
+        if (orderResult.bankTransfer.account) {
+            appendCheckoutResultItem(grid, t('account'), safeText(orderResult.bankTransfer.account), {
+                copyValue: orderResult.bankTransfer.account
+            });
+        }
+        if (orderResult.bankTransfer.cardNumber) {
+            appendCheckoutResultItem(grid, t('depositCard'), safeText(orderResult.bankTransfer.cardNumber));
+        }
+        appendCheckoutResultItem(grid, t('reference'), safeText(orderResult.bankTransfer.reference || t('notSpecified')), {
+            copyValue: orderResult.bankTransfer.reference || ''
+        });
         if (orderResult.bankTransfer.swift) {
             appendCheckoutResultItem(grid, t('swift'), safeText(orderResult.bankTransfer.swift));
         }
@@ -2755,7 +2991,6 @@ function renderCheckoutResult(orderResult, mode) {
 
     if (mode === 'manual_contact') {
         message.textContent = t('manualOrderCreated') + ' ' + t('manualOrderReference');
-        appendCheckoutResultItem(grid, t('total'), '$' + safeInt(orderResult.order.total, 0) + ' ' + safeText(orderResult.order.currency || 'USD'));
         appendCheckoutResultItem(grid, t('paymentMethod'), t('paymentManual'));
         return;
     }
@@ -3325,23 +3560,48 @@ function getCartTotalUSD() {
     }, 0);
 }
 
-function updateCartTotal() {
-    var total = getCartTotalUSD();
+function formatFeeAmountValue(breakdown) {
+    if (!breakdown || (breakdown.feePercent <= 0 && breakdown.feeAmount <= 0)) {
+        return t('noCommission');
+    }
+    return formatCurrency(breakdown.feeAmount, CONFIG.payments && CONFIG.payments.currency);
+}
 
-    var amount = document.getElementById('cart-total-amount');
-    if (amount) {
-        amount.textContent = '$' + total + ' USD';
+function renderCheckoutPricingSummary() {
+    var breakdown = getCartPricingBreakdown(getSelectedPaymentMethod());
+    var subtotalText = formatCurrency(breakdown.subtotal, CONFIG.payments && CONFIG.payments.currency);
+    var feeLabel = t('commission') + (breakdown.feePercent > 0 ? ' (+' + formatFeePercent(breakdown.feePercent) + '%)' : '');
+    var feeText = formatFeeAmountValue(breakdown);
+    var totalText = formatCurrency(breakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency);
+
+    var cartSubtotal = document.getElementById('cart-subtotal-amount');
+    var cartFeeLabel = document.getElementById('cart-fee-label');
+    var cartFee = document.getElementById('cart-fee-amount');
+    var cartTotal = document.getElementById('cart-total-amount');
+    var confirmSubtotal = document.getElementById('confirm-subtotal-amount');
+    var confirmFeeLabel = document.getElementById('confirm-fee-label');
+    var confirmFee = document.getElementById('confirm-fee-amount');
+    var confirmTotal = document.getElementById('confirm-total-amount');
+    var mobileAmount = document.getElementById('mobile-summary-total');
+    var mobileLabel = document.getElementById('mobile-summary-label');
+
+    if (cartSubtotal) cartSubtotal.textContent = subtotalText;
+    if (cartFeeLabel) cartFeeLabel.textContent = feeLabel;
+    if (cartFee) cartFee.textContent = feeText;
+    if (cartTotal) {
+        cartTotal.textContent = totalText;
         triggerNumberBump('cart-total-amount');
     }
-
-    var confirmAmount = document.getElementById('confirm-total-amount');
-    if (confirmAmount) confirmAmount.textContent = '$' + total + ' USD';
-
-    var mobileAmount = document.getElementById('mobile-summary-total');
-    if (mobileAmount) mobileAmount.textContent = '$' + total + ' USD';
-
-    var mobileLabel = document.getElementById('mobile-summary-label');
+    if (confirmSubtotal) confirmSubtotal.textContent = subtotalText;
+    if (confirmFeeLabel) confirmFeeLabel.textContent = feeLabel;
+    if (confirmFee) confirmFee.textContent = feeText;
+    if (confirmTotal) confirmTotal.textContent = totalText;
+    if (mobileAmount) mobileAmount.textContent = totalText;
     if (mobileLabel) mobileLabel.textContent = t('totalToPay');
+}
+
+function updateCartTotal() {
+    renderCheckoutPricingSummary();
 }
 
 function loadState() {
@@ -3468,7 +3728,7 @@ function updateCartUI() {
         });
 
         cartItems.innerHTML = html;
-        totalSection.style.display = 'flex';
+        totalSection.style.display = 'block';
         if (state.checkoutStep < 1 || state.checkoutStep > 3) state.checkoutStep = 1;
     }
 
@@ -3653,8 +3913,7 @@ function renderConfirmSummary() {
         appendConfirmSummaryRow(cartSummary, summaryLabel, '$' + safeInt(item.subtotalUSD, 0) + ' USD');
     });
 
-    var confirmTotalAmount = document.getElementById('confirm-total-amount');
-    if (confirmTotalAmount) confirmTotalAmount.textContent = '$' + getCartTotalUSD() + ' USD';
+    renderCheckoutPricingSummary();
 }
 
 function focusCheckoutStep(step) {
@@ -3742,6 +4001,7 @@ function goToCheckoutStep(step, options) {
 function buildWhatsAppMessage(options) {
     var opts = options || {};
     var lines = [];
+    var breakdown = getCartPricingBreakdown(getSelectedPaymentMethod());
 
     lines.push(t('newBooking'));
     lines.push('');
@@ -3763,9 +4023,10 @@ function buildWhatsAppMessage(options) {
         lines.push(line);
     });
 
-    var total = getCartTotalUSD();
     lines.push('');
-    lines.push('*TOTAL: $' + total + ' USD*');
+    lines.push('*' + t('subtotal').toUpperCase() + ': ' + formatCurrency(breakdown.subtotal, CONFIG.payments && CONFIG.payments.currency) + '*');
+    lines.push('*' + t('commission').toUpperCase() + ': ' + formatFeeAmountValue(breakdown) + '*');
+    lines.push('*' + t('totalFinal').toUpperCase() + ': ' + formatCurrency(breakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency) + '*');
 
     if (opts.orderPublicId) {
         lines.push('');
@@ -3779,6 +4040,36 @@ function buildWhatsAppMessage(options) {
     }
 
     return lines.join('\n');
+}
+
+function buildPaymentSupportWhatsAppMessage() {
+    var breakdown = getCartPricingBreakdown(getSelectedPaymentMethod());
+    var lines = [
+        t('supportPaymentMessage'),
+        '',
+        '*' + document.getElementById('customer-name').value + '*',
+        document.getElementById('tour-date').value,
+        document.getElementById('customer-phone').value,
+        '',
+        '*' + t('selectedPaymentMethod') + ':* ' + normalizePaymentMethodLabel(getSelectedPaymentMethod()),
+        '*' + t('subtotal') + ':* ' + formatCurrency(breakdown.subtotal, CONFIG.payments && CONFIG.payments.currency),
+        '*' + t('commission') + ':* ' + formatFeeAmountValue(breakdown),
+        '*' + t('totalFinal') + ':* ' + formatCurrency(breakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency)
+    ];
+
+    var comments = safeText(document.getElementById('customer-comments').value).trim();
+    if (comments) {
+        lines.push('');
+        lines.push(comments);
+    }
+
+    return lines.join('\n');
+}
+
+function openPaymentSupportWhatsApp() {
+    if (!CONFIG.whatsapp || !CONFIG.whatsapp.phone) return;
+    if (!validateCheckoutSubmission()) return;
+    window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(buildPaymentSupportWhatsAppMessage()), '_blank');
 }
 
 function appendEmailRow(container, label, value) {
@@ -3875,7 +4166,8 @@ function proceedToConfirmation() {
 }
 
 function buildBookingPayload() {
-    var total = getCartTotalUSD();
+    var paymentMethod = getSelectedPaymentMethod();
+    var breakdown = getCartPricingBreakdown(paymentMethod);
 
     return {
         name: document.getElementById('customer-name').value,
@@ -3886,7 +4178,11 @@ function buildBookingPayload() {
         hotel: document.getElementById('customer-hotel').value || '',
         comments: document.getElementById('customer-comments').value || '',
         cart: state.cart,
-        total: total
+        subtotal: breakdown.subtotal,
+        feePercent: breakdown.feePercent,
+        feeAmount: breakdown.feeAmount,
+        total: breakdown.totalFinal,
+        totalFinal: breakdown.totalFinal
     };
 }
 

@@ -78,8 +78,11 @@ function setupEnvironment(rootDir) {
     process.env.BANK_TRANSFER_BENEFICIARY = 'Smoke Beneficiary';
     process.env.BANK_TRANSFER_CLABE = '012345678901234567';
     process.env.BANK_TRANSFER_ACCOUNT = '1234567890';
+    process.env.BANK_TRANSFER_CARD_NUMBER = '4111111111111111';
     process.env.BANK_TRANSFER_SWIFT = 'SMOKEMX1';
     process.env.BANK_TRANSFER_REFERENCE_PREFIX = 'SMK';
+    process.env.PAYPAL_FEE_PERCENT = '5';
+    process.env.BANK_TRANSFER_FEE_PERCENT = '0';
 }
 
 async function createContext(baseUrl, paypal) {
@@ -192,6 +195,7 @@ async function runBankTransferScenario(ctx) {
     assert.equal(created.order.status, 'awaiting_transfer');
     assert.ok(created.payment);
     assert.ok(created.bankTransfer);
+    assert.equal(created.bankTransfer.cardNumber, process.env.BANK_TRANSFER_CARD_NUMBER);
 
     const form = new FormData();
     form.append('submitted_reference', created.bankTransfer.reference);
@@ -386,6 +390,15 @@ async function createCheckoutOrder(ctx, options) {
         paymentMethod: options.paymentMethod,
         currency: 'USD'
     });
+    const expectedSubtotal = tier.adults * tier.adultPrice;
+    const expectedFeePercent = options.paymentMethod === 'paypal' ? Number(process.env.PAYPAL_FEE_PERCENT) : 0;
+    const expectedFeeAmount = roundMoney(quote.subtotal * (expectedFeePercent / 100));
+
+    assert.equal(quote.subtotal, expectedSubtotal);
+    assert.equal(quote.feePercent, expectedFeePercent);
+    assert.equal(quote.feeAmount, expectedFeeAmount);
+    assert.equal(quote.totalFinal, roundMoney(quote.subtotal + quote.feeAmount));
+    assert.equal(quote.total, quote.totalFinal);
 
     const body = {
         guestName: 'Smoke Test',
@@ -402,7 +415,21 @@ async function createCheckoutOrder(ctx, options) {
         source: 'smoke'
     };
 
-    return postJson(ctx.baseUrl, '/api/orders', body);
+    const created = await postJson(ctx.baseUrl, '/api/orders', body);
+    assert.equal(created.order.subtotal, quote.subtotal);
+    assert.equal(created.order.feePercent, quote.feePercent);
+    assert.equal(created.order.feeAmount, quote.feeAmount);
+    assert.equal(created.order.totalFinal, quote.totalFinal);
+    assert.equal(created.order.total, quote.totalFinal);
+    if (created.payment) {
+        assert.equal(created.payment.subtotal, quote.subtotal);
+        assert.equal(created.payment.feePercent, quote.feePercent);
+        assert.equal(created.payment.feeAmount, quote.feeAmount);
+        assert.equal(created.payment.totalFinal, quote.totalFinal);
+        assert.equal(created.payment.amount, quote.totalFinal);
+    }
+
+    return created;
 }
 
 async function createPayPalOrder(baseUrl, orderPublicId) {
@@ -507,6 +534,10 @@ function pickTier(tour) {
         : [];
     assert.ok(tiers.length > 0, `Expected pricing tiers for ${tour && tour.id}`);
     return tiers[0];
+}
+
+function roundMoney(value) {
+    return Math.round(Number(value || 0) * 100) / 100;
 }
 
 function buildPayPalWebhook(eventType, details) {

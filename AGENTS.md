@@ -1,25 +1,23 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-`server.js` is the application entry point: it starts Express, initializes SQLite from `db/schema.sql`, optionally seeds from `db/seed.sql`, and serves the SPA. `public/` contains the frontend (`index.html`, `css/styles.css`, `js/main.js`, `js/hotels.js`) plus static media in `public/imagenes/`. Store tour galleries in `public/imagenes/servicios/<tour_slug>/` and keep image names numeric, for example `1.jpg`, `2.jpg`. Treat `db/*.db` as local runtime state; ship schema or seed changes instead of database files.
+`server.js` contains the Express app, SQLite initialization, API routes, and static file serving. Frontend files live in `public/`: `index.html`, `css/styles.css`, `js/main.js`, `js/hotels.js`, and image assets under `public/imagenes/`. Database sources live in `db/schema.sql` and `db/seed.sql`; treat `db/*.db` and `storage/` as local runtime state, not source files. Integration smoke coverage is implemented in `scripts/smoke.js`.
 
 ## Build, Test, and Development Commands
-```bash
-npm install
-npm start
-PORT=4000 npm start
-curl http://localhost:3000/api/tours
-```
-`npm install` installs dependencies. `npm start` runs the site and API on `http://localhost:3000`. Setting `PORT` overrides the default port. Use a quick `curl` call to confirm the API is responding. There is no separate build step in this repository.
+`npm install` installs dependencies.
+`npm start` runs the site and API on `http://localhost:3000`.
+`PORT=4000 npm start` starts the same server on another port.
+`npm test` or `npm run smoke` runs the full smoke suite against a temporary SQLite database.
+`npm run smoke:admin`, `npm run smoke:paypal`, `npm run smoke:bank-transfer`, and similar scripts run one flow at a time while iterating.
 
 ## Coding Style & Naming Conventions
-This project uses Node.js CommonJS on the backend and vanilla HTML, CSS, and JavaScript on the frontend. Match the existing formatting: 4 spaces in JavaScript, 2 spaces in CSS, and semicolons in JS files. Use `camelCase` for variables and functions, `UPPER_SNAKE_CASE` for constants, and `snake_case` for tour slugs and service image folders. Keep bilingual fields paired consistently as `*_en` and `*_es`.
+Backend code uses CommonJS Node.js; frontend code is vanilla HTML, CSS, and JavaScript. Follow the existing style: 4-space indentation in JS, 2-space indentation in CSS, and semicolons in JS files. Use `camelCase` for variables and functions, `UPPER_SNAKE_CASE` for shared constants, and `snake_case` for service folders such as `public/imagenes/servicios/chichen_itza_group_tour/`. Keep bilingual content paired consistently as `*_en` and `*_es`. No formatter or linter is committed, so match surrounding code and keep diffs minimal.
 
 ## Testing Guidelines
-No automated test suite is configured yet; `npm test` is still a placeholder and fails by design. For each change, run a manual smoke test: start the app, verify `GET /api/tours` and `GET /api/hotels`, then exercise any changed booking or admin flow such as `POST /api/bookings` or `POST /api/admin/login`. For UI work, check both language modes and at least one mobile-sized viewport.
+Smoke tests use Node’s built-in `assert` and boot the real server with isolated temp storage. When adding coverage, extend `scripts/smoke.js` with a `run<Area>Scenario` function, register it in `scenarios`, and add an `npm` script if the flow will be reused. Before a PR, run the relevant smoke command and manually verify changed UI in both languages plus a mobile-sized viewport.
 
 ## Commit & Pull Request Guidelines
-Recent history mixes informal commits with Conventional Commit prefixes like `feat:`, `fix:`, and `chore:`. Prefer `<type>: <short imperative summary>`, for example `fix: validate booking totals on the server`. Keep commits focused on one concern. Pull requests should describe behavior changes, note added assets or schema updates, link related issues, and include screenshots plus manual test notes for visible UI changes.
+Recent history mixes informal commits with prefixes like `feat:` and `fix:`. Prefer `<type>: <imperative summary>`, for example `fix: validate transfer proof uploads`. Keep commits focused on one concern. Pull requests should summarize behavior changes, list commands run, mention schema or env changes, and include screenshots for visible `public/` updates.
 
 ## Security & Configuration Tips
-Configure runtime settings with `PORT`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_TOKEN_TTL_MS`. Do not depend on default admin credentials outside local development. Keep `.env`, local SQLite files, and temporary uploaded test data out of commits.
+Copy values from `.env.example` for local setup. Configure `ADMIN_USERNAME`, `ADMIN_PASSWORD`, PayPal credentials, and bank-transfer fields before testing secured flows. Do not rely on fallback development credentials outside local work, and never commit `.env`, SQLite database files, or uploaded proof documents.

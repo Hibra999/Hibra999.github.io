@@ -24,6 +24,7 @@ db.pragma('foreign_keys=ON');
 
 const schema = fs.readFileSync(path.join(__dirname, 'db', 'schema.sql'), 'utf8');
 db.exec(schema);
+ensureCheckoutPricingSchema(db);
 const seedFile = path.join(__dirname, 'db', 'seed.sql');
 if (fs.existsSync(seedFile)) {
     const c = db.prepare('SELECT count(*) as c FROM tours').get();
@@ -55,8 +56,11 @@ const BANK_TRANSFER_BENEFICIARY = sanitizeText(process.env.BANK_TRANSFER_BENEFIC
 const BANK_TRANSFER_CLABE = sanitizeText(process.env.BANK_TRANSFER_CLABE, 64);
 const BANK_TRANSFER_SWIFT = sanitizeText(process.env.BANK_TRANSFER_SWIFT, 64);
 const BANK_TRANSFER_ACCOUNT = sanitizeText(process.env.BANK_TRANSFER_ACCOUNT, 64);
+const BANK_TRANSFER_CARD_NUMBER = sanitizeText(process.env.BANK_TRANSFER_CARD_NUMBER, 64);
 const BANK_TRANSFER_REFERENCE_PREFIX = sanitizeText(process.env.BANK_TRANSFER_REFERENCE_PREFIX || ORDER_PUBLIC_ID_PREFIX, 12) || ORDER_PUBLIC_ID_PREFIX;
 const BANK_TRANSFER_EXPIRY_HOURS = Math.max(1, safeInt(process.env.BANK_TRANSFER_EXPIRY_HOURS, 12));
+const PAYPAL_FEE_PERCENT = normalizeFeePercent(process.env.PAYPAL_FEE_PERCENT, 5);
+const BANK_TRANSFER_FEE_PERCENT = normalizeFeePercent(process.env.BANK_TRANSFER_FEE_PERCENT, 0);
 const adminSessions = new Map();
 const customerPortalSessions = new Map();
 const paypalTokenCache = {
@@ -92,6 +96,84 @@ function sanitizeText(input, maxLen) {
 function safeInt(value, fallback) {
     const n = Number(value);
     return Number.isFinite(n) ? Math.round(n) : fallback;
+}
+
+function safeNumber(value, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+function roundCurrencyAmount(value) {
+    const n = safeNumber(value, NaN);
+    if (!Number.isFinite(n)) return 0;
+    return Math.round(n * 100) / 100;
+}
+
+function normalizeFeePercent(value, fallback) {
+    const n = roundCurrencyAmount(safeNumber(value, fallback));
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(0, n);
+}
+
+function amountsEqual(a, b) {
+    if (!Number.isFinite(safeNumber(a, NaN)) || !Number.isFinite(safeNumber(b, NaN))) return false;
+    return roundCurrencyAmount(a) === roundCurrencyAmount(b);
+}
+
+function ensureCheckoutPricingSchema(database) {
+    ensureTableColumns(database, 'orders', [
+        'subtotal REAL',
+        'fee_percent REAL',
+        'fee_amount REAL',
+        'total_final REAL'
+    ]);
+    ensureTableColumns(database, 'payments', [
+        'subtotal REAL',
+        'fee_percent REAL',
+        'fee_amount REAL',
+        'total_final REAL'
+    ]);
+
+    database.exec(`
+        UPDATE orders
+        SET subtotal = total, fee_percent = 0, fee_amount = 0, total_final = total
+        WHERE subtotal IS NULL OR fee_percent IS NULL OR fee_amount IS NULL OR total_final IS NULL
+    `);
+    database.exec(`
+        UPDATE payments
+        SET subtotal = amount, fee_percent = 0, fee_amount = 0, total_final = amount
+        WHERE subtotal IS NULL OR fee_percent IS NULL OR fee_amount IS NULL OR total_final IS NULL
+    `);
+}
+
+function ensureTableColumns(database, tableName, columns) {
+    const existing = new Set(
+        database.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => column.name)
+    );
+
+    columns.forEach((definition) => {
+        const columnName = String(definition).trim().split(/\s+/)[0];
+        if (existing.has(columnName)) return;
+        database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
+    });
+}
+
+function getPaymentFeePercent(paymentMethod) {
+    if (paymentMethod === 'paypal') return PAYPAL_FEE_PERCENT;
+    if (paymentMethod === 'bank_transfer') return BANK_TRANSFER_FEE_PERCENT;
+    return 0;
+}
+
+function computePaymentBreakdown(subtotal, paymentMethod) {
+    const safeSubtotal = roundCurrencyAmount(subtotal);
+    const feePercent = getPaymentFeePercent(paymentMethod);
+    const feeAmount = roundCurrencyAmount(safeSubtotal * (feePercent / 100));
+    return {
+        subtotal: safeSubtotal,
+        feePercent,
+        feeAmount,
+        totalFinal: roundCurrencyAmount(safeSubtotal + feeAmount)
+    };
 }
 
 function resolvePublicPath(relativePath) {
@@ -294,8 +376,7 @@ function buildBankReference(publicId) {
 }
 
 function toPayPalAmount(value) {
-    const amount = safeInt(value, 0);
-    return (amount / 1).toFixed(2);
+    return roundCurrencyAmount(value).toFixed(2);
 }
 
 function normalizeCurrency(value) {
@@ -402,7 +483,11 @@ function serializeCustomerPortalAggregate(aggregate) {
             guestEmail: order.guest_email,
             guestPhone: order.guest_phone,
             currency: order.currency,
-            total: order.total,
+            subtotal: roundCurrencyAmount(order.subtotal),
+            feePercent: roundCurrencyAmount(order.fee_percent),
+            feeAmount: roundCurrencyAmount(order.fee_amount),
+            total: roundCurrencyAmount(order.total_final != null ? order.total_final : order.total),
+            totalFinal: roundCurrencyAmount(order.total_final != null ? order.total_final : order.total),
             status: order.status,
             paymentMethod: order.payment_method,
             providerStatus: order.provider_status,
@@ -418,7 +503,11 @@ function serializeCustomerPortalAggregate(aggregate) {
             id: payment.id,
             provider: payment.provider,
             intent: payment.intent,
-            amount: payment.amount,
+            subtotal: roundCurrencyAmount(payment.subtotal),
+            feePercent: roundCurrencyAmount(payment.fee_percent),
+            feeAmount: roundCurrencyAmount(payment.fee_amount),
+            amount: roundCurrencyAmount(payment.total_final != null ? payment.total_final : payment.amount),
+            totalFinal: roundCurrencyAmount(payment.total_final != null ? payment.total_final : payment.amount),
             currency: payment.currency,
             status: payment.status,
             providerStatus: payment.provider_status,
@@ -437,6 +526,16 @@ function serializeCustomerPortalAggregate(aggregate) {
             hotel: item.hotel,
             pickupTime: item.pickup_time
         })),
+        bankTransfer: order.payment_method === 'bank_transfer' ? {
+            bankName: BANK_TRANSFER_BANK_NAME || null,
+            beneficiary: BANK_TRANSFER_BENEFICIARY || null,
+            clabe: BANK_TRANSFER_CLABE || null,
+            account: BANK_TRANSFER_ACCOUNT || null,
+            cardNumber: BANK_TRANSFER_CARD_NUMBER || null,
+            swift: BANK_TRANSFER_SWIFT || null,
+            reference: order.bank_reference || null,
+            expiresAt: order.expires_at || null
+        } : null,
         documents,
         transferSubmissions
     };
@@ -609,6 +708,10 @@ function listOrdersForCustomer(profilePublicId) {
             o.guest_phone,
             o.currency,
             o.total,
+            o.subtotal,
+            o.fee_percent,
+            o.fee_amount,
+            o.total_final,
             o.status,
             o.payment_method,
             o.provider_status,
@@ -731,7 +834,7 @@ function normalizeCheckoutPayload(body, fallbackPaymentMethod) {
         hotel: sanitizeText(payload.hotel, 220),
         comments: sanitizeText(payload.comments, 1200),
         cart: Array.isArray(payload.cart) ? payload.cart : [],
-        total: safeInt(payload.total, NaN),
+        total: safeNumber(payload.total, NaN),
         currency: normalizeCurrency(payload.currency),
         paymentMethod: sanitizeText(payload.paymentMethod || fallbackPaymentMethod || 'paypal', 40).toLowerCase(),
         source: sanitizeText(payload.source, 40) || 'checkout',
@@ -815,7 +918,11 @@ function serializeCustomerOrderSummary(row) {
         guestEmail: row.guest_email,
         guestPhone: row.guest_phone,
         currency: row.currency,
-        total: row.total,
+        subtotal: roundCurrencyAmount(row.subtotal),
+        feePercent: roundCurrencyAmount(row.fee_percent),
+        feeAmount: roundCurrencyAmount(row.fee_amount),
+        total: roundCurrencyAmount(row.total_final != null ? row.total_final : row.total),
+        totalFinal: roundCurrencyAmount(row.total_final != null ? row.total_final : row.total),
         status: row.status,
         paymentMethod: row.payment_method,
         providerStatus: row.provider_status,
@@ -843,7 +950,8 @@ function persistOrderPatch(orderId, patch) {
     db.prepare(`
         UPDATE orders
         SET status = ?, provider_status = ?, paypal_intent = ?, bank_reference = ?, expires_at = ?,
-            service_date = ?, pickup_time = ?, hotel = ?, comments = ?, updated_at = ?
+            service_date = ?, pickup_time = ?, hotel = ?, comments = ?, subtotal = ?, fee_percent = ?,
+            fee_amount = ?, total_final = ?, updated_at = ?
         WHERE id = ?
     `).run(
         next.status,
@@ -855,6 +963,10 @@ function persistOrderPatch(orderId, patch) {
         next.pickup_time,
         next.hotel,
         next.comments,
+        next.subtotal,
+        next.fee_percent,
+        next.fee_amount,
+        next.total_final,
         next.updated_at,
         orderId
     );
@@ -879,7 +991,8 @@ function persistPaymentPatch(paymentId, patch) {
         UPDATE payments
         SET intent = ?, amount = ?, currency = ?, status = ?, provider_status = ?, provider_event_id = ?,
             paypal_order_id = ?, paypal_authorization_id = ?, paypal_capture_id = ?, bank_reference = ?,
-            seller_protection_status = ?, paid_at = ?, metadata_json = ?, updated_at = ?
+            seller_protection_status = ?, paid_at = ?, metadata_json = ?, subtotal = ?, fee_percent = ?,
+            fee_amount = ?, total_final = ?, updated_at = ?
         WHERE id = ?
     `).run(
         next.intent,
@@ -895,6 +1008,10 @@ function persistPaymentPatch(paymentId, patch) {
         next.seller_protection_status,
         next.paid_at,
         next.metadata_json,
+        next.subtotal,
+        next.fee_percent,
+        next.fee_amount,
+        next.total_final,
         next.updated_at,
         paymentId
     );
@@ -905,8 +1022,9 @@ function persistPaymentPatch(paymentId, patch) {
 function createOrderRecord(payload) {
     const computed = computeServerCartTotals(payload.cart);
     if (computed.error) return { error: computed.error };
+    const pricing = computePaymentBreakdown(computed.totalUSD, payload.paymentMethod);
 
-    if (Number.isFinite(payload.total) && payload.total !== computed.totalUSD) {
+    if (Number.isFinite(payload.total) && !amountsEqual(payload.total, pricing.totalFinal)) {
         return { error: 'Total mismatch. Refresh your cart and try again.' };
     }
 
@@ -921,10 +1039,11 @@ function createOrderRecord(payload) {
     const tx = db.transaction(() => {
         const orderInsert = db.prepare(`
             INSERT INTO orders(
-                public_id, user_id, guest_name, guest_email, guest_phone, currency, total, status,
+                public_id, user_id, guest_name, guest_email, guest_phone, currency, total, subtotal, fee_percent,
+                fee_amount, total_final, status,
                 payment_method, provider_status, paypal_intent, bank_reference, expires_at, service_date,
                 pickup_time, hotel, comments, source, updated_at
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `);
         const orderResult = orderInsert.run(
             publicId,
@@ -933,7 +1052,11 @@ function createOrderRecord(payload) {
             payload.guestEmail,
             payload.guestPhone,
             ORDER_CURRENCY,
-            computed.totalUSD,
+            pricing.totalFinal,
+            pricing.subtotal,
+            pricing.feePercent,
+            pricing.feeAmount,
+            pricing.totalFinal,
             initialState.orderStatus,
             payload.paymentMethod,
             initialState.providerStatus,
@@ -974,19 +1097,24 @@ function createOrderRecord(payload) {
         if (payload.paymentMethod !== 'manual_contact') {
             const insertPayment = db.prepare(`
                 INSERT INTO payments(
-                    order_id, provider, intent, amount, currency, status, provider_status, bank_reference, metadata_json, updated_at
-                ) VALUES(?,?,?,?,?,?,?,?,?,?)
+                    order_id, provider, intent, amount, currency, status, provider_status, bank_reference, metadata_json,
+                    subtotal, fee_percent, fee_amount, total_final, updated_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             `);
             const paymentResult = insertPayment.run(
                 orderId,
                 payload.paymentMethod,
                 initialState.intent,
-                computed.totalUSD,
+                pricing.totalFinal,
                 ORDER_CURRENCY,
                 initialState.paymentStatus,
                 initialState.providerStatus,
                 bankReference,
                 JSON.stringify({ source: payload.source || 'checkout' }),
+                pricing.subtotal,
+                pricing.feePercent,
+                pricing.feeAmount,
+                pricing.totalFinal,
                 nowAsSqlDateTime()
             );
             paymentId = paymentResult.lastInsertRowid;
@@ -1003,7 +1131,10 @@ function createOrderRecord(payload) {
     tx();
     logAudit('guest', payload.guestEmail, 'order.created', 'order', publicId, {
         paymentMethod: payload.paymentMethod,
-        total: computed.totalUSD,
+        subtotal: pricing.subtotal,
+        feePercent: pricing.feePercent,
+        feeAmount: pricing.feeAmount,
+        total: pricing.totalFinal,
         currency: ORDER_CURRENCY,
         source: payload.source || 'checkout'
     });
@@ -1631,12 +1762,17 @@ app.post('/api/orders/quote', (req, res) => {
     if (computed.error) {
         return res.status(400).json({ error: computed.error });
     }
+    const pricing = computePaymentBreakdown(computed.totalUSD, paymentMethod);
 
     const paypalIntent = paymentMethod === 'paypal' ? inferPayPalIntentFromCart(computed.normalizedCart) : null;
     res.json({
         status: 'ok',
         currency: ORDER_CURRENCY,
-        total: computed.totalUSD,
+        subtotal: pricing.subtotal,
+        feePercent: pricing.feePercent,
+        feeAmount: pricing.feeAmount,
+        total: pricing.totalFinal,
+        totalFinal: pricing.totalFinal,
         paymentMethod,
         paypalIntent,
         cart: computed.normalizedCart
@@ -1667,7 +1803,11 @@ app.post('/api/orders', (req, res) => {
         status: 'ok',
         order: {
             publicId: created.aggregate.order.public_id,
-            total: created.aggregate.order.total,
+            subtotal: roundCurrencyAmount(created.aggregate.order.subtotal),
+            feePercent: roundCurrencyAmount(created.aggregate.order.fee_percent),
+            feeAmount: roundCurrencyAmount(created.aggregate.order.fee_amount),
+            total: roundCurrencyAmount(created.aggregate.order.total_final != null ? created.aggregate.order.total_final : created.aggregate.order.total),
+            totalFinal: roundCurrencyAmount(created.aggregate.order.total_final != null ? created.aggregate.order.total_final : created.aggregate.order.total),
             currency: created.aggregate.order.currency,
             paymentMethod: created.aggregate.order.payment_method,
             status: created.aggregate.order.status,
@@ -1677,6 +1817,11 @@ app.post('/api/orders', (req, res) => {
         },
         payment: created.aggregate.payment ? {
             id: created.aggregate.payment.id,
+            subtotal: roundCurrencyAmount(created.aggregate.payment.subtotal),
+            feePercent: roundCurrencyAmount(created.aggregate.payment.fee_percent),
+            feeAmount: roundCurrencyAmount(created.aggregate.payment.fee_amount),
+            amount: roundCurrencyAmount(created.aggregate.payment.total_final != null ? created.aggregate.payment.total_final : created.aggregate.payment.amount),
+            totalFinal: roundCurrencyAmount(created.aggregate.payment.total_final != null ? created.aggregate.payment.total_final : created.aggregate.payment.amount),
             status: created.aggregate.payment.status,
             providerStatus: created.aggregate.payment.provider_status,
             bankReference: created.aggregate.payment.bank_reference
@@ -1686,6 +1831,7 @@ app.post('/api/orders', (req, res) => {
             beneficiary: BANK_TRANSFER_BENEFICIARY,
             clabe: BANK_TRANSFER_CLABE,
             account: BANK_TRANSFER_ACCOUNT || null,
+            cardNumber: BANK_TRANSFER_CARD_NUMBER || null,
             swift: BANK_TRANSFER_SWIFT || null,
             reference: created.aggregate.order.bank_reference,
             expiresAt: created.aggregate.order.expires_at
@@ -1741,7 +1887,7 @@ app.post('/api/payments/paypal/create-order', async (req, res) => {
                     description: buildOrderDescription(aggregate.items),
                     amount: {
                         currency_code: aggregate.order.currency,
-                        value: toPayPalAmount(aggregate.order.total)
+                        value: toPayPalAmount(aggregate.order.total_final != null ? aggregate.order.total_final : aggregate.order.total)
                     }
                 }],
                 ...(returnUrl && cancelUrl ? {
@@ -1974,14 +2120,15 @@ function handleTransferProofUpload(req, res, aggregate, actorType, actorId) {
     }
 
     const submittedReference = sanitizeText(req.body && req.body.submitted_reference, 64).toUpperCase();
-    const submittedAmount = safeInt(req.body && req.body.submitted_amount, NaN);
+    const submittedAmountRaw = safeNumber(req.body && req.body.submitted_amount, NaN);
+    const submittedAmount = Number.isFinite(submittedAmountRaw) ? roundCurrencyAmount(submittedAmountRaw) : NaN;
     const expectedReference = sanitizeText(aggregate.payment.bank_reference || aggregate.order.bank_reference, 64).toUpperCase();
     let matchScore = 0;
 
     if (submittedReference && expectedReference && submittedReference === expectedReference) {
         matchScore += 50;
     }
-    if (Number.isFinite(submittedAmount) && submittedAmount === aggregate.payment.amount) {
+    if (Number.isFinite(submittedAmount) && amountsEqual(submittedAmount, aggregate.payment.total_final != null ? aggregate.payment.total_final : aggregate.payment.amount)) {
         matchScore += 50;
     }
 
@@ -2236,7 +2383,7 @@ app.post('/api/bookings', (req, res) => {
 
     const computed = computeServerCartTotals(payload.cart);
     if (computed.error) return res.status(400).json({ error: computed.error });
-    if (payload.total !== computed.totalUSD) {
+    if (!amountsEqual(payload.total, computePaymentBreakdown(computed.totalUSD, payload.paymentMethod).totalFinal)) {
         return res.status(400).json({ error: 'Total mismatch. Refresh your cart and try again.' });
     }
 
@@ -2350,6 +2497,10 @@ app.get('/api/admin/orders', requireAdmin, (req, res) => {
             o.guest_phone,
             o.currency,
             o.total,
+            o.subtotal,
+            o.fee_percent,
+            o.fee_amount,
+            o.total_final,
             o.status,
             o.payment_method,
             o.provider_status,
@@ -2372,7 +2523,11 @@ app.get('/api/admin/orders', requireAdmin, (req, res) => {
         guest_email_masked: maskEmail(row.guest_email),
         guest_phone_masked: maskPhone(row.guest_phone),
         currency: row.currency,
-        total: row.total,
+        subtotal: roundCurrencyAmount(row.subtotal),
+        fee_percent: roundCurrencyAmount(row.fee_percent),
+        fee_amount: roundCurrencyAmount(row.fee_amount),
+        total: roundCurrencyAmount(row.total_final != null ? row.total_final : row.total),
+        total_final: roundCurrencyAmount(row.total_final != null ? row.total_final : row.total),
         status: row.status,
         payment_method: row.payment_method,
         provider_status: row.provider_status,
@@ -2404,6 +2559,16 @@ app.get('/api/admin/orders/:publicId', requireAdmin, (req, res) => {
             add_ons: parseJsonSafely(item.add_ons_json || '[]', [])
         })),
         payment: aggregate.payment,
+        bankTransfer: aggregate.order.payment_method === 'bank_transfer' ? {
+            bankName: BANK_TRANSFER_BANK_NAME || null,
+            beneficiary: BANK_TRANSFER_BENEFICIARY || null,
+            clabe: BANK_TRANSFER_CLABE || null,
+            account: BANK_TRANSFER_ACCOUNT || null,
+            cardNumber: BANK_TRANSFER_CARD_NUMBER || null,
+            swift: BANK_TRANSFER_SWIFT || null,
+            reference: aggregate.order.bank_reference || null,
+            expiresAt: aggregate.order.expires_at || null
+        } : null,
         transferSubmissions,
         documents
     });
@@ -2564,7 +2729,8 @@ app.get('/api/config', (req, res) => {
             currency: ORDER_CURRENCY,
             paypal: {
                 enabled: hasPayPalConfig(),
-                clientId: PAYPAL_CLIENT_ID || null
+                clientId: PAYPAL_CLIENT_ID || null,
+                feePercent: PAYPAL_FEE_PERCENT
             },
             bankTransfer: {
                 enabled: hasBankTransferConfig(),
@@ -2572,8 +2738,10 @@ app.get('/api/config', (req, res) => {
                 beneficiary: BANK_TRANSFER_BENEFICIARY || null,
                 clabe: BANK_TRANSFER_CLABE || null,
                 account: BANK_TRANSFER_ACCOUNT || null,
+                cardNumber: BANK_TRANSFER_CARD_NUMBER || null,
                 swift: BANK_TRANSFER_SWIFT || null,
-                referencePrefix: BANK_TRANSFER_REFERENCE_PREFIX
+                referencePrefix: BANK_TRANSFER_REFERENCE_PREFIX,
+                feePercent: BANK_TRANSFER_FEE_PERCENT
             }
         }
     });

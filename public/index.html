@@ -304,13 +304,24 @@
                     <div class="order-summary-content" id="order-summary-content">
                         <div class="cart-items" id="cart-items"></div>
                         <div class="cart-total" id="cart-total-section" style="display:none;">
-                            <span class="cart-total-label" data-es="Total a Pagar:" data-en="Total to Pay:">Total to
-                                Pay:</span>
-                            <span class="cart-total-amount" id="cart-total-amount">$0</span>
+                            <div class="cart-total-breakdown">
+                                <div class="cart-total-row">
+                                    <span class="cart-total-label" data-i18n="subtotal">Subtotal</span>
+                                    <span class="cart-total-amount" id="cart-subtotal-amount">$0 USD</span>
+                                </div>
+                                <div class="cart-total-row">
+                                    <span class="cart-total-label" id="cart-fee-label" data-i18n="commission">Comisión</span>
+                                    <span class="cart-total-amount" id="cart-fee-amount">$0 USD</span>
+                                </div>
+                                <div class="cart-total-row cart-total-row-final">
+                                    <span class="cart-total-label" data-i18n="totalFinal">Total final</span>
+                                    <span class="cart-total-amount" id="cart-total-amount">$0 USD</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="mobile-summary-bar" id="mobile-summary-bar">
-                        <span class="mobile-summary-label" id="mobile-summary-label" data-i18n="totalToPay">Total to pay</span>
+                        <span class="mobile-summary-label" id="mobile-summary-label" data-i18n="totalToPay">Final total</span>
                         <span class="mobile-summary-total" id="mobile-summary-total">$0 USD</span>
                     </div>
 
@@ -455,9 +466,9 @@
                             <span data-es="Confirma tu Reservación" data-en="Confirm Your Booking">Confirm Your Booking</span>
                         </h4>
                         <p class="confirm-step-text"
-                            data-es="Revisa los datos y elige un método de pago o contacto para continuar."
-                            data-en="Review your details and choose a payment or contact method to continue.">
-                            Review your details and choose a payment or contact method to continue.
+                            data-es="Revisa los datos y elige un método de pago para continuar."
+                            data-en="Review your details and choose a payment method to continue.">
+                            Review your details and choose a payment method to continue.
                         </p>
 
                         <div class="confirm-grid">
@@ -469,8 +480,18 @@
                                 <h5 data-es="Tours y Total" data-en="Tours and Total">Tours and Total</h5>
                                 <div class="confirm-summary-list" id="confirm-cart-summary"></div>
                                 <div class="confirm-total">
-                                    <span data-i18n="total">Total</span>
-                                    <strong id="confirm-total-amount">$0 USD</strong>
+                                    <div class="confirm-total-line">
+                                        <span data-i18n="subtotal">Subtotal</span>
+                                        <strong id="confirm-subtotal-amount">$0 USD</strong>
+                                    </div>
+                                    <div class="confirm-total-line">
+                                        <span id="confirm-fee-label" data-i18n="commission">Comisión</span>
+                                        <strong id="confirm-fee-amount">$0 USD</strong>
+                                    </div>
+                                    <div class="confirm-total-line confirm-total-line-final">
+                                        <span data-i18n="totalFinal">Total final</span>
+                                        <strong id="confirm-total-amount">$0 USD</strong>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -480,29 +501,40 @@
                                 <h5 data-i18n="paymentMethod">Método de pago</h5>
                                 <p data-i18n="paymentMethodHelp">Elige la forma más conveniente para completar tu reservación.</p>
                             </div>
+                            <div class="payment-fee-legend">
+                                <span class="payment-fee-pill" id="payment-legend-transfer">Transferencia: Sin comisión</span>
+                                <span class="payment-fee-pill" id="payment-legend-paypal">PayPal / Tarjeta: +5%</span>
+                            </div>
                             <div class="payment-methods" id="payment-methods">
-                                <label class="payment-method-option" id="payment-option-paypal" data-payment-method="paypal">
-                                    <input type="radio" name="payment_method" value="paypal">
-                                    <span class="payment-method-copy">
-                                        <strong data-i18n="paymentPayPal">PayPal</strong>
-                                        <small data-i18n="paymentPayPalDesc">Pago inmediato con PayPal o tarjeta.</small>
-                                    </span>
-                                </label>
                                 <label class="payment-method-option" id="payment-option-bank-transfer" data-payment-method="bank_transfer">
                                     <input type="radio" name="payment_method" value="bank_transfer">
                                     <span class="payment-method-copy">
-                                        <strong data-i18n="paymentTransfer">Transferencia bancaria</strong>
-                                        <small data-i18n="paymentTransferDesc">Recibe CLABE, referencia exacta y sube tu comprobante.</small>
+                                        <strong id="payment-option-bank-transfer-title">Transferencia bancaria Banorte</strong>
+                                        <small id="payment-option-bank-transfer-desc">Recibe CLABE, cuenta y referencia exacta para transferir.</small>
                                     </span>
                                 </label>
-                                <label class="payment-method-option" id="payment-option-manual-contact" data-payment-method="manual_contact">
-                                    <input type="radio" name="payment_method" value="manual_contact">
+                                <label class="payment-method-option" id="payment-option-paypal" data-payment-method="paypal">
+                                    <input type="radio" name="payment_method" value="paypal">
                                     <span class="payment-method-copy">
-                                        <strong data-i18n="paymentManual">Reservar por contacto</strong>
-                                        <small data-i18n="paymentManualDesc">Envía tu solicitud por WhatsApp o email para confirmación manual.</small>
+                                        <strong id="payment-option-paypal-title">PayPal / Tarjeta +5%</strong>
+                                        <small id="payment-option-paypal-desc">Paga online con PayPal o tarjeta. +5% de comisión.</small>
                                     </span>
                                 </label>
                             </div>
+                        </div>
+
+                        <div class="payment-selection-card payment-help-card" id="payment-help-card" hidden>
+                            <div class="payment-selection-header">
+                                <h5 data-i18n="paymentHelpTitle">¿Necesitas ayuda para pagar?</h5>
+                                <p data-i18n="paymentHelpText">Te apoyamos por WhatsApp sin cambiar el método de pago de tu orden.</p>
+                            </div>
+                            <button type="button" class="btn btn-whatsapp" onclick="openPaymentSupportWhatsApp()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                </svg>
+                                <span data-i18n="paymentHelpWhatsApp">Ayuda por WhatsApp</span>
+                            </button>
                         </div>
 
                         <div class="checkout-result-card" id="checkout-result-card" hidden>
@@ -566,28 +598,11 @@
                             to Confirm</span></button>
                     <button type="button" class="btn btn-primary" id="pay-paypal-btn" onclick="startPayPalCheckout()"
                         style="display:none;">
-                        <span data-i18n="continueWithPayPal">Pagar con PayPal</span>
+                        <span id="pay-paypal-label" data-i18n="continueWithPayPal">Pagar online</span>
                     </button>
                     <button type="button" class="btn btn-primary" id="bank-transfer-btn" onclick="startBankTransferCheckout()"
                         style="display:none;">
                         <span data-i18n="getTransferInstructions">Ver datos para transferencia</span>
-                    </button>
-                    <button type="button" class="btn btn-primary" id="send-email-btn" onclick="sendBookingEmail()"
-                        style="display:none;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                            <polyline points="22,6 12,13 2,6" />
-                        </svg>
-                        <span data-i18n="sendReservationEmail">Enviar reservación por email</span>
-                    </button>
-                    <button type="button" class="btn btn-whatsapp" id="send-whatsapp-btn" onclick="sendToWhatsApp()"
-                        style="display:none;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                        </svg>
-                        <span data-i18n="sendReservationWhatsApp">Enviar por WhatsApp</span>
                     </button>
                 </div>
             </div>
