@@ -8,6 +8,8 @@ let state = {
     cart: [],
     checkoutMode: false,
     checkoutStep: 1,
+    checkoutPreviewMode: false,
+    checkoutPreviewBackup: null,
     selectedPaymentMethod: 'bank_transfer',
     latestCheckoutOrder: null
 };
@@ -88,6 +90,11 @@ const I18N = {
         sessionExpiredTitle: 'Sesión expirada',
         sessionExpiredMessage: 'Vuelve a iniciar sesión para continuar',
         cartEmpty: 'Tu carrito está vacío',
+        previewCheckoutButton: 'Ver flujo sin tour',
+        previewCheckoutTitle: 'Vista previa del checkout',
+        previewCheckoutMessage: 'Este modo temporal solo deja recorrer el flujo. No crea una orden ni habilita el pago final.',
+        previewCheckoutCartLabel: 'Vista previa',
+        previewCheckoutCartValue: 'Sin tours seleccionados. Este modo solo muestra los siguientes pasos.',
         adultUnit: 'adulto(s)',
         childUnit: 'niño(s)',
         maps: 'Mapa',
@@ -289,6 +296,11 @@ const I18N = {
         sessionExpiredTitle: 'Session expired',
         sessionExpiredMessage: 'Sign in again to continue',
         cartEmpty: 'Your cart is empty',
+        previewCheckoutButton: 'Preview flow without tour',
+        previewCheckoutTitle: 'Checkout preview',
+        previewCheckoutMessage: 'This temporary mode only lets you browse the flow. It does not create an order or enable final payment.',
+        previewCheckoutCartLabel: 'Preview',
+        previewCheckoutCartValue: 'No tours selected. This mode only shows the next steps.',
         adultUnit: 'adult(s)',
         childUnit: 'child(ren)',
         maps: 'Maps',
@@ -2768,8 +2780,172 @@ function updatePaymentMethodUI() {
     syncCheckoutActionButtons();
 }
 
+function isCheckoutPreviewModeActive() {
+    return state.checkoutPreviewMode && state.cart.length === 0;
+}
+
+function formatPreviewDateValue(date) {
+    var value = date instanceof Date ? date : new Date(date);
+    if (!(value instanceof Date) || Number.isNaN(value.getTime())) return '';
+
+    var month = String(value.getMonth() + 1).padStart(2, '0');
+    var day = String(value.getDate()).padStart(2, '0');
+    var year = String(value.getFullYear());
+    return state.language === 'en'
+        ? month + '/' + day + '/' + year
+        : day + '/' + month + '/' + year;
+}
+
+function captureCheckoutFormSnapshot() {
+    var hotelInput = document.getElementById('customer-hotel');
+    var pickerDate = '';
+    if (window.tourDatePicker && window.tourDatePicker.selectedDates && window.tourDatePicker.selectedDates[0]) {
+        pickerDate = window.tourDatePicker.selectedDates[0].toISOString();
+    }
+
+    return {
+        customerName: safeText(document.getElementById('customer-name') && document.getElementById('customer-name').value),
+        customerEmail: safeText(document.getElementById('customer-email') && document.getElementById('customer-email').value),
+        customerPhone: safeText(document.getElementById('customer-phone') && document.getElementById('customer-phone').value),
+        tourDateIso: pickerDate,
+        tourDateText: safeText(document.getElementById('tour-date') && document.getElementById('tour-date').value),
+        pickupHour: safeText(document.getElementById('pickup-hour') && document.getElementById('pickup-hour').value),
+        pickupMin: safeText(document.getElementById('pickup-min') && document.getElementById('pickup-min').value),
+        pickupTime: safeText(document.getElementById('pickup-time') && document.getElementById('pickup-time').value),
+        hotel: safeText(hotelInput && hotelInput.value),
+        hotelDataset: {
+            hotel: safeText(hotelInput && hotelInput.dataset ? hotelInput.dataset.hotel : ''),
+            zone: safeText(hotelInput && hotelInput.dataset ? hotelInput.dataset.zone : '')
+        },
+        comments: safeText(document.getElementById('customer-comments') && document.getElementById('customer-comments').value)
+    };
+}
+
+function restoreCheckoutFormSnapshot(snapshot) {
+    var data = snapshot || {};
+    var nameInput = document.getElementById('customer-name');
+    var emailInput = document.getElementById('customer-email');
+    var phoneInput = document.getElementById('customer-phone');
+    var dateInput = document.getElementById('tour-date');
+    var hotelInput = document.getElementById('customer-hotel');
+    var commentsInput = document.getElementById('customer-comments');
+    var pickupHour = document.getElementById('pickup-hour');
+    var pickupMin = document.getElementById('pickup-min');
+    var pickupTime = document.getElementById('pickup-time');
+
+    if (nameInput) nameInput.value = data.customerName || '';
+    if (emailInput) emailInput.value = data.customerEmail || '';
+    if (phoneInput) phoneInput.value = data.customerPhone || '';
+
+    if (window.tourDatePicker) {
+        if (data.tourDateIso) {
+            window.tourDatePicker.setDate(new Date(data.tourDateIso), true);
+        } else {
+            window.tourDatePicker.clear();
+        }
+    } else if (dateInput) {
+        dateInput.value = data.tourDateText || '';
+    }
+
+    if (pickupHour) pickupHour.value = data.pickupHour || '';
+    if (pickupMin) pickupMin.value = data.pickupMin || '';
+    if (pickupHour) pickupHour.dispatchEvent(new Event('change', { bubbles: true }));
+    if (pickupMin) pickupMin.dispatchEvent(new Event('change', { bubbles: true }));
+    if (pickupTime && !data.pickupHour && !data.pickupMin) {
+        pickupTime.value = data.pickupTime || '';
+    }
+
+    if (hotelInput) {
+        hotelInput.value = data.hotel || '';
+        delete hotelInput.dataset.hotel;
+        delete hotelInput.dataset.zone;
+        if (data.hotelDataset && data.hotelDataset.hotel) {
+            hotelInput.dataset.hotel = data.hotelDataset.hotel;
+        }
+        if (data.hotelDataset && data.hotelDataset.zone) {
+            hotelInput.dataset.zone = data.hotelDataset.zone;
+        }
+    }
+
+    if (commentsInput) commentsInput.value = data.comments || '';
+
+    closeAC();
+    setHotelNoMatchHint(false);
+    if (data.hotelDataset && data.hotelDataset.hotel) {
+        showMapBtn(data.hotelDataset.hotel);
+    } else {
+        hideMapBtn();
+    }
+
+    updatePreviews();
+}
+
+function applyCheckoutPreviewDummyData() {
+    var nameInput = document.getElementById('customer-name');
+    var emailInput = document.getElementById('customer-email');
+    var phoneInput = document.getElementById('customer-phone');
+    var dateInput = document.getElementById('tour-date');
+    var hotelInput = document.getElementById('customer-hotel');
+    var commentsInput = document.getElementById('customer-comments');
+    var pickupHour = document.getElementById('pickup-hour');
+    var pickupMin = document.getElementById('pickup-min');
+    var previewDate = new Date();
+
+    previewDate.setDate(previewDate.getDate() + 1);
+
+    if (nameInput) nameInput.value = state.language === 'en' ? 'Preview Customer' : 'Cliente de prueba';
+    if (emailInput) emailInput.value = 'preview@lindotours.test';
+    if (phoneInput) phoneInput.value = '+52 998 000 0000';
+    if (window.tourDatePicker) {
+        window.tourDatePicker.setDate(previewDate, true);
+    } else if (dateInput) {
+        dateInput.value = formatPreviewDateValue(previewDate);
+    }
+    if (pickupHour) pickupHour.value = '9';
+    if (pickupMin) pickupMin.value = '00';
+    if (pickupHour) pickupHour.dispatchEvent(new Event('change', { bubbles: true }));
+    if (pickupMin) pickupMin.dispatchEvent(new Event('change', { bubbles: true }));
+    if (hotelInput) {
+        hotelInput.value = state.language === 'en' ? 'Preview Hotel' : 'Hotel de prueba';
+        delete hotelInput.dataset.hotel;
+        delete hotelInput.dataset.zone;
+    }
+    if (commentsInput) {
+        commentsInput.value = state.language === 'en'
+            ? 'Temporary preview flow without a selected tour.'
+            : 'Flujo temporal de vista previa sin un tour seleccionado.';
+    }
+
+    hideMapBtn();
+    closeAC();
+    setHotelNoMatchHint(false);
+    updatePreviews();
+}
+
+function activateCheckoutPreviewMode() {
+    if (!state.checkoutPreviewBackup) {
+        state.checkoutPreviewBackup = captureCheckoutFormSnapshot();
+    }
+    state.checkoutPreviewMode = true;
+    applyCheckoutPreviewDummyData();
+}
+
+function resetCheckoutPreviewMode(options) {
+    var opts = Object.assign({ restoreForm: true }, options || {});
+    var snapshot = state.checkoutPreviewBackup;
+
+    state.checkoutPreviewMode = false;
+    state.checkoutPreviewBackup = null;
+
+    if (opts.restoreForm && snapshot) {
+        restoreCheckoutFormSnapshot(snapshot);
+    }
+}
+
 function syncCheckoutActionButtons() {
     var hasItems = state.cart.length > 0;
+    var previewMode = isCheckoutPreviewModeActive();
+    var canAdvance = hasItems || previewMode;
     var nextStep = state.checkoutStep;
     var selected = getSelectedPaymentMethod();
     var hasActiveResult = Boolean(
@@ -2779,6 +2955,7 @@ function syncCheckoutActionButtons() {
     );
 
     var checkoutBtn = document.getElementById('checkout-btn');
+    var previewCheckoutBtn = document.getElementById('preview-checkout-btn');
     var confirmBtn = document.getElementById('confirm-btn');
     var backToCartBtn = document.getElementById('back-to-cart-btn');
     var editDetailsBtn = document.getElementById('edit-details-btn');
@@ -2787,17 +2964,20 @@ function syncCheckoutActionButtons() {
     var payPayPalBtn = document.getElementById('pay-paypal-btn');
     var bankTransferBtn = document.getElementById('bank-transfer-btn');
     var paymentHelpCard = document.getElementById('payment-help-card');
+    var previewCard = document.getElementById('checkout-preview-card');
 
     if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
-    if (confirmBtn) confirmBtn.style.display = hasItems && nextStep === 2 ? 'flex' : 'none';
-    if (backToCartBtn) backToCartBtn.style.display = hasItems && nextStep >= 2 ? 'flex' : 'none';
-    if (editDetailsBtn) editDetailsBtn.style.display = hasItems && nextStep === 3 ? 'flex' : 'none';
+    if (previewCheckoutBtn) previewCheckoutBtn.style.display = !hasItems ? 'flex' : 'none';
+    if (confirmBtn) confirmBtn.style.display = canAdvance && nextStep === 2 ? 'flex' : 'none';
+    if (backToCartBtn) backToCartBtn.style.display = canAdvance && nextStep >= 2 ? 'flex' : 'none';
+    if (editDetailsBtn) editDetailsBtn.style.display = canAdvance && nextStep === 3 ? 'flex' : 'none';
 
     if (payPayPalBtn) payPayPalBtn.style.display = hasItems && nextStep === 3 && selected === 'paypal' && !hasActiveResult ? 'flex' : 'none';
     if (bankTransferBtn) bankTransferBtn.style.display = hasItems && nextStep === 3 && selected === 'bank_transfer' && !hasActiveResult ? 'flex' : 'none';
     if (sendEmailBtn) sendEmailBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
     if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
     if (paymentHelpCard) paymentHelpCard.hidden = !(hasItems && nextStep === 3 && CONFIG.whatsapp && CONFIG.whatsapp.phone);
+    if (previewCard) previewCard.hidden = !(previewMode && nextStep === 3);
 }
 
 function initPaymentMethodOptions() {
@@ -3478,6 +3658,8 @@ function addTourToCart() {
     var tour = getCurrentTour();
     if (!tour || state.adults + state.children === 0) return;
 
+    resetCheckoutPreviewMode();
+
     var selectedAddOns = [];
     if (tour.addOns && Array.isArray(tour.addOns.options)) {
         tour.addOns.options.forEach(function (option) {
@@ -3548,6 +3730,7 @@ function addTourToCart() {
 
 function removeFromCart(index) {
     if (index < 0 || index >= state.cart.length) return;
+    resetCheckoutPreviewMode();
     state.cart.splice(index, 1);
     saveState();
     updateCartUI();
@@ -3647,6 +3830,7 @@ function closeCartModal() {
     }
 
     document.body.style.overflow = '';
+    resetCheckoutPreviewMode();
     state.checkoutMode = false;
     state.checkoutStep = 1;
 
@@ -3682,6 +3866,7 @@ function updateCartUI() {
     cartCount.classList.toggle('empty', totalPeople === 0);
 
     if (state.cart.length === 0) {
+        var previewMode = isCheckoutPreviewModeActive();
         if (mobileSummaryBar) mobileSummaryBar.hidden = true;
         cartItems.innerHTML = '<div class="cart-empty">' +
             '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' +
@@ -3691,9 +3876,13 @@ function updateCartUI() {
         hideBookingPreviews();
         clearCheckoutResult();
 
-        state.checkoutMode = false;
-        state.checkoutStep = 1;
-        setBookingStatus('idle');
+        if (previewMode) {
+            state.checkoutMode = state.checkoutStep > 1;
+        } else {
+            state.checkoutMode = false;
+            state.checkoutStep = 1;
+            setBookingStatus('idle');
+        }
 
         var customerSummary = document.getElementById('confirm-customer-summary');
         var cartSummary = document.getElementById('confirm-cart-summary');
@@ -3885,19 +4074,25 @@ function renderConfirmSummary() {
     customerSummary.replaceChildren();
     cartSummary.replaceChildren();
 
-    if (state.cart.length === 0) return;
+    if (state.cart.length === 0 && !isCheckoutPreviewModeActive()) return;
 
     var pickupTime = document.getElementById('pickup-time').value || t('notSpecified');
     var hotel = document.getElementById('customer-hotel').value || t('notSpecified');
     var comments = document.getElementById('customer-comments').value.trim() || t('noComments');
 
-    appendConfirmSummaryRow(customerSummary, t('name'), document.getElementById('customer-name').value);
-    appendConfirmSummaryRow(customerSummary, t('email'), document.getElementById('customer-email').value);
-    appendConfirmSummaryRow(customerSummary, t('phone'), document.getElementById('customer-phone').value);
-    appendConfirmSummaryRow(customerSummary, t('tourDate'), document.getElementById('tour-date').value);
+    appendConfirmSummaryRow(customerSummary, t('name'), document.getElementById('customer-name').value.trim() || t('notSpecified'));
+    appendConfirmSummaryRow(customerSummary, t('email'), document.getElementById('customer-email').value.trim() || t('notSpecified'));
+    appendConfirmSummaryRow(customerSummary, t('phone'), document.getElementById('customer-phone').value.trim() || t('notSpecified'));
+    appendConfirmSummaryRow(customerSummary, t('tourDate'), document.getElementById('tour-date').value.trim() || t('notSpecified'));
     appendConfirmSummaryRow(customerSummary, t('pickupTime'), pickupTime);
     appendConfirmSummaryRow(customerSummary, t('hotel'), hotel);
     appendConfirmSummaryRow(customerSummary, t('comments'), comments);
+
+    if (isCheckoutPreviewModeActive()) {
+        appendConfirmSummaryRow(cartSummary, t('previewCheckoutCartLabel'), t('previewCheckoutCartValue'));
+        renderCheckoutPricingSummary();
+        return;
+    }
 
     state.cart.forEach(function (item) {
         var adults = safeInt(item.adults, 0);
@@ -3939,15 +4134,16 @@ function goToCheckoutStep(step, options) {
         skipValidation: false,
         manageFocus: true,
         scrollIntoView: true,
-        preserveStatus: false
+        preserveStatus: false,
+        allowEmptyCart: false
     }, options || {});
 
     var nextStep = safeInt(step, 1);
     if (nextStep < 1 || nextStep > 3) nextStep = 1;
-    if (state.cart.length === 0) nextStep = 1;
+    if (state.cart.length === 0 && !(opts.allowEmptyCart || isCheckoutPreviewModeActive())) nextStep = 1;
 
     var form = document.getElementById('booking-form');
-    if (nextStep === 3 && !opts.skipValidation) {
+    if (nextStep === 3 && !opts.skipValidation && !isCheckoutPreviewModeActive()) {
         if (!form || !form.checkValidity()) {
             if (form) form.reportValidity();
             hideBookingPreviews();
@@ -4161,6 +4357,13 @@ function proceedToCheckout() {
     goToCheckoutStep(2);
 }
 
+function startCheckoutPreview() {
+    clearCheckoutResult();
+    activateCheckoutPreviewMode();
+    openCartModal();
+    goToCheckoutStep(2, { allowEmptyCart: true });
+}
+
 function proceedToConfirmation() {
     goToCheckoutStep(3);
 }
@@ -4262,6 +4465,7 @@ function resetBookingForm() {
     setHotelNoMatchHint(false);
     hideBookingPreviews();
     clearCheckoutResult();
+    resetCheckoutPreviewMode({ restoreForm: false });
     state.selectedPaymentMethod = getDefaultPaymentMethod();
     updatePaymentMethodUI();
 }

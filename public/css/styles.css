@@ -264,6 +264,34 @@ header {
   background: var(--primary-dark);
 }
 
+.preview-flow-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1.5px dashed rgba(15, 118, 110, 0.35);
+  background: var(--primary-pale);
+  color: var(--primary);
+  border-radius: 20px;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.preview-flow-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--bg-primary);
+}
+
+.preview-flow-btn svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
 .cart-count {
   background: var(--accent);
   color: var(--bg-primary);
@@ -2785,7 +2813,8 @@ footer a:hover {
   }
 
   .about-btn span,
-  .admin-btn span {
+  .admin-btn span,
+  .preview-flow-btn span {
     display: none;
   }
 

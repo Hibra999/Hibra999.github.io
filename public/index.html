@@ -65,6 +65,14 @@
                 </svg>
                 <span data-es="Admin" data-en="Admin">Admin</span>
             </button>
+            <button class="preview-flow-btn" id="preview-checkout-btn" onclick="startCheckoutPreview()" style="display:none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14" />
+                    <path d="M13 6l6 6-6 6" />
+                    <path d="M5 6v12" />
+                </svg>
+                <span data-i18n="previewCheckoutButton">Ver flujo sin tour</span>
+            </button>
             <button class="cart-btn" id="cart-btn" onclick="openCartModal()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="9" cy="21" r="1" />
@@ -493,6 +501,13 @@
                                         <strong id="confirm-total-amount">$0 USD</strong>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="payment-selection-card" id="checkout-preview-card" hidden>
+                            <div class="payment-selection-header">
+                                <h5 data-i18n="previewCheckoutTitle">Vista previa del checkout</h5>
+                                <p data-i18n="previewCheckoutMessage">Este modo temporal solo deja recorrer el flujo. No crea una orden ni habilita el pago final.</p>
                             </div>
                         </div>
 
