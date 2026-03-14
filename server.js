@@ -1221,6 +1221,30 @@ function extractPayPalAuthorization(orderResponse) {
     return authorizations[0] || null;
 }
 
+function extractPayPalPayer(orderResponse) {
+    const payer = orderResponse && typeof orderResponse.payer === 'object' && orderResponse.payer
+        ? orderResponse.payer
+        : {};
+    const name = payer && typeof payer.name === 'object' && payer.name ? payer.name : {};
+    const givenName = sanitizeText(name.given_name || payer.given_name || payer.first_name, 80);
+    const surname = sanitizeText(name.surname || payer.surname || payer.last_name, 80);
+    const fullName = sanitizeText([givenName, surname].filter(Boolean).join(' '), 180);
+    const normalized = {
+        payerId: sanitizeText(payer.payer_id || payer.id, 64) || null,
+        email: sanitizeText(payer.email_address || payer.email, 180) || null,
+        givenName: givenName || null,
+        surname: surname || null,
+        fullName: fullName || null,
+        countryCode: sanitizeText(payer.address && payer.address.country_code, 8) || null,
+        status: sanitizeText(payer.status, 40) || null,
+        imageUrl: sanitizeText(payer.image_url || payer.picture || payer.avatar_url || payer.photo_url, 512) || null
+    };
+    if (!normalized.payerId && !normalized.email && !normalized.fullName && !normalized.imageUrl) {
+        return null;
+    }
+    return normalized;
+}
+
 function findPaymentByPayPalResource(resource) {
     const relatedIds = resource && resource.supplementary_data && resource.supplementary_data.related_ids
         ? resource.supplementary_data.related_ids
@@ -2067,6 +2091,8 @@ app.post('/api/payments/paypal/finalize', async (req, res) => {
             });
         }
 
+        const payer = extractPayPalPayer(paypalResult);
+
         logAudit('guest', aggregate.order.guest_email, 'paypal.finalized', 'order', aggregate.order.public_id, {
             paypalOrderId,
             intent: aggregate.payment.intent || aggregate.order.paypal_intent
@@ -2087,7 +2113,8 @@ app.post('/api/payments/paypal/finalize', async (req, res) => {
                 paypalOrderId: refreshed.payment.paypal_order_id,
                 paypalAuthorizationId: refreshed.payment.paypal_authorization_id,
                 paypalCaptureId: refreshed.payment.paypal_capture_id
-            } : null
+            } : null,
+            payer
         });
     } catch (error) {
         console.error('PayPal finalize error:', error);

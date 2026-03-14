@@ -1,23 +1,19 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-`server.js` contains the Express app, SQLite initialization, API routes, and static file serving. Frontend files live in `public/`: `index.html`, `css/styles.css`, `js/main.js`, `js/hotels.js`, and image assets under `public/imagenes/`. Database sources live in `db/schema.sql` and `db/seed.sql`; treat `db/*.db` and `storage/` as local runtime state, not source files. Integration smoke coverage is implemented in `scripts/smoke.js`.
+`server.js` is the only backend entrypoint; it serves the API, initializes SQLite, and exposes the app on `PORT`. Static UI files live in `public/` with styles in `public/css/`, browser logic in `public/js/`, and tour/testimonial assets in `public/imagenes/`. Database schema and seed data live in `db/schema.sql` and `db/seed.sql`. Smoke tests and local helper scripts live in `scripts/`. Deployment templates are kept in `desploy/`, and runtime private uploads default to `storage/`.
 
 ## Build, Test, and Development Commands
-`npm install` installs dependencies.
-`npm start` runs the site and API on `http://localhost:3000`.
-`PORT=4000 npm start` starts the same server on another port.
-`npm test` or `npm run smoke` runs the full smoke suite against a temporary SQLite database.
-`npm run smoke:admin`, `npm run smoke:paypal`, `npm run smoke:bank-transfer`, and similar scripts run one flow at a time while iterating.
+Run `npm install` to install the Express/SQLite dependencies. Use `npm start` to launch the app locally on port `3000` by default. Run `npm test` or `npm run smoke` to execute the full smoke suite. Target a specific flow when debugging with `npm run smoke:orders`, `npm run smoke:customer-auth`, `npm run smoke:bank-transfer`, `npm run smoke:admin`, or `npm run smoke:paypal`.
 
 ## Coding Style & Naming Conventions
-Backend code uses CommonJS Node.js; frontend code is vanilla HTML, CSS, and JavaScript. Follow the existing style: 4-space indentation in JS, 2-space indentation in CSS, and semicolons in JS files. Use `camelCase` for variables and functions, `UPPER_SNAKE_CASE` for shared constants, and `snake_case` for service folders such as `public/imagenes/servicios/chichen_itza_group_tour/`. Keep bilingual content paired consistently as `*_en` and `*_es`. No formatter or linter is committed, so match surrounding code and keep diffs minimal.
+Match the existing JavaScript style: CommonJS modules, semicolons, and 4-space indentation. Use `camelCase` for variables and functions, `UPPER_SNAKE_CASE` for environment-backed constants, and descriptive route/helper names. Keep static asset folders slug-like and lowercase, for example `public/imagenes/servicios/private_chichen_itza_cenote_with_lunch/`. There is no formatter configured in the repo, so keep changes small and consistent with surrounding code.
 
 ## Testing Guidelines
-Smoke tests use Node’s built-in `assert` and boot the real server with isolated temp storage. When adding coverage, extend `scripts/smoke.js` with a `run<Area>Scenario` function, register it in `scenarios`, and add an `npm` script if the flow will be reused. Before a PR, run the relevant smoke command and manually verify changed UI in both languages plus a mobile-sized viewport.
+This repository uses a custom Node smoke runner in `scripts/smoke.js`; there is no Jest/Vitest setup and no enforced coverage threshold. Add or extend smoke scenarios for behavior changes that affect orders, auth, admin, or payments. Before opening a PR, run the narrowest relevant smoke command first, then `npm test` for a full pass.
 
 ## Commit & Pull Request Guidelines
-Recent history mixes informal commits with prefixes like `feat:` and `fix:`. Prefer `<type>: <imperative summary>`, for example `fix: validate transfer proof uploads`. Keep commits focused on one concern. Pull requests should summarize behavior changes, list commands run, mention schema or env changes, and include screenshots for visible `public/` updates.
+Recent history mixes terse subjects like `revisar docs` and `wtf2?` with occasional prefixes such as `fix:`. For new work, use short imperative summaries that describe the actual change, optionally with `fix:` or `feat:`. PRs should explain user-visible impact, note any schema or env changes, link the issue when available, and include screenshots for `public/` UI updates.
 
 ## Security & Configuration Tips
-Copy values from `.env.example` for local setup. Configure `ADMIN_USERNAME`, `ADMIN_PASSWORD`, PayPal credentials, and bank-transfer fields before testing secured flows. Do not rely on fallback development credentials outside local work, and never commit `.env`, SQLite database files, or uploaded proof documents.
+Start from `.env.example` and never commit real credentials or production values. Keep SQLite database files, WAL files, and private uploads out of Git. When testing payment or admin changes, prefer sandbox credentials and disposable local data.

@@ -73,7 +73,7 @@
                 </svg>
                 <span data-i18n="previewCheckoutButton">Ver flujo sin tour</span>
             </button>
-            <button class="cart-btn" id="cart-btn" onclick="openCartModal()">
+            <button class="cart-btn" id="cart-btn" onclick="navigateTo('checkout')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="9" cy="21" r="1" />
                     <circle cx="20" cy="21" r="1" />
@@ -265,6 +265,25 @@
     <div class="modal-overlay" id="cart-modal" aria-hidden="true">
         <div class="modal" id="cart-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="cart-modal-title"
             tabindex="-1">
+            <section class="checkout-page-hero" id="checkout-page-hero" aria-hidden="true">
+                <div class="checkout-page-hero-bg active" id="checkout-hero-bg-a"></div>
+                <div class="checkout-page-hero-bg" id="checkout-hero-bg-b"></div>
+                <div class="checkout-page-hero-overlay"></div>
+                <div class="checkout-page-hero-content">
+                    <p class="checkout-page-kicker"
+                        data-es="Checkout"
+                        data-en="Checkout">Checkout</p>
+                    <h2 class="checkout-page-heading"
+                        data-es="Confirma y paga tu reservación"
+                        data-en="Confirm and pay your booking">Confirm and pay your booking</h2>
+                    <p class="checkout-page-subheading"
+                        data-es="3 pasos: carrito, datos y pago."
+                        data-en="3 steps: cart, details, and payment.">
+                        3 steps: cart, details, and payment.
+                    </p>
+                    <div class="checkout-sea-gallery" id="checkout-sea-gallery"></div>
+                </div>
+            </section>
             <div class="modal-header">
                 <h3 id="cart-modal-title">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -331,28 +350,6 @@
                     <div class="mobile-summary-bar" id="mobile-summary-bar">
                         <span class="mobile-summary-label" id="mobile-summary-label" data-i18n="totalToPay">Final total</span>
                         <span class="mobile-summary-total" id="mobile-summary-total">$0 USD</span>
-                    </div>
-
-                    <div class="trust-badges" id="trust-badges">
-                        <div class="trust-badge">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                            </svg>
-                            <span data-es="Pago Seguro" data-en="Secure Payment">Secure Payment</span>
-                        </div>
-                        <div class="trust-badge">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            <span data-es="Datos Protegidos" data-en="Data Protected">Data Protected</span>
-                        </div>
-                        <div class="trust-badge">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            <span data-es="Confirmación" data-en="Confirmation">Confirmation</span>
-                        </div>
                     </div>
                 </section>
 
@@ -471,12 +468,12 @@
                                 stroke-width="2">
                                 <polyline points="20 6 9 17 4 12" />
                             </svg>
-                            <span data-es="Confirma tu Reservación" data-en="Confirm Your Booking">Confirm Your Booking</span>
+                            <span data-es="Confirma y paga" data-en="Confirm and pay">Confirm and pay</span>
                         </h4>
                         <p class="confirm-step-text"
-                            data-es="Revisa los datos y elige un método de pago para continuar."
-                            data-en="Review your details and choose a payment method to continue.">
-                            Review your details and choose a payment method to continue.
+                            data-es="Revisa el total y elige tu pago."
+                            data-en="Review the total and choose your payment method.">
+                            Review the total and choose your payment method.
                         </p>
 
                         <div class="confirm-grid">
@@ -506,15 +503,38 @@
 
                         <div class="payment-selection-card" id="checkout-preview-card" hidden>
                             <div class="payment-selection-header">
-                                <h5 data-i18n="previewCheckoutTitle">Vista previa del checkout</h5>
-                                <p data-i18n="previewCheckoutMessage">Este modo temporal solo deja recorrer el flujo. No crea una orden ni habilita el pago final.</p>
+                                <span class="payment-demo-badge">
+                                    <span class="payment-demo-badge-icon" aria-hidden="true"></span>
+                                    <span data-i18n="previewDemoBadge">MODO DEMO</span>
+                                </span>
+                                <h5 data-i18n="previewCheckoutTitle">Checkout demo</h5>
+                                <p data-i18n="previewCheckoutMessage">Cargamos un servicio aleatorio y habilitamos una simulacion del pago final para revisar UI, comision y pasos sin depender de datos reales.</p>
                             </div>
+                            <div class="preview-demo-grid">
+                                <div class="preview-demo-item">
+                                    <span data-i18n="previewDemoService">Servicio</span>
+                                    <strong id="preview-demo-service-value">Tour de prueba</strong>
+                                </div>
+                                <div class="preview-demo-item">
+                                    <span data-i18n="previewDemoTravelers">Viajeros</span>
+                                    <strong id="preview-demo-travelers-value">4 Adultos</strong>
+                                </div>
+                                <div class="preview-demo-item">
+                                    <span data-i18n="paymentMethod">Metodo de pago</span>
+                                    <strong id="preview-demo-payment-value">PayPal / Tarjeta +5%</strong>
+                                </div>
+                                <div class="preview-demo-item">
+                                    <span data-i18n="subtotal">Subtotal</span>
+                                    <strong id="preview-demo-subtotal-value">$0 USD</strong>
+                                </div>
+                            </div>
+                            <p class="preview-demo-note" id="preview-demo-note" data-i18n="previewSimulationNote">Los botones finales usan datos demo y no cobran de verdad.</p>
                         </div>
 
                         <div class="payment-selection-card" id="payment-selection-card">
                             <div class="payment-selection-header">
                                 <h5 data-i18n="paymentMethod">Método de pago</h5>
-                                <p data-i18n="paymentMethodHelp">Elige la forma más conveniente para completar tu reservación.</p>
+                                <p data-i18n="paymentMethodHelp">Elige una opción para finalizar.</p>
                             </div>
                             <div class="payment-fee-legend">
                                 <span class="payment-fee-pill" id="payment-legend-transfer">Transferencia: Sin comisión</span>
@@ -523,25 +543,50 @@
                             <div class="payment-methods" id="payment-methods">
                                 <label class="payment-method-option" id="payment-option-bank-transfer" data-payment-method="bank_transfer">
                                     <input type="radio" name="payment_method" value="bank_transfer">
+                                    <span class="payment-method-visual payment-method-visual-bank" aria-hidden="true">
+                                        <span class="payment-method-icon" id="payment-option-bank-transfer-icon"></span>
+                                        <span class="payment-method-chip-row">
+                                            <span class="payment-method-chip" id="payment-option-bank-transfer-chip">Banamex</span>
+                                            <span class="payment-method-chip payment-method-chip-muted" id="payment-option-bank-transfer-fee">Sin comisión</span>
+                                        </span>
+                                    </span>
                                     <span class="payment-method-copy">
-                                        <strong id="payment-option-bank-transfer-title">Transferencia bancaria Banorte</strong>
-                                        <small id="payment-option-bank-transfer-desc">Recibe CLABE, cuenta y referencia exacta para transferir.</small>
+                                        <strong id="payment-option-bank-transfer-title">Transferencia bancaria</strong>
+                                        <small id="payment-option-bank-transfer-desc">Recibe los datos exactos para transferir.</small>
                                     </span>
                                 </label>
                                 <label class="payment-method-option" id="payment-option-paypal" data-payment-method="paypal">
                                     <input type="radio" name="payment_method" value="paypal">
+                                    <span class="payment-method-visual payment-method-visual-paypal" aria-hidden="true">
+                                        <span class="payment-method-icon" id="payment-option-paypal-icon" data-logo-src="/imagenes/pagos/paypal-logo.svg"></span>
+                                        <span class="payment-method-chip-row">
+                                            <span class="payment-method-chip payment-method-chip-paypal">PayPal</span>
+                                            <span class="payment-method-chip payment-method-chip-muted">Cards</span>
+                                            <span class="payment-method-chip payment-method-chip-accent" id="payment-option-paypal-fee">+5%</span>
+                                        </span>
+                                    </span>
                                     <span class="payment-method-copy">
                                         <strong id="payment-option-paypal-title">PayPal / Tarjeta +5%</strong>
-                                        <small id="payment-option-paypal-desc">Paga online con PayPal o tarjeta. +5% de comisión.</small>
+                                        <small id="payment-option-paypal-desc">Paga online con PayPal o tarjeta.</small>
                                     </span>
                                 </label>
                             </div>
                         </div>
 
+                        <div class="confirm-mobile-action-bar" id="confirm-mobile-action-bar" hidden>
+                            <div class="confirm-mobile-action-copy">
+                                <span data-i18n="totalFinal">Total final</span>
+                                <strong id="confirm-mobile-total">$0 USD</strong>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="confirm-mobile-pay-btn" onclick="triggerPrimaryCheckoutAction()">
+                                <span id="confirm-mobile-pay-label" data-i18n="continueWithPayPal">Pagar online</span>
+                            </button>
+                        </div>
+
                         <div class="payment-selection-card payment-help-card" id="payment-help-card" hidden>
                             <div class="payment-selection-header">
                                 <h5 data-i18n="paymentHelpTitle">¿Necesitas ayuda para pagar?</h5>
-                                <p data-i18n="paymentHelpText">Te apoyamos por WhatsApp sin cambiar el método de pago de tu orden.</p>
+                                <p data-i18n="paymentHelpText">Te ayudamos por WhatsApp.</p>
                             </div>
                             <button type="button" class="btn btn-whatsapp" onclick="openPaymentSupportWhatsApp()">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -562,7 +607,7 @@
 
                             <div class="transfer-proof-box" id="transfer-proof-box" hidden>
                                 <h6 data-i18n="uploadProofTitle">Subir comprobante</h6>
-                                <p data-i18n="uploadProofHelp">El screenshot no confirma pago por sí solo, pero nos ayuda a iniciar la revisión.</p>
+                                <p data-i18n="uploadProofHelp">Sube tu comprobante para revisión.</p>
                                 <div class="transfer-proof-fields">
                                     <input type="file" id="transfer-proof-file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
                                     <button type="button" class="btn btn-secondary" id="upload-transfer-proof-btn" onclick="uploadTransferProof()">

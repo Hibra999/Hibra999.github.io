@@ -62,6 +62,8 @@ var CUSTOMER_PORTAL_SESSION_KEY = 'lindotours_customer_portal';
 var CUSTOMER_AUTH_SESSION_KEY = 'lindotours_customer_auth';
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PAYPAL_LOGO_FALLBACK_SRC = '/imagenes/pagos/paypal-logo.svg';
+const PAYPAL_PAYER_AVATAR_ROUTE = '/imagenes/pagos/paypal-payer-avatar.jpg';
 
 const I18N = {
     es: {
@@ -90,11 +92,15 @@ const I18N = {
         sessionExpiredTitle: 'Sesión expirada',
         sessionExpiredMessage: 'Vuelve a iniciar sesión para continuar',
         cartEmpty: 'Tu carrito está vacío',
-        previewCheckoutButton: 'Ver flujo sin tour',
-        previewCheckoutTitle: 'Vista previa del checkout',
-        previewCheckoutMessage: 'Este modo temporal solo deja recorrer el flujo. No crea una orden ni habilita el pago final.',
-        previewCheckoutCartLabel: 'Vista previa',
-        previewCheckoutCartValue: 'Sin tours seleccionados. Este modo solo muestra los siguientes pasos.',
+        previewCheckoutButton: 'Probar checkout demo',
+        previewCheckoutTitle: 'Checkout demo',
+        previewCheckoutMessage: 'Cargamos un servicio aleatorio y habilitamos una simulacion del pago final para revisar UI, comision y pasos sin depender de datos reales.',
+        previewCheckoutCartLabel: 'Servicio demo',
+        previewCheckoutCartValue: 'Tour de prueba precargado para revisar el flujo completo.',
+        previewDemoBadge: 'MODO DEMO',
+        previewDemoService: 'Servicio',
+        previewDemoTravelers: 'Viajeros',
+        previewSimulationNote: 'Los botones finales usan datos demo y no cobran de verdad.',
         adultUnit: 'adulto(s)',
         childUnit: 'niño(s)',
         maps: 'Mapa',
@@ -140,11 +146,11 @@ const I18N = {
         backToCart: 'Volver al carrito',
         editDetails: 'Editar datos',
         paymentMethod: 'Método de pago',
-        paymentMethodHelp: 'Elige cómo quieres completar tu reservación.',
+        paymentMethodHelp: 'Elige una opción para finalizar.',
         paymentPayPal: 'PayPal / Tarjeta',
         paymentPayPalDesc: 'Paga online con comisión.',
         paymentTransfer: 'Transferencia bancaria',
-        paymentTransferDesc: 'Recibe CLABE, cuenta y referencia exacta para transferir.',
+        paymentTransferDesc: 'Recibe los datos exactos para transferir.',
         paymentManual: 'Reservar por contacto',
         paymentManualDesc: 'Envía tu solicitud por WhatsApp o email para confirmación manual.',
         continueWithPayPal: 'Pagar online',
@@ -168,7 +174,7 @@ const I18N = {
         copiedMessage: 'Dato copiado al portapapeles.',
         copyFailed: 'No se pudo copiar el dato.',
         paymentHelpTitle: '¿Necesitas ayuda para pagar?',
-        paymentHelpText: 'Te apoyamos por WhatsApp sin cambiar el método de pago de tu orden.',
+        paymentHelpText: 'Te ayudamos por WhatsApp.',
         paymentHelpWhatsApp: 'Ayuda por WhatsApp',
         paymentLegendPayPal: 'PayPal / Tarjeta',
         paymentLegendTransfer: 'Transferencia',
@@ -176,17 +182,25 @@ const I18N = {
         supportPaymentMessage: 'Hola, necesito ayuda para completar el pago de mi reservación.',
         selectedPaymentMethod: 'Método elegido',
         uploadProofTitle: 'Subir comprobante',
-        uploadProofHelp: 'El screenshot no confirma pago por sí solo, pero nos ayuda a iniciar la revisión.',
+        uploadProofHelp: 'Sube tu comprobante para revisión.',
         uploadProofButton: 'Subir comprobante',
         uploadProofSuccess: 'Comprobante subido. Revisaremos tu transferencia.',
         uploadProofError: 'No se pudo subir el comprobante.',
-        transferInstructionsReady: 'Orden creada. Usa exactamente estos datos para tu transferencia.',
-        transferExactMatchNote: 'La conciliación requiere coincidencia exacta de monto y referencia.',
+        transferInstructionsReady: 'Orden creada. Transfiere a estos datos.',
+        transferExactMatchNote: 'Usa monto y referencia exactos.',
+        transferDestinationTitle: 'Dónde transferir',
+        transferDetailsTitle: 'Referencia y monto exacto',
+        transferAmountToSend: 'Monto a transferir',
+        paypalPayerLabel: 'Pagador PayPal',
+        paypalPayerUnknown: 'Cliente PayPal',
+        paypalPayerId: 'ID PayPal',
         paypalRedirecting: 'Redirigiendo a PayPal...',
         paypalCheckoutCancelled: 'El pago en PayPal fue cancelado.',
         paypalPaymentCompleted: 'Pago completado. Tu orden quedó registrada.',
         paypalPaymentPending: 'La orden quedó autorizada o pendiente. La confirmación final depende del webhook.',
         paypalPaymentError: 'No se pudo finalizar el pago con PayPal.',
+        previewPayPalSimulated: 'Pago PayPal simulado para revision visual.',
+        previewTransferSimulated: 'Transferencia Banamex simulada con datos de prueba.',
         paymentMethodUnavailable: 'Este método de pago no está disponible en este momento.',
         manualOrderCreated: 'Tu solicitud fue registrada. Te contactaremos para confirmar.',
         manualOrderReference: 'Comparte tu número de orden si nos contactas por WhatsApp.',
@@ -296,11 +310,15 @@ const I18N = {
         sessionExpiredTitle: 'Session expired',
         sessionExpiredMessage: 'Sign in again to continue',
         cartEmpty: 'Your cart is empty',
-        previewCheckoutButton: 'Preview flow without tour',
-        previewCheckoutTitle: 'Checkout preview',
-        previewCheckoutMessage: 'This temporary mode only lets you browse the flow. It does not create an order or enable final payment.',
-        previewCheckoutCartLabel: 'Preview',
-        previewCheckoutCartValue: 'No tours selected. This mode only shows the next steps.',
+        previewCheckoutButton: 'Try demo checkout',
+        previewCheckoutTitle: 'Demo checkout',
+        previewCheckoutMessage: 'We preload a random service and enable a simulated final payment so you can review the UI, fee, and steps without real customer data.',
+        previewCheckoutCartLabel: 'Demo service',
+        previewCheckoutCartValue: 'A sample tour is preloaded so you can review the full flow.',
+        previewDemoBadge: 'DEMO MODE',
+        previewDemoService: 'Service',
+        previewDemoTravelers: 'Travelers',
+        previewSimulationNote: 'Final action buttons use demo data and do not charge for real.',
         adultUnit: 'adult(s)',
         childUnit: 'child(ren)',
         maps: 'Maps',
@@ -346,11 +364,11 @@ const I18N = {
         backToCart: 'Back to cart',
         editDetails: 'Edit details',
         paymentMethod: 'Payment method',
-        paymentMethodHelp: 'Choose how you want to complete your booking.',
+        paymentMethodHelp: 'Choose one option to finish.',
         paymentPayPal: 'PayPal / Card',
         paymentPayPalDesc: 'Pay online with a fee.',
         paymentTransfer: 'Bank transfer',
-        paymentTransferDesc: 'Get CLABE, account, and the exact transfer reference.',
+        paymentTransferDesc: 'Get the exact transfer details.',
         paymentManual: 'Book by contact',
         paymentManualDesc: 'Send your request by WhatsApp or email for manual confirmation.',
         continueWithPayPal: 'Pay online',
@@ -374,7 +392,7 @@ const I18N = {
         copiedMessage: 'Copied to clipboard.',
         copyFailed: 'The value could not be copied.',
         paymentHelpTitle: 'Need help paying?',
-        paymentHelpText: 'We can help you on WhatsApp without changing your order payment method.',
+        paymentHelpText: 'We can help you on WhatsApp.',
         paymentHelpWhatsApp: 'WhatsApp help',
         paymentLegendPayPal: 'PayPal / Card',
         paymentLegendTransfer: 'Transfer',
@@ -382,17 +400,25 @@ const I18N = {
         supportPaymentMessage: 'Hi, I need help completing the payment for my booking.',
         selectedPaymentMethod: 'Selected method',
         uploadProofTitle: 'Upload proof',
-        uploadProofHelp: 'A screenshot alone does not confirm payment, but it helps us start the review.',
+        uploadProofHelp: 'Upload your payment proof for review.',
         uploadProofButton: 'Upload proof',
         uploadProofSuccess: 'Proof uploaded. We will review your transfer.',
         uploadProofError: 'The proof could not be uploaded.',
-        transferInstructionsReady: 'Order created. Use these exact details for your transfer.',
-        transferExactMatchNote: 'Reconciliation requires an exact amount and exact reference.',
+        transferInstructionsReady: 'Order created. Transfer using these details.',
+        transferExactMatchNote: 'Use the exact amount and exact reference.',
+        transferDestinationTitle: 'Where to transfer',
+        transferDetailsTitle: 'Reference and exact amount',
+        transferAmountToSend: 'Amount to transfer',
+        paypalPayerLabel: 'PayPal payer',
+        paypalPayerUnknown: 'PayPal customer',
+        paypalPayerId: 'PayPal ID',
         paypalRedirecting: 'Redirecting to PayPal...',
         paypalCheckoutCancelled: 'The PayPal checkout was canceled.',
         paypalPaymentCompleted: 'Payment completed. Your order is now registered.',
         paypalPaymentPending: 'The order is authorized or pending. Final confirmation depends on the webhook.',
         paypalPaymentError: 'The PayPal payment could not be finalized.',
+        previewPayPalSimulated: 'PayPal payment simulated for visual review.',
+        previewTransferSimulated: 'Banamex transfer simulated with sample data.',
         paymentMethodUnavailable: 'This payment method is not available right now.',
         manualOrderCreated: 'Your request was recorded. We will contact you to confirm.',
         manualOrderReference: 'Share your order number if you contact us on WhatsApp.',
@@ -482,6 +508,9 @@ var SVG = {
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
     cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
     cart: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>',
+    bank: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h18"/><path d="M5 10v7"/><path d="M12 10v7"/><path d="M19 10v7"/><path d="M2 21h20"/><path d="M12 3l9 4v3H3V7l9-4z"/></svg>',
+    card: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>',
+    sparkles: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/><path d="M5 14l.9 2.1L8 17l-2.1.9L5 20l-.9-2.1L2 17l2.1-.9L5 14z"/></svg>',
     warning: '<svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
     arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>',
     arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>',
@@ -507,6 +536,9 @@ var COMMONS_HERO_SEARCH_TERMS = [
     'Playa Delfines Cancun beach',
     'Riviera Maya beach Mexico'
 ];
+var checkoutHeroRotationTimer = null;
+var checkoutHeroIndex = 0;
+var checkoutHeroRemoteSlides = null;
 
 var TOUR_CATEGORY_META = {
     sea: {
@@ -591,6 +623,32 @@ function formatDateTime(value) {
     });
 }
 
+function randomIntBetween(min, max) {
+    var lower = Math.ceil(Math.min(min, max));
+    var upper = Math.floor(Math.max(min, max));
+    return Math.floor(Math.random() * (upper - lower + 1)) + lower;
+}
+
+function pickRandomItem(items) {
+    if (!Array.isArray(items) || items.length === 0) return null;
+    return items[randomIntBetween(0, items.length - 1)];
+}
+
+function getDisplayBankTransferConfig() {
+    var bankTransfer = CONFIG.payments && CONFIG.payments.bankTransfer ? CONFIG.payments.bankTransfer : {};
+    var previewFallback = isCheckoutPreviewModeActive();
+
+    return {
+        bankName: safeText(bankTransfer.bankName).trim() || (previewFallback ? 'Banamex' : ''),
+        beneficiary: safeText(bankTransfer.beneficiary).trim() || (previewFallback ? 'Lindo Tours Demo' : ''),
+        clabe: safeText(bankTransfer.clabe).trim() || (previewFallback ? '002180700000123456' : ''),
+        account: safeText(bankTransfer.account).trim() || (previewFallback ? '7001234567' : ''),
+        cardNumber: safeText(bankTransfer.cardNumber).trim() || (previewFallback ? '5204161234567890' : ''),
+        swift: safeText(bankTransfer.swift).trim() || (previewFallback ? 'BNMXMXMM' : ''),
+        referencePrefix: safeText(bankTransfer.referencePrefix).trim() || 'LT'
+    };
+}
+
 function getConfiguredPaymentMethods() {
     var methods = [];
     if (CONFIG.payments && CONFIG.payments.bankTransfer && CONFIG.payments.bankTransfer.enabled) {
@@ -598,6 +656,10 @@ function getConfiguredPaymentMethods() {
     }
     if (CONFIG.payments && CONFIG.payments.paypal && CONFIG.payments.paypal.enabled) {
         methods.push('paypal');
+    }
+    if (isCheckoutPreviewModeActive()) {
+        if (methods.indexOf('bank_transfer') === -1) methods.push('bank_transfer');
+        if (methods.indexOf('paypal') === -1) methods.push('paypal');
     }
     return methods;
 }
@@ -626,7 +688,10 @@ function clearCheckoutResult() {
 
     if (card) card.hidden = true;
     if (message) message.textContent = '';
-    if (grid) grid.replaceChildren();
+    if (grid) {
+        grid.className = 'checkout-result-grid';
+        grid.replaceChildren();
+    }
     if (proofBox) proofBox.hidden = true;
     if (proofFile) proofFile.value = '';
 }
@@ -689,6 +754,166 @@ function appendCheckoutResultItem(container, label, value, options) {
     container.appendChild(item);
 }
 
+function createCheckoutResultSection(title) {
+    var section = document.createElement('section');
+    section.className = 'checkout-result-section';
+
+    var heading = document.createElement('h6');
+    heading.className = 'checkout-result-section-title';
+    heading.textContent = title;
+    section.appendChild(heading);
+
+    var grid = document.createElement('div');
+    grid.className = 'checkout-result-grid compact';
+    section.appendChild(grid);
+
+    return {
+        section: section,
+        grid: grid
+    };
+}
+
+function appendCheckoutResultHighlight(section, label, value) {
+    if (!section) return;
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'checkout-result-highlight';
+
+    var labelEl = document.createElement('p');
+    labelEl.className = 'checkout-result-highlight-label';
+    labelEl.textContent = label;
+
+    var valueEl = document.createElement('p');
+    valueEl.className = 'checkout-result-highlight-value';
+    valueEl.textContent = value;
+
+    wrapper.appendChild(labelEl);
+    wrapper.appendChild(valueEl);
+
+    var sectionGrid = section.querySelector('.checkout-result-grid');
+    if (sectionGrid) {
+        section.insertBefore(wrapper, sectionGrid);
+        return;
+    }
+    section.appendChild(wrapper);
+}
+
+function getAvatarInitials(seedText) {
+    var normalized = safeText(seedText).trim();
+    if (!normalized) return 'PP';
+
+    var parts = normalized.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'PP';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+function buildCheckoutAvatarFallbackDataUrl(seedText) {
+    var seed = safeText(seedText || 'paypal').toLowerCase();
+    var hash = 0;
+    for (var i = 0; i < seed.length; i += 1) {
+        hash = ((hash * 31) + seed.charCodeAt(i)) % 360;
+    }
+    var hue = Math.abs(hash) % 360;
+    var initials = getAvatarInitials(seedText);
+    var svg = ''
+        + '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">'
+        + '<rect width="96" height="96" fill="hsl(' + hue + ',72%,44%)"/>'
+        + '<text x="50%" y="55%" fill="#ffffff" font-size="36" font-family="Arial, sans-serif" '
+        + 'font-weight="700" text-anchor="middle" dominant-baseline="middle">' + initials + '</text>'
+        + '</svg>';
+    return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+}
+
+function normalizePayPalPayer(orderResult) {
+    var raw = orderResult && orderResult.payer
+        ? orderResult.payer
+        : (orderResult && orderResult.payment && orderResult.payment.payer ? orderResult.payment.payer : null);
+    raw = raw && typeof raw === 'object' ? raw : {};
+
+    var givenName = safeText(raw.givenName || raw.firstName).trim();
+    var surname = safeText(raw.surname || raw.lastName).trim();
+    var fullName = safeText(raw.fullName || raw.name).trim();
+    var combinedName = [givenName, surname].filter(Boolean).join(' ');
+    if (!fullName) fullName = combinedName;
+    if (!fullName) {
+        var customerNameInput = document.getElementById('customer-name');
+        fullName = safeText(customerNameInput && customerNameInput.value).trim();
+    }
+
+    var email = safeText(raw.email || raw.emailAddress).trim();
+    if (!email) {
+        var customerEmailInput = document.getElementById('customer-email');
+        email = safeText(customerEmailInput && customerEmailInput.value).trim();
+    }
+
+    var payerId = safeText(raw.payerId || raw.id).trim();
+    var countryCode = safeText(raw.countryCode || raw.country).trim().toUpperCase();
+    var imageUrl = safeText(raw.imageUrl || raw.picture || raw.avatarUrl || raw.photoUrl).trim();
+    if (imageUrl && !/^(https?:\/\/|\/|data:image\/)/i.test(imageUrl)) {
+        imageUrl = '';
+    }
+
+    var fallbackSeed = fullName || email || payerId || 'paypal';
+    return {
+        fullName: fullName,
+        email: email,
+        payerId: payerId,
+        countryCode: countryCode,
+        imageUrl: imageUrl || PAYPAL_PAYER_AVATAR_ROUTE,
+        fallbackAvatar: buildCheckoutAvatarFallbackDataUrl(fallbackSeed)
+    };
+}
+
+function renderPayPalPayerCard(container, orderResult) {
+    if (!container || !orderResult) return;
+
+    var payer = normalizePayPalPayer(orderResult);
+    if (!payer.fullName && !payer.email && !payer.payerId && !payer.countryCode) return;
+
+    var card = document.createElement('div');
+    card.className = 'checkout-payer-card';
+
+    var avatar = document.createElement('img');
+    avatar.className = 'checkout-payer-avatar';
+    avatar.alt = payer.fullName || t('paypalPayerUnknown');
+    avatar.src = payer.imageUrl || payer.fallbackAvatar;
+    avatar.loading = 'lazy';
+    avatar.decoding = 'async';
+    avatar.addEventListener('error', function () {
+        if (avatar.dataset.fallbackApplied === '1') return;
+        avatar.dataset.fallbackApplied = '1';
+        avatar.src = payer.fallbackAvatar;
+    });
+
+    var copy = document.createElement('div');
+    copy.className = 'checkout-payer-copy';
+
+    var label = document.createElement('span');
+    label.className = 'checkout-payer-label';
+    label.textContent = t('paypalPayerLabel');
+
+    var name = document.createElement('strong');
+    name.className = 'checkout-payer-name';
+    name.textContent = payer.fullName || t('paypalPayerUnknown');
+
+    var meta = document.createElement('span');
+    meta.className = 'checkout-payer-meta';
+    var metaParts = [];
+    if (payer.email) metaParts.push(payer.email);
+    if (payer.payerId) metaParts.push(t('paypalPayerId') + ': ' + payer.payerId);
+    if (payer.countryCode) metaParts.push(payer.countryCode);
+    meta.textContent = metaParts.join(' · ');
+
+    copy.appendChild(label);
+    copy.appendChild(name);
+    if (meta.textContent) copy.appendChild(meta);
+
+    card.appendChild(avatar);
+    card.appendChild(copy);
+    container.appendChild(card);
+}
+
 function buildCurrentPageUrl(params) {
     var url = new URL(window.location.pathname, window.location.origin);
     Object.keys(params || {}).forEach(function (key) {
@@ -742,7 +967,7 @@ function getCartPricingBreakdown(method) {
 }
 
 function getPaymentTitle(method, feePercentOverride) {
-    var bankName = safeText(CONFIG.payments && CONFIG.payments.bankTransfer ? CONFIG.payments.bankTransfer.bankName : '').trim();
+    var bankName = getDisplayBankTransferConfig().bankName;
     var feePercentValue = Number.isFinite(safeNumber(feePercentOverride, NaN)) ? roundCurrencyAmount(feePercentOverride) : getPaymentFeePercent(method);
     var feePercent = formatFeePercent(feePercentValue);
 
@@ -757,7 +982,7 @@ function getPaymentTitle(method, feePercentOverride) {
 }
 
 function getPaymentDescription(method) {
-    var bankName = safeText(CONFIG.payments && CONFIG.payments.bankTransfer ? CONFIG.payments.bankTransfer.bankName : '').trim();
+    var bankName = getDisplayBankTransferConfig().bankName;
     var feePercentValue = getPaymentFeePercent(method);
     var feePercent = formatFeePercent(feePercentValue);
 
@@ -773,9 +998,9 @@ function getPaymentDescription(method) {
     }
     if (method === 'bank_transfer') {
         if (state.language === 'en') {
-            return (bankName ? bankName + '. ' : '') + 'No fee. Get CLABE, account, and the exact transfer reference.';
+            return (bankName ? bankName + '. ' : '') + 'No fee. Get exact transfer details.';
         }
-        return (bankName ? bankName + '. ' : '') + 'Sin comisión. Recibe CLABE, cuenta y la referencia exacta para transferir.';
+        return (bankName ? bankName + '. ' : '') + 'Sin comisión. Recibe datos exactos para transferir.';
     }
     return t('paymentManualDesc');
 }
@@ -788,6 +1013,52 @@ function getPayPalCtaLabel() {
             : 'Pagar online +' + formatFeePercent(feePercent) + '%';
     }
     return t('continueWithPayPal');
+}
+
+function getPrimaryCheckoutActionLabel(method) {
+    var value = safeText(method).toLowerCase();
+    if (value === 'bank_transfer') return t('getTransferInstructions');
+    if (value === 'manual_contact') return t('paymentHelpWhatsApp');
+    return getPayPalCtaLabel();
+}
+
+function renderPayPalBrandIcon(iconContainer) {
+    if (!iconContainer) return;
+
+    var logoSource = safeText(iconContainer.getAttribute('data-logo-src')) || PAYPAL_LOGO_FALLBACK_SRC;
+    iconContainer.classList.remove('paypal-logo-ready');
+    iconContainer.innerHTML = '';
+
+    var logo = document.createElement('img');
+    logo.className = 'paypal-logo';
+    logo.alt = 'PayPal';
+    logo.src = logoSource;
+    logo.loading = 'lazy';
+    logo.decoding = 'async';
+    logo.addEventListener('load', function () {
+        iconContainer.classList.add('paypal-logo-ready');
+    });
+    logo.addEventListener('error', function () {
+        iconContainer.classList.remove('paypal-logo-ready');
+        iconContainer.innerHTML = SVG.card;
+    });
+
+    iconContainer.appendChild(logo);
+}
+
+function triggerPrimaryCheckoutAction() {
+    if (bookingSubmissionInProgress) return;
+
+    var method = getSelectedPaymentMethod();
+    if (method === 'bank_transfer') {
+        startBankTransferCheckout();
+        return;
+    }
+    if (method === 'manual_contact') {
+        openPaymentSupportWhatsApp();
+        return;
+    }
+    startPayPalCheckout();
 }
 
 function normalizePaymentMethodLabel(method, feePercentOverride) {
@@ -803,21 +1074,38 @@ function renderPaymentMethodCopy() {
     var paypalDesc = document.getElementById('payment-option-paypal-desc');
     var transferTitle = document.getElementById('payment-option-bank-transfer-title');
     var transferDesc = document.getElementById('payment-option-bank-transfer-desc');
+    var paypalIcon = document.getElementById('payment-option-paypal-icon');
+    var transferIcon = document.getElementById('payment-option-bank-transfer-icon');
+    var previewBadgeIcon = document.querySelector('.payment-demo-badge-icon');
+    var transferChip = document.getElementById('payment-option-bank-transfer-chip');
+    var transferFee = document.getElementById('payment-option-bank-transfer-fee');
+    var paypalFee = document.getElementById('payment-option-paypal-fee');
     var transferLegend = document.getElementById('payment-legend-transfer');
     var paypalLegend = document.getElementById('payment-legend-paypal');
     var payLabel = document.getElementById('pay-paypal-label');
+    var mobilePayLabel = document.getElementById('confirm-mobile-pay-label');
+    var bankConfig = getDisplayBankTransferConfig();
+    var transferFeeValue = getPaymentFeePercent('bank_transfer');
+    var paypalFeeValue = getPaymentFeePercent('paypal');
 
     if (paypalTitle) paypalTitle.textContent = getPaymentTitle('paypal');
     if (paypalDesc) paypalDesc.textContent = getPaymentDescription('paypal');
     if (transferTitle) transferTitle.textContent = getPaymentTitle('bank_transfer');
     if (transferDesc) transferDesc.textContent = getPaymentDescription('bank_transfer');
+    renderPayPalBrandIcon(paypalIcon);
+    if (transferIcon) transferIcon.innerHTML = SVG.bank;
+    if (previewBadgeIcon) previewBadgeIcon.innerHTML = SVG.sparkles;
+    if (transferChip) transferChip.textContent = bankConfig.bankName || 'Banamex';
+    if (transferFee) transferFee.textContent = transferFeeValue > 0 ? '+' + formatFeePercent(transferFeeValue) + '%' : t('noCommission');
+    if (paypalFee) paypalFee.textContent = paypalFeeValue > 0 ? '+' + formatFeePercent(paypalFeeValue) + '%' : t('noCommission');
     if (transferLegend) {
-        transferLegend.textContent = t('paymentLegendTransfer') + ': ' + (getPaymentFeePercent('bank_transfer') > 0 ? '+' + formatFeePercent(getPaymentFeePercent('bank_transfer')) + '%' : t('noCommission'));
+        transferLegend.textContent = t('paymentLegendTransfer') + ': ' + (transferFeeValue > 0 ? '+' + formatFeePercent(transferFeeValue) + '%' : t('noCommission'));
     }
     if (paypalLegend) {
-        paypalLegend.textContent = t('paymentLegendPayPal') + ': ' + (getPaymentFeePercent('paypal') > 0 ? '+' + formatFeePercent(getPaymentFeePercent('paypal')) + '%' : t('noCommission'));
+        paypalLegend.textContent = t('paymentLegendPayPal') + ': ' + (paypalFeeValue > 0 ? '+' + formatFeePercent(paypalFeeValue) + '%' : t('noCommission'));
     }
     if (payLabel) payLabel.textContent = getPayPalCtaLabel();
+    if (mobilePayLabel) mobilePayLabel.textContent = getPrimaryCheckoutActionLabel(getSelectedPaymentMethod());
 }
 
 function normalizeStatusLabel(status) {
@@ -1158,6 +1446,84 @@ function applyCatalogHeroSlides(layerA, layerB, slides) {
         outgoingLayer.classList.remove('active');
         heroIndex = nextIndex;
     }, 7000);
+}
+
+function stopCheckoutHero() {
+    clearInterval(checkoutHeroRotationTimer);
+    checkoutHeroRotationTimer = null;
+}
+
+function setHeroLayerImage(layer, url) {
+    if (!layer) return;
+    var source = safeText(url).replace(/"/g, '%22');
+    layer.style.backgroundImage = 'url("' + source + '")';
+}
+
+function renderCheckoutSeaGallery(slides) {
+    var gallery = document.getElementById('checkout-sea-gallery');
+    if (!gallery) return;
+
+    var activeSlides = Array.isArray(slides) && slides.length > 0 ? slides : SEA_HERO_SLIDES.slice();
+    gallery.replaceChildren();
+
+    activeSlides.slice(0, 4).forEach(function (imageUrl) {
+        var tile = document.createElement('span');
+        tile.className = 'checkout-sea-image';
+        setHeroLayerImage(tile, imageUrl);
+        gallery.appendChild(tile);
+    });
+}
+
+function applyCheckoutHeroSlides(slides) {
+    var layerA = document.getElementById('checkout-hero-bg-a');
+    var layerB = document.getElementById('checkout-hero-bg-b');
+    if (!layerA || !layerB) return;
+
+    var activeSlides = Array.isArray(slides) && slides.length > 0 ? slides : SEA_HERO_SLIDES.slice();
+
+    stopCheckoutHero();
+    checkoutHeroIndex = 0;
+
+    setHeroLayerImage(layerA, activeSlides[0]);
+    layerA.classList.add('active');
+    layerB.classList.remove('active');
+
+    if (activeSlides.length > 1) {
+        setHeroLayerImage(layerB, activeSlides[1]);
+    }
+
+    renderCheckoutSeaGallery(activeSlides);
+
+    if (prefersReducedMotion || activeSlides.length < 2) return;
+
+    checkoutHeroRotationTimer = setInterval(function () {
+        var nextIndex = (checkoutHeroIndex + 1) % activeSlides.length;
+        var incomingLayer = layerA.classList.contains('active') ? layerB : layerA;
+        var outgoingLayer = incomingLayer === layerA ? layerB : layerA;
+
+        setHeroLayerImage(incomingLayer, activeSlides[nextIndex]);
+        incomingLayer.classList.add('active');
+        outgoingLayer.classList.remove('active');
+        checkoutHeroIndex = nextIndex;
+    }, 6500);
+}
+
+function initCheckoutHero() {
+    if (Array.isArray(checkoutHeroRemoteSlides) && checkoutHeroRemoteSlides.length > 0) {
+        applyCheckoutHeroSlides(checkoutHeroRemoteSlides);
+        return;
+    }
+
+    applyCheckoutHeroSlides(SEA_HERO_SLIDES);
+    fetchCommonsSeaHeroSlides()
+        .then(function (remoteSlides) {
+            if (!Array.isArray(remoteSlides) || remoteSlides.length === 0) return;
+            checkoutHeroRemoteSlides = remoteSlides.slice(0, 4);
+            applyCheckoutHeroSlides(checkoutHeroRemoteSlides);
+        })
+        .catch(function (error) {
+            console.warn('initCheckoutHero error', error);
+        });
 }
 
 function getAdminToken() {
@@ -2126,7 +2492,9 @@ async function initApp() {
     var modal = document.getElementById('cart-modal');
     if (modal) {
         modal.addEventListener('click', function (e) {
-            if (e.target === modal) closeCartModal();
+            if (e.target === modal && !document.body.classList.contains('checkout-view-active')) {
+                closeCartModal();
+            }
         });
     }
 
@@ -2137,6 +2505,7 @@ async function initApp() {
             closeCartModal();
             return;
         }
+        if (document.body.classList.contains('checkout-view-active')) return;
         trapCartModalFocus(e);
     });
 
@@ -2152,6 +2521,11 @@ async function initApp() {
 
 function handleHash() {
     var hash = window.location.hash.slice(1);
+
+    if (hash === 'checkout') {
+        showCheckoutView();
+        return;
+    }
 
     if (hash === 'about') {
         showAbout();
@@ -2188,10 +2562,29 @@ function handleHash() {
 function navigateTo(view, tourId) {
     if (view === 'catalog') window.location.hash = '';
     else if (view === 'detail' && tourId) window.location.hash = tourId;
+    else if (view === 'checkout') window.location.hash = 'checkout';
     else if (view === 'about') window.location.hash = 'about';
     else if (view === 'orders') window.location.hash = 'orders';
     else if (view === 'admin') window.location.hash = 'admin';
     else if (view === 'dashboard') window.location.hash = 'dashboard';
+}
+
+function setCheckoutLayoutActive(active) {
+    var modal = document.getElementById('cart-modal');
+    if (!modal) return;
+
+    if (active) {
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('checkout-view-active');
+    } else {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('checkout-view-active');
+        stopCheckoutHero();
+    }
+
+    document.body.style.overflow = '';
 }
 
 function hideAllViews() {
@@ -2214,6 +2607,7 @@ function hideAllViews() {
     if (adminLoginView) adminLoginView.style.display = 'none';
     if (adminDashboardView) adminDashboardView.style.display = 'none';
     if (testimonials) testimonials.style.display = 'none';
+    setCheckoutLayoutActive(false);
 
     var floatingBack = document.getElementById('floating-back');
     if (floatingBack) floatingBack.remove();
@@ -2294,6 +2688,17 @@ function showOrdersView() {
         setOrderLookupStatus('idle');
     }
 
+    window.scrollTo(0, 0);
+}
+
+function showCheckoutView() {
+    state.currentView = 'checkout';
+    hideAllViews();
+    setCheckoutLayoutActive(true);
+    initCheckoutHero();
+    updateCartUI();
+    applyLanguage({ rerender: false, persist: false });
+    focusCartModalPrimaryControl();
     window.scrollTo(0, 0);
 }
 
@@ -2781,7 +3186,7 @@ function updatePaymentMethodUI() {
 }
 
 function isCheckoutPreviewModeActive() {
-    return state.checkoutPreviewMode && state.cart.length === 0;
+    return state.checkoutPreviewMode;
 }
 
 function formatPreviewDateValue(date) {
@@ -2817,7 +3222,8 @@ function captureCheckoutFormSnapshot() {
             hotel: safeText(hotelInput && hotelInput.dataset ? hotelInput.dataset.hotel : ''),
             zone: safeText(hotelInput && hotelInput.dataset ? hotelInput.dataset.zone : '')
         },
-        comments: safeText(document.getElementById('customer-comments') && document.getElementById('customer-comments').value)
+        comments: safeText(document.getElementById('customer-comments') && document.getElementById('customer-comments').value),
+        selectedPaymentMethod: safeText(state.selectedPaymentMethod)
     };
 }
 
@@ -2869,6 +3275,8 @@ function restoreCheckoutFormSnapshot(snapshot) {
 
     if (commentsInput) commentsInput.value = data.comments || '';
 
+    state.selectedPaymentMethod = data.selectedPaymentMethod || getDefaultPaymentMethod();
+
     closeAC();
     setHotelNoMatchHint(false);
     if (data.hotelDataset && data.hotelDataset.hotel) {
@@ -2877,10 +3285,79 @@ function restoreCheckoutFormSnapshot(snapshot) {
         hideMapBtn();
     }
 
+    updatePaymentMethodUI();
     updatePreviews();
 }
 
-function applyCheckoutPreviewDummyData() {
+function buildPreviewCartItem() {
+    var tours = Object.values(TOURS).filter(function (tour) {
+        return tour
+            && tour.id
+            && tour.pricing
+            && Array.isArray(tour.pricing.tiers)
+            && tour.pricing.tiers.length > 0;
+    });
+    var tour = pickRandomItem(tours);
+    if (!tour) {
+        return {
+            id: 'preview-generic-' + Date.now(),
+            previewDemo: true,
+            name: state.language === 'en' ? 'Riviera Maya Demo Experience' : 'Experiencia demo Riviera Maya',
+            image: 'imagenes/whale.jpg',
+            adults: 4,
+            children: 1,
+            adultPriceUSD: 145,
+            childPriceUSD: 85,
+            addOns: [],
+            subtotalUSD: 665
+        };
+    }
+
+    var tiers = (tour.pricing.tiers || []).filter(function (tier) {
+        return safeInt(tier && tier.adults, 0) > 0 && safeInt(tier && tier.adultPrice, 0) > 0;
+    });
+    var selectedTier = pickRandomItem(tiers) || { adults: 2, adultPrice: safeInt(tour.card && tour.card.priceFrom, 0) };
+    var adults = Math.max(1, safeInt(selectedTier.adults, 2));
+    var children = randomIntBetween(0, Math.min(2, adults > 2 ? 2 : 1));
+    var childPrice = safeInt(tour.pricing.childPriceFlat, 0);
+    var totalTravelers = adults + children;
+    var selectedAddOns = [];
+    var addOnOptions = tour.addOns && Array.isArray(tour.addOns.options) ? tour.addOns.options : [];
+
+    if (addOnOptions.length > 0 && Math.random() >= 0.5) {
+        var selectedAddOn = pickRandomItem(addOnOptions);
+        if (selectedAddOn) {
+            selectedAddOns.push({
+                id: selectedAddOn.id,
+                name: getLocalized(selectedAddOn.title, state.language),
+                pricePerPerson: safeInt(selectedAddOn.pricePerPerson, 0)
+            });
+        }
+    }
+
+    var addOnsSubtotal = selectedAddOns.reduce(function (sum, addOn) {
+        return sum + safeInt(addOn.pricePerPerson, 0) * totalTravelers;
+    }, 0);
+    var firstImage = tour.gallery && Array.isArray(tour.gallery.images) && tour.gallery.images.length > 0
+        ? tour.gallery.images[0]
+        : 1;
+
+    return {
+        id: 'preview-' + tour.id + '-' + Date.now(),
+        previewDemo: true,
+        tourId: tour.id,
+        name: getLocalized(tour.hero.title, state.language),
+        image: sanitizeImageUrl(buildImageUrl(tour.imageFolder, firstImage)),
+        adults: adults,
+        children: children,
+        adultPriceUSD: safeInt(selectedTier.adultPrice, safeInt(tour.card && tour.card.priceFrom, 0)),
+        childPriceUSD: childPrice,
+        addOns: selectedAddOns,
+        subtotalUSD: adults * safeInt(selectedTier.adultPrice, 0) + children * childPrice + addOnsSubtotal
+    };
+}
+
+function applyCheckoutPreviewDummyData(previewItem) {
     var nameInput = document.getElementById('customer-name');
     var emailInput = document.getElementById('customer-email');
     var phoneInput = document.getElementById('customer-phone');
@@ -2890,30 +3367,34 @@ function applyCheckoutPreviewDummyData() {
     var pickupHour = document.getElementById('pickup-hour');
     var pickupMin = document.getElementById('pickup-min');
     var previewDate = new Date();
+    var pickupHourValue = String(randomIntBetween(8, 11));
+    var pickupMinuteValue = pickRandomItem(['00', '30']) || '00';
+    var previewTitle = previewItem ? getCartItemName(previewItem) : t('previewCheckoutCartValue');
+    var demoCode = Date.now().toString(36).slice(-5);
 
     previewDate.setDate(previewDate.getDate() + 1);
 
-    if (nameInput) nameInput.value = state.language === 'en' ? 'Preview Customer' : 'Cliente de prueba';
-    if (emailInput) emailInput.value = 'preview@lindotours.test';
-    if (phoneInput) phoneInput.value = '+52 998 000 0000';
+    if (nameInput) nameInput.value = state.language === 'en' ? 'Demo Guest' : 'Cliente demo';
+    if (emailInput) emailInput.value = 'demo+' + demoCode + '@lindotours.test';
+    if (phoneInput) phoneInput.value = '+52 998 101 2020';
     if (window.tourDatePicker) {
         window.tourDatePicker.setDate(previewDate, true);
     } else if (dateInput) {
         dateInput.value = formatPreviewDateValue(previewDate);
     }
-    if (pickupHour) pickupHour.value = '9';
-    if (pickupMin) pickupMin.value = '00';
+    if (pickupHour) pickupHour.value = pickupHourValue;
+    if (pickupMin) pickupMin.value = pickupMinuteValue;
     if (pickupHour) pickupHour.dispatchEvent(new Event('change', { bubbles: true }));
     if (pickupMin) pickupMin.dispatchEvent(new Event('change', { bubbles: true }));
     if (hotelInput) {
-        hotelInput.value = state.language === 'en' ? 'Preview Hotel' : 'Hotel de prueba';
+        hotelInput.value = state.language === 'en' ? 'Demo Hotel Cancun' : 'Hotel demo Cancun';
         delete hotelInput.dataset.hotel;
         delete hotelInput.dataset.zone;
     }
     if (commentsInput) {
         commentsInput.value = state.language === 'en'
-            ? 'Temporary preview flow without a selected tour.'
-            : 'Flujo temporal de vista previa sin un tour seleccionado.';
+            ? 'Demo checkout for ' + previewTitle + '. Review the fee display and final payment states.'
+            : 'Checkout demo para ' + previewTitle + '. Revisa la comision y los estados del pago final.';
     }
 
     hideMapBtn();
@@ -2926,19 +3407,39 @@ function activateCheckoutPreviewMode() {
     if (!state.checkoutPreviewBackup) {
         state.checkoutPreviewBackup = captureCheckoutFormSnapshot();
     }
+    clearCheckoutResult();
     state.checkoutPreviewMode = true;
-    applyCheckoutPreviewDummyData();
+    state.cart = [];
+
+    var previewItem = buildPreviewCartItem();
+    if (previewItem) {
+        state.cart = [previewItem];
+    }
+
+    state.selectedPaymentMethod = 'paypal';
+    applyCheckoutPreviewDummyData(previewItem);
+    updatePaymentMethodUI();
 }
 
 function resetCheckoutPreviewMode(options) {
     var opts = Object.assign({ restoreForm: true }, options || {});
     var snapshot = state.checkoutPreviewBackup;
+    var wasPreviewMode = state.checkoutPreviewMode;
 
     state.checkoutPreviewMode = false;
     state.checkoutPreviewBackup = null;
+    if (wasPreviewMode) {
+        state.cart = state.cart.filter(function (item) {
+            return !item || !item.previewDemo;
+        });
+        clearCheckoutResult();
+    }
 
     if (opts.restoreForm && snapshot) {
         restoreCheckoutFormSnapshot(snapshot);
+    } else if (snapshot && snapshot.selectedPaymentMethod) {
+        state.selectedPaymentMethod = snapshot.selectedPaymentMethod;
+        updatePaymentMethodUI();
     }
 }
 
@@ -2965,6 +3466,13 @@ function syncCheckoutActionButtons() {
     var bankTransferBtn = document.getElementById('bank-transfer-btn');
     var paymentHelpCard = document.getElementById('payment-help-card');
     var previewCard = document.getElementById('checkout-preview-card');
+    var confirmMobileActionBar = document.getElementById('confirm-mobile-action-bar');
+    var confirmMobilePayBtn = document.getElementById('confirm-mobile-pay-btn');
+    var confirmMobilePayLabel = document.getElementById('confirm-mobile-pay-label');
+    var showMobileActionBar = hasItems
+        && nextStep === 3
+        && !hasActiveResult
+        && (selected === 'paypal' || selected === 'bank_transfer' || selected === 'manual_contact');
 
     if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
     if (previewCheckoutBtn) previewCheckoutBtn.style.display = !hasItems ? 'flex' : 'none';
@@ -2978,6 +3486,9 @@ function syncCheckoutActionButtons() {
     if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
     if (paymentHelpCard) paymentHelpCard.hidden = !(hasItems && nextStep === 3 && CONFIG.whatsapp && CONFIG.whatsapp.phone);
     if (previewCard) previewCard.hidden = !(previewMode && nextStep === 3);
+    if (confirmMobileActionBar) confirmMobileActionBar.hidden = !showMobileActionBar;
+    if (confirmMobilePayBtn) confirmMobilePayBtn.disabled = !showMobileActionBar;
+    if (confirmMobilePayLabel) confirmMobilePayLabel.textContent = getPrimaryCheckoutActionLabel(selected);
 }
 
 function initPaymentMethodOptions() {
@@ -3129,11 +3640,15 @@ function renderCheckoutResult(orderResult, mode) {
 
     card.hidden = false;
     orderId.textContent = orderResult && orderResult.order ? orderResult.order.publicId : 'LT-XXXX';
+    grid.className = 'checkout-result-grid';
     grid.replaceChildren();
     if (proofBox) proofBox.hidden = true;
 
-    if (orderResult && orderResult.order) {
-        var finalTotal = orderResult.order.totalFinal != null ? orderResult.order.totalFinal : orderResult.order.total;
+    var order = orderResult && orderResult.order ? orderResult.order : null;
+    var finalTotal = order ? (order.totalFinal != null ? order.totalFinal : order.total) : null;
+    var isBankTransfer = mode === 'bank_transfer' && orderResult && orderResult.bankTransfer;
+
+    if (order && !isBankTransfer) {
         appendCheckoutResultItem(grid, t('subtotal'), formatCurrency(orderResult.order.subtotal, orderResult.order.currency));
         appendCheckoutResultItem(
             grid,
@@ -3143,35 +3658,65 @@ function renderCheckoutResult(orderResult, mode) {
         appendCheckoutResultItem(grid, t('totalFinal'), formatCurrency(finalTotal, orderResult.order.currency));
     }
 
-    if (mode === 'bank_transfer' && orderResult.bankTransfer) {
-        message.textContent = t('transferInstructionsReady') + ' ' + t('transferExactMatchNote');
-        appendCheckoutResultItem(grid, t('bankName'), safeText(orderResult.bankTransfer.bankName || t('notSpecified')));
-        appendCheckoutResultItem(grid, t('beneficiary'), safeText(orderResult.bankTransfer.beneficiary || t('notSpecified')));
-        appendCheckoutResultItem(grid, t('clabe'), safeText(orderResult.bankTransfer.clabe || t('notSpecified')), {
+    if (isBankTransfer) {
+        message.textContent = orderResult.demo
+            ? t('previewTransferSimulated')
+            : t('transferInstructionsReady') + ' ' + t('transferExactMatchNote');
+
+        grid.className = 'checkout-result-layout';
+
+        var destinationSection = createCheckoutResultSection(t('transferDestinationTitle'));
+        appendCheckoutResultItem(destinationSection.grid, t('bankName'), safeText(orderResult.bankTransfer.bankName || t('notSpecified')));
+        appendCheckoutResultItem(destinationSection.grid, t('beneficiary'), safeText(orderResult.bankTransfer.beneficiary || t('notSpecified')));
+        appendCheckoutResultItem(destinationSection.grid, t('clabe'), safeText(orderResult.bankTransfer.clabe || t('notSpecified')), {
             copyValue: orderResult.bankTransfer.clabe || ''
         });
         if (orderResult.bankTransfer.account) {
-            appendCheckoutResultItem(grid, t('account'), safeText(orderResult.bankTransfer.account), {
+            appendCheckoutResultItem(destinationSection.grid, t('account'), safeText(orderResult.bankTransfer.account), {
                 copyValue: orderResult.bankTransfer.account
             });
         }
         if (orderResult.bankTransfer.cardNumber) {
-            appendCheckoutResultItem(grid, t('depositCard'), safeText(orderResult.bankTransfer.cardNumber));
+            appendCheckoutResultItem(destinationSection.grid, t('depositCard'), safeText(orderResult.bankTransfer.cardNumber), {
+                copyValue: orderResult.bankTransfer.cardNumber
+            });
         }
-        appendCheckoutResultItem(grid, t('reference'), safeText(orderResult.bankTransfer.reference || t('notSpecified')), {
+        grid.appendChild(destinationSection.section);
+
+        var transferDetailsSection = createCheckoutResultSection(t('transferDetailsTitle'));
+        if (order) {
+            appendCheckoutResultHighlight(
+                transferDetailsSection.section,
+                t('transferAmountToSend'),
+                formatCurrency(finalTotal, order.currency)
+            );
+        }
+        appendCheckoutResultItem(transferDetailsSection.grid, t('reference'), safeText(orderResult.bankTransfer.reference || t('notSpecified')), {
             copyValue: orderResult.bankTransfer.reference || ''
         });
         if (orderResult.bankTransfer.swift) {
-            appendCheckoutResultItem(grid, t('swift'), safeText(orderResult.bankTransfer.swift));
+            appendCheckoutResultItem(transferDetailsSection.grid, t('swift'), safeText(orderResult.bankTransfer.swift));
         }
-        appendCheckoutResultItem(grid, t('expiresAt'), formatDateTime(orderResult.bankTransfer.expiresAt));
-        if (proofBox) proofBox.hidden = false;
+        appendCheckoutResultItem(transferDetailsSection.grid, t('expiresAt'), formatDateTime(orderResult.bankTransfer.expiresAt));
+        grid.appendChild(transferDetailsSection.section);
+
+        if (proofBox) proofBox.hidden = Boolean(orderResult.demo);
         return;
     }
 
     if (mode === 'manual_contact') {
         message.textContent = t('manualOrderCreated') + ' ' + t('manualOrderReference');
         appendCheckoutResultItem(grid, t('paymentMethod'), t('paymentManual'));
+        return;
+    }
+
+    if (mode === 'paypal') {
+        message.textContent = orderResult && orderResult.demo ? t('previewPayPalSimulated') : t('paypalPaymentCompleted');
+        appendCheckoutResultItem(grid, t('paymentMethod'), normalizePaymentMethodLabel('paypal', orderResult && orderResult.order ? orderResult.order.feePercent : undefined));
+        if (orderResult && orderResult.payment && orderResult.payment.providerStatus) {
+            appendCheckoutResultItem(grid, t('adminProviderStatus'), safeText(orderResult.payment.providerStatus));
+        }
+        renderPayPalPayerCard(grid, orderResult);
         return;
     }
 
@@ -3750,6 +4295,37 @@ function formatFeeAmountValue(breakdown) {
     return formatCurrency(breakdown.feeAmount, CONFIG.payments && CONFIG.payments.currency);
 }
 
+function renderCheckoutPreviewCard() {
+    var serviceEl = document.getElementById('preview-demo-service-value');
+    var travelersEl = document.getElementById('preview-demo-travelers-value');
+    var paymentEl = document.getElementById('preview-demo-payment-value');
+    var subtotalEl = document.getElementById('preview-demo-subtotal-value');
+    var noteEl = document.getElementById('preview-demo-note');
+    var firstItem = state.cart[0];
+    var breakdown = getCartPricingBreakdown(getSelectedPaymentMethod());
+
+    if (!serviceEl || !travelersEl || !paymentEl || !subtotalEl || !noteEl) return;
+
+    if (!isCheckoutPreviewModeActive() || !firstItem) {
+        serviceEl.textContent = t('previewCheckoutCartValue');
+        travelersEl.textContent = '0';
+        paymentEl.textContent = normalizePaymentMethodLabel(getSelectedPaymentMethod());
+        subtotalEl.textContent = formatCurrency(0, CONFIG.payments && CONFIG.payments.currency);
+        noteEl.textContent = t('previewSimulationNote');
+        return;
+    }
+
+    var travelers = [];
+    if (safeInt(firstItem.adults, 0) > 0) travelers.push(safeInt(firstItem.adults, 0) + ' ' + t('confirmLineAdults'));
+    if (safeInt(firstItem.children, 0) > 0) travelers.push(safeInt(firstItem.children, 0) + ' ' + t('confirmLineChildren'));
+
+    serviceEl.textContent = getCartItemName(firstItem);
+    travelersEl.textContent = travelers.join(', ') || '1 ' + t('confirmLineAdults');
+    paymentEl.textContent = normalizePaymentMethodLabel(getSelectedPaymentMethod(), breakdown.feePercent);
+    subtotalEl.textContent = formatCurrency(firstItem.subtotalUSD, CONFIG.payments && CONFIG.payments.currency);
+    noteEl.textContent = t('previewSimulationNote');
+}
+
 function renderCheckoutPricingSummary() {
     var breakdown = getCartPricingBreakdown(getSelectedPaymentMethod());
     var subtotalText = formatCurrency(breakdown.subtotal, CONFIG.payments && CONFIG.payments.currency);
@@ -3765,6 +4341,7 @@ function renderCheckoutPricingSummary() {
     var confirmFeeLabel = document.getElementById('confirm-fee-label');
     var confirmFee = document.getElementById('confirm-fee-amount');
     var confirmTotal = document.getElementById('confirm-total-amount');
+    var confirmMobileTotal = document.getElementById('confirm-mobile-total');
     var mobileAmount = document.getElementById('mobile-summary-total');
     var mobileLabel = document.getElementById('mobile-summary-label');
 
@@ -3779,8 +4356,10 @@ function renderCheckoutPricingSummary() {
     if (confirmFeeLabel) confirmFeeLabel.textContent = feeLabel;
     if (confirmFee) confirmFee.textContent = feeText;
     if (confirmTotal) confirmTotal.textContent = totalText;
+    if (confirmMobileTotal) confirmMobileTotal.textContent = totalText;
     if (mobileAmount) mobileAmount.textContent = totalText;
     if (mobileLabel) mobileLabel.textContent = t('totalToPay');
+    renderCheckoutPreviewCard();
 }
 
 function updateCartTotal() {
@@ -3809,14 +4388,13 @@ function saveState() {
 }
 
 function openCartModal() {
-    var modal = document.getElementById('cart-modal');
-    if (!modal) return;
-    if (modal.classList.contains('active')) return;
+    if (state.currentView !== 'checkout') {
+        navigateTo('checkout');
+        return;
+    }
 
     lastFocusedBeforeCartModal = document.activeElement;
-    modal.classList.add('active');
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
+    setCheckoutLayoutActive(true);
     updateCartUI();
     focusCartModalPrimaryControl();
 }
@@ -3831,6 +4409,7 @@ function closeCartModal() {
 
     document.body.style.overflow = '';
     resetCheckoutPreviewMode();
+    updateCartUI();
     state.checkoutMode = false;
     state.checkoutStep = 1;
 
@@ -3842,6 +4421,11 @@ function closeCartModal() {
         scrollIntoView: false,
         preserveStatus: true
     });
+
+    if (state.currentView === 'checkout' || document.body.classList.contains('checkout-view-active')) {
+        navigateTo('catalog');
+        return;
+    }
 
     if (wasOpen && lastFocusedBeforeCartModal && document.contains(lastFocusedBeforeCartModal)) {
         lastFocusedBeforeCartModal.focus();
@@ -4088,7 +4672,7 @@ function renderConfirmSummary() {
     appendConfirmSummaryRow(customerSummary, t('hotel'), hotel);
     appendConfirmSummaryRow(customerSummary, t('comments'), comments);
 
-    if (isCheckoutPreviewModeActive()) {
+    if (isCheckoutPreviewModeActive() && state.cart.length === 0) {
         appendConfirmSummaryRow(cartSummary, t('previewCheckoutCartLabel'), t('previewCheckoutCartValue'));
         renderCheckoutPricingSummary();
         return;
@@ -4154,6 +4738,11 @@ function goToCheckoutStep(step, options) {
 
     state.checkoutStep = nextStep;
     state.checkoutMode = nextStep > 1;
+
+    var modal = document.getElementById('cart-modal');
+    var dialog = document.getElementById('cart-modal-dialog');
+    if (modal) modal.setAttribute('data-checkout-step', String(nextStep));
+    if (dialog) dialog.setAttribute('data-checkout-step', String(nextStep));
 
     for (var i = 1; i <= 3; i += 1) {
         var view = getCheckoutStepView(i);
@@ -4564,7 +5153,98 @@ async function sendToWhatsApp() {
     }
 }
 
+function buildPreviewOrderPublicId() {
+    return 'LT-DEMO-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function buildPreviewCheckoutResult(paymentMethod) {
+    var method = paymentMethod === 'bank_transfer' ? 'bank_transfer' : 'paypal';
+    var breakdown = getCartPricingBreakdown(method);
+    var bankConfig = getDisplayBankTransferConfig();
+    var publicId = buildPreviewOrderPublicId();
+    var referenceCode = (bankConfig.referencePrefix || 'LT') + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    var currency = CONFIG.payments && CONFIG.payments.currency ? CONFIG.payments.currency : 'USD';
+    var isPayPal = method === 'paypal';
+    var customerNameInput = document.getElementById('customer-name');
+    var customerEmailInput = document.getElementById('customer-email');
+    var customerName = safeText(customerNameInput && customerNameInput.value).trim();
+    var customerEmail = safeText(customerEmailInput && customerEmailInput.value).trim();
+
+    return {
+        demo: true,
+        order: {
+            publicId: publicId,
+            subtotal: breakdown.subtotal,
+            feePercent: breakdown.feePercent,
+            feeAmount: breakdown.feeAmount,
+            total: breakdown.totalFinal,
+            totalFinal: breakdown.totalFinal,
+            currency: currency,
+            paymentMethod: method,
+            status: isPayPal ? 'paid' : 'awaiting_transfer'
+        },
+        payment: {
+            provider: method,
+            status: isPayPal ? 'paid' : 'awaiting_transfer',
+            providerStatus: isPayPal ? 'COMPLETED' : 'PENDING_TRANSFER'
+        },
+        payer: isPayPal ? {
+            fullName: customerName || 'PayPal Demo User',
+            email: customerEmail || 'demo.paypal@lindotours.test',
+            payerId: 'PAYER-DEMO',
+            countryCode: 'MX',
+            imageUrl: PAYPAL_PAYER_AVATAR_ROUTE
+        } : null,
+        bankTransfer: !isPayPal ? {
+            bankName: bankConfig.bankName,
+            beneficiary: bankConfig.beneficiary,
+            clabe: bankConfig.clabe,
+            account: bankConfig.account,
+            cardNumber: bankConfig.cardNumber,
+            swift: bankConfig.swift,
+            reference: referenceCode,
+            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 12).toISOString()
+        } : null
+    };
+}
+
+async function simulatePreviewCheckout(paymentMethod) {
+    if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
+
+    updateProgressIndicator(3);
+    bookingSubmissionInProgress = true;
+    setBookingButtonsLoading(true);
+    setBookingStatus('loading');
+
+    try {
+        await new Promise(function (resolve) {
+            window.setTimeout(resolve, 380);
+        });
+
+        var orderResult = buildPreviewCheckoutResult(paymentMethod);
+        renderCheckoutResult(orderResult, paymentMethod);
+        setBookingStatus('success');
+        showToast(
+            'success',
+            t('bookingSaved'),
+            paymentMethod === 'paypal' ? t('previewPayPalSimulated') : t('previewTransferSimulated')
+        );
+        syncCheckoutActionButtons();
+    } catch (error) {
+        console.error(error);
+        setBookingStatus('error');
+        showToast('error', t('whatsappErrorTitle'), error.message || t('bookingFailed'));
+    } finally {
+        bookingSubmissionInProgress = false;
+        setBookingButtonsLoading(false);
+    }
+}
+
 async function startPayPalCheckout() {
+    if (isCheckoutPreviewModeActive()) {
+        await simulatePreviewCheckout('paypal');
+        return;
+    }
     if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
     if (!CONFIG.payments || !CONFIG.payments.paypal || !CONFIG.payments.paypal.enabled) {
         showToast('error', t('whatsappErrorTitle'), t('paymentMethodUnavailable'));
@@ -4596,6 +5276,10 @@ async function startPayPalCheckout() {
 }
 
 async function startBankTransferCheckout() {
+    if (isCheckoutPreviewModeActive()) {
+        await simulatePreviewCheckout('bank_transfer');
+        return;
+    }
     if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
     if (!CONFIG.payments || !CONFIG.payments.bankTransfer || !CONFIG.payments.bankTransfer.enabled) {
         showToast('error', t('whatsappErrorTitle'), t('paymentMethodUnavailable'));
