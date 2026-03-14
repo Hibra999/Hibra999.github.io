@@ -7,6 +7,7 @@ const multer = require('multer');
 const Database = require('better-sqlite3');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const SQLITE_DB_PATH = String(process.env.SQLITE_DB_PATH || '').trim()
     ? path.resolve(__dirname, String(process.env.SQLITE_DB_PATH || '').trim())
