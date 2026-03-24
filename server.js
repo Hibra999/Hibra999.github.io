@@ -3318,11 +3318,11 @@ app.use((err, req, res, next) => {
 });
 
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    res.redirect('/?auth=login');
 });
 
 app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'register.html'));
+    res.redirect('/?auth=register');
 });
 
 app.get('/{*path}', (req, res) => {

@@ -59,7 +59,7 @@ let localCartOwner = 'guest';
 let customerCartSyncTimer = null;
 let googleIdentityInitialized = false;
 let authUIState = {
-    mode: 'register',
+    mode: 'login',
     busy: false
 };
 let adminOrdersState = {
@@ -1863,7 +1863,6 @@ function syncCustomerAuthForm() {
     var accountGoogleStatus = document.getElementById('account-google-status');
     var session = getCustomerAuthSession();
     var portalSession = getCustomerPortalSession();
-    var modalCopy = document.getElementById('auth-modal-copy');
     var googleHelperCopy = getGoogleSignInHelperCopy();
 
     if (emailInput) {
@@ -1890,11 +1889,6 @@ function syncCustomerAuthForm() {
     }
     if (authGoogleNote) authGoogleNote.textContent = googleHelperCopy;
     if (accountGoogleStatus) accountGoogleStatus.textContent = googleHelperCopy;
-    if (modalCopy) {
-        modalCopy.textContent = authUIState.mode === 'login'
-            ? t('authModalIntroLogin')
-            : t('authModalIntroRegister');
-    }
 
     syncCustomerAccountSummary();
     syncCheckoutAccountPrefill();
@@ -1929,27 +1923,54 @@ function syncAuthModeUI() {
     var isLogin = authUIState.mode === 'login';
     var registerBtn = document.getElementById('auth-mode-register-btn');
     var loginBtn = document.getElementById('auth-mode-login-btn');
+    var title = document.getElementById('auth-modal-title');
     var fullNameGroup = document.getElementById('auth-full-name-group');
     var confirmGroup = document.getElementById('auth-confirm-password-group');
     var passwordInput = document.getElementById('auth-password-input');
     var confirmInput = document.getElementById('auth-confirm-password-input');
-    var footerCopy = document.getElementById('auth-mode-footer-copy');
+    var submitBtn = document.getElementById('auth-submit-btn');
 
     if (registerBtn) registerBtn.classList.toggle('active', !isLogin);
     if (loginBtn) loginBtn.classList.toggle('active', isLogin);
+    if (title) title.textContent = isLogin ? t('loginNav') : t('registerNav');
     if (fullNameGroup) fullNameGroup.hidden = isLogin;
     if (confirmGroup) confirmGroup.hidden = isLogin;
     if (confirmInput) confirmInput.required = !isLogin;
     if (passwordInput) passwordInput.setAttribute('autocomplete', isLogin ? 'current-password' : 'new-password');
-    if (footerCopy) footerCopy.textContent = isLogin ? t('authFooterLogin') : t('authFooterRegister');
+    if (submitBtn) submitBtn.textContent = isLogin ? t('loginNav') : t('registerNav');
 
     setAuthModalStatus('idle');
     syncCustomerAuthForm();
 }
 
 function openAuthModal(mode) {
-    var target = mode === 'login' ? 'login.html' : 'register.html';
-    window.location.href = target;
+    var modal = document.getElementById('auth-modal');
+    var passwordInput = document.getElementById('auth-password-input');
+    var confirmInput = document.getElementById('auth-confirm-password-input');
+    var focusTargetId = mode === 'register' ? 'auth-full-name-input' : 'auth-email-input';
+    var wasOpen = isAuthModalOpen();
+
+    if (!modal) return;
+
+    if (!wasOpen && document.activeElement && document.activeElement !== document.body) {
+        lastFocusedBeforeAuthModal = document.activeElement;
+    }
+
+    authUIState.mode = mode === 'register' ? 'register' : 'login';
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    if (passwordInput) passwordInput.value = '';
+    if (confirmInput) confirmInput.value = '';
+
+    syncAuthModeUI();
+
+    window.requestAnimationFrame(function () {
+        ensureGoogleSignInUI();
+        var focusTarget = document.getElementById(focusTargetId) || document.getElementById('auth-email-input');
+        if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus();
+    });
 }
 
 function closeAuthModal() {
@@ -3129,24 +3150,57 @@ function redirectStandaloneAuthFallback() {
     var path = window.location.pathname || '';
     var normalized = path.replace(/\/+$/, '') || '/';
     var targetPath = '';
+    var authMode = '';
 
     if (normalized.endsWith('/login')) {
-        targetPath = normalized.slice(0, -6) + '/login.html';
+        targetPath = normalized.slice(0, -6) || '/';
+        authMode = 'login';
     } else if (normalized.endsWith('/register')) {
-        targetPath = normalized.slice(0, -9) + '/register.html';
+        targetPath = normalized.slice(0, -9) || '/';
+        authMode = 'register';
     }
 
-    if (!targetPath) return false;
-    if (targetPath === path) return false;
+    if (!targetPath || !authMode) return false;
+    if (!targetPath.endsWith('/')) targetPath += '/';
 
-    window.location.replace(targetPath + window.location.search + window.location.hash);
+    try {
+        var params = new URLSearchParams(window.location.search || '');
+        params.set('auth', authMode);
+        window.location.replace(targetPath + (params.toString() ? '?' + params.toString() : '') + window.location.hash);
+    } catch (_) {
+        window.location.replace(targetPath + '?auth=' + authMode + window.location.hash);
+    }
     return true;
+}
+
+function getRequestedAuthMode() {
+    try {
+        var params = new URLSearchParams(window.location.search || '');
+        var authMode = params.get('auth');
+        if (authMode === 'register') return 'register';
+        if (authMode === 'login') return 'login';
+    } catch (_) {
+        return '';
+    }
+    return '';
+}
+
+function clearRequestedAuthMode() {
+    try {
+        var url = new URL(window.location.href);
+        if (!url.searchParams.has('auth')) return;
+        url.searchParams.delete('auth');
+        window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+    } catch (_) {
+        // ignore URL parsing failures
+    }
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
 
 async function initApp() {
     if (redirectStandaloneAuthFallback()) return;
+    var requestedAuthMode = getRequestedAuthMode();
 
     try {
         loadState();
@@ -3260,6 +3314,10 @@ async function initApp() {
         console.error('handleCheckoutReturnFromPayPal error', error);
     });
     handleHash();
+    if (requestedAuthMode) {
+        clearRequestedAuthMode();
+        openAuthModal(requestedAuthMode);
+    }
 }
 
 function handleHash() {
