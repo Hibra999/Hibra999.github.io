@@ -12,6 +12,12 @@ sudo cp /home/gabo/portfolio/projects/23-lindoTours/desploy/lindo-tours.env.exam
 sudo nano /etc/default/lindo-tours
 ```
 
+### Google Sign-In
+- Crea un cliente web en Google Cloud para Google Identity Services.
+- Agrega los orígenes exactos en `Authorized JavaScript origins`, por ejemplo `http://localhost:3000` y tu dominio productivo.
+- Copia el Client ID web en `GOOGLE_CLIENT_ID=` dentro de `/etc/default/lindo-tours`.
+- Si manejas más de un frontend u origen, puedes usar `GOOGLE_CLIENT_IDS=` con varios Client ID separados por comas.
+
 ## 3) Instalar el servicio systemd
 ```bash
 sudo cp /home/gabo/portfolio/projects/23-lindoTours/desploy/lindo-tours.service /etc/systemd/system/lindo-tours.service

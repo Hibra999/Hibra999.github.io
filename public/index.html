@@ -29,13 +29,6 @@
                 </svg>
                 <span data-es="Nosotros" data-en="About Us">About Us</span>
             </button>
-            <button class="about-btn" onclick="navigateTo('orders')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 11l3 3L22 4" />
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-                <span data-i18n="myOrdersNav">Mis compras</span>
-            </button>
             <div class="selector" id="language-selector-container">
                 <div class="selector-current" onclick="toggleLanguageDropdown()">
                     <img id="lang-flag" src="imagenes/flags/es.jpg" alt="flag" class="lang-flag">
@@ -59,11 +52,18 @@
                     </div>
                 </div>
             </div>
-            <button class="admin-btn" onclick="navigateTo('admin')">
+            <button class="auth-nav-btn auth-nav-secondary" id="auth-register-btn" onclick="window.location.href='register.html'">
+                <span data-i18n="registerNav">Regístrate</span>
+            </button>
+            <button class="auth-nav-btn auth-nav-primary" id="auth-login-btn" onclick="window.location.href='login.html'">
+                <span data-i18n="loginNav">Iniciar sesión</span>
+            </button>
+            <button class="auth-account-btn" id="account-nav-btn" onclick="navigateTo('account')" hidden>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <path d="M20 21a8 8 0 0 0-16 0" />
+                    <circle cx="12" cy="7" r="4" />
                 </svg>
-                <span data-es="Admin" data-en="Admin">Admin</span>
+                <span id="account-nav-label" data-i18n="accountNav">Mi cuenta</span>
             </button>
             <button class="preview-flow-btn" id="preview-checkout-btn" onclick="startCheckoutPreview()" style="display:none;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -84,6 +84,82 @@
             </button>
         </div>
     </header>
+    <div class="demo-mode-banner" id="demo-mode-banner" hidden>
+        <span data-es="Modo demo activo: estás usando datos de prueba." data-en="Demo mode active: you are using test data.">Demo mode active: you are using test data.</span>
+    </div>
+    <div class="auth-modal-overlay" id="auth-modal" aria-hidden="true" hidden>
+        <div class="auth-modal-card" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+            <button type="button" class="close-modal auth-modal-close" aria-label="Close auth modal" onclick="closeAuthModal()">&times;</button>
+            <div class="auth-card-header">
+                <div class="auth-brand-pill">
+                    <img src="imagenes/Lindo_Tours.jpeg" alt="Lindo Tours Logo" class="auth-brand-pill-icon">
+                    <span data-es="Cuenta Lindo Tours" data-en="Lindo Tours Account">Cuenta Lindo Tours</span>
+                </div>
+                <p class="auth-card-kicker" data-i18n="authCardKicker">Cuenta</p>
+                <h2 id="auth-modal-title" data-i18n="authModalTitle">Accede a tu cuenta</h2>
+                <p id="auth-modal-copy" data-i18n="authModalIntro">Guarda tus compras y recupéralas desde cualquier dispositivo.</p>
+                <div class="auth-benefit-list">
+                    <span data-i18n="accountGuestBenefitSync">Carrito sincronizado</span>
+                    <span data-i18n="accountGuestBenefitOrders">Órdenes en un solo lugar</span>
+                    <span data-i18n="accountGuestBenefitFastCheckout">Checkout más rápido</span>
+                </div>
+            </div>
+            <div class="auth-mode-switch">
+                <button type="button" class="auth-mode-btn active" id="auth-mode-register-btn" onclick="switchAuthMode('register')">
+                    <span data-i18n="registerNav">Regístrate</span>
+                </button>
+                <button type="button" class="auth-mode-btn" id="auth-mode-login-btn" onclick="switchAuthMode('login')">
+                    <span data-i18n="loginNav">Iniciar sesión</span>
+                </button>
+            </div>
+            <div class="auth-google-block">
+                <div class="google-signin-slot" id="google-signin-primary"></div>
+                <button type="button" class="auth-google-fallback" id="google-fallback-primary" onclick="showGoogleUnavailableMessage('modal')" hidden>
+                    <span class="auth-google-icon" aria-hidden="true">
+                        <svg viewBox="0 0 18 18" focusable="false">
+                            <path fill="#EA4335" d="M9 7.03v3.84h5.38c-.24 1.23-.94 2.27-1.99 2.96l3.22 2.5c1.88-1.73 2.96-4.28 2.96-7.33 0-.71-.06-1.39-.18-2.05H9z" />
+                            <path fill="#4285F4" d="M9 18c2.7 0 4.96-.89 6.61-2.42l-3.22-2.5c-.89.6-2.02.96-3.39.96-2.6 0-4.81-1.76-5.6-4.13H.07v2.59A9 9 0 0 0 9 18z" />
+                            <path fill="#FBBC04" d="M3.4 9.91A5.4 5.4 0 0 1 3.09 8c0-.66.11-1.3.31-1.91V3.5H.07A9 9 0 0 0 0 8c0 1.45.35 2.83.97 4.09l2.43-1.89z" />
+                            <path fill="#34A853" d="M9 3.58c1.47 0 2.79.51 3.82 1.5l2.86-2.86C13.95.61 11.69 0 9 0A9 9 0 0 0 .07 3.5l3.33 2.59C4.19 3.76 6.4 2 9 2z" />
+                        </svg>
+                    </span>
+                    <span data-i18n="continueWithGoogle">Continue with Google</span>
+                </button>
+                <p class="auth-google-note" id="auth-google-note"></p>
+            </div>
+            <div class="auth-divider">
+                <span data-es="O usa tu email" data-en="Or use your email">O usa tu email</span>
+            </div>
+            <form id="customer-auth-form" class="auth-email-form" onsubmit="submitCustomerAuth(event)">
+                <div class="form-group" id="auth-full-name-group">
+                    <label for="auth-full-name-input" data-es="Nombre completo" data-en="Full name">Full name</label>
+                    <input type="text" id="auth-full-name-input" data-placeholder-es="Tu nombre completo"
+                        data-placeholder-en="Your full name" placeholder="Your full name" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="auth-email-input" data-es="Correo electrónico" data-en="Email">Email</label>
+                    <input type="email" id="auth-email-input" data-placeholder-es="Ingresa tu correo"
+                        data-placeholder-en="Enter your email" placeholder="Enter your email" autocomplete="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="auth-password-input" data-i18n="authPasswordLabel">Contraseña</label>
+                    <input type="password" id="auth-password-input" data-placeholder-es="Ingresa tu contraseña"
+                        data-placeholder-en="Enter your password" placeholder="Enter your password" autocomplete="current-password" required>
+                </div>
+                <div class="form-group" id="auth-confirm-password-group">
+                    <label for="auth-confirm-password-input" data-i18n="authConfirmPasswordLabel">Confirmar contraseña</label>
+                    <input type="password" id="auth-confirm-password-input" data-placeholder-es="Confirma tu contraseña"
+                        data-placeholder-en="Confirm your password" placeholder="Confirm your password" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary auth-email-submit" id="auth-submit-btn" data-i18n="continueWithEmail">Continue with email</button>
+            </form>
+            <div class="auth-modal-actions">
+                <button type="button" class="auth-skip-btn" onclick="closeAuthModal()" data-i18n="authContinueAsGuest">Seguir explorando sin cuenta</button>
+            </div>
+            <p class="auth-mode-footer" id="auth-mode-footer-copy"></p>
+            <div class="auth-inline-status" id="auth-modal-status" aria-live="polite"></div>
+        </div>
+    </div>
     <section class="catalog-hero" id="catalog-hero">
         <div class="catalog-hero-bg active" id="catalog-hero-bg-a"></div>
         <div class="catalog-hero-bg" id="catalog-hero-bg-b"></div>
@@ -139,7 +215,7 @@
                                 <path
                                     d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
                             </svg>
-                            <span>+52 1 998 144 0320</span>
+                            <span id="contact-phone-text">+52 1 998 144 0320</span>
                         </div>
                         <div class="contact-item">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -147,14 +223,14 @@
                                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                                 <polyline points="22,6 12,13 2,6" />
                             </svg>
-                            <a href="mailto:lindotours@hotmail.com">lindotours@hotmail.com</a>
+                            <a id="contact-email-link" href="mailto:lindotours@hotmail.com">lindotours@hotmail.com</a>
                         </div>
                         <div class="contact-item">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                 <path
                                     d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                             </svg>
-                            <a href="https://wa.me/5219981440320" target="_blank">WhatsApp</a>
+                            <a id="contact-whatsapp-link" href="https://wa.me/5219981440320" target="_blank" rel="noopener">WhatsApp</a>
                         </div>
                         <div class="contact-item">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -169,7 +245,7 @@
             </div>
         </div>
     </section>
-    <section id="orders-view" class="about-section orders-section" style="display:none;">
+    <section id="account-view" class="about-section" style="display:none;">
         <div class="about-container orders-container">
             <div class="about-nav">
                 <button class="back-btn" onclick="navigateTo('catalog')">
@@ -180,85 +256,70 @@
                     <span data-es="Volver a Inicio" data-en="Back to Home">Back to Home</span>
                 </button>
             </div>
-            <div class="orders-portal-layout">
-                <div class="orders-portal-intro">
-                    <h2 data-i18n="myOrdersTitle">Mis compras</h2>
-                    <div class="about-divider"></div>
-                    <p class="about-text" data-i18n="myOrdersIntro">Consulta el estado de tu orden, pagos y documentos usando tu número de orden y el email de compra.</p>
-                    <div class="orders-portal-note">
-                        <strong data-i18n="orderNumber">Número de orden</strong>
-                        <p data-i18n="myOrdersHint">Lo encuentras en el email de confirmación, en PayPal o en el mensaje de WhatsApp generado al reservar.</p>
-                    </div>
-                </div>
-
-                <div class="orders-portal-card">
-                    <form id="order-lookup-form" onsubmit="handleOrderLookup(event)">
-                        <div class="form-group">
-                            <label for="order-lookup-public-id" data-i18n="orderNumber">Número de orden</label>
-                            <input type="text" id="order-lookup-public-id" autocomplete="off" placeholder="LT-ABCD1234" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="order-lookup-email" data-i18n="email">Email</label>
-                            <input type="email" id="order-lookup-email" autocomplete="email" placeholder="you@example.com" required>
-                        </div>
-                        <div class="form-buttons" style="border-top:none; padding-top:0; margin-top:0;">
-                            <button type="submit" class="btn btn-primary" id="order-lookup-submit">
-                                <span data-i18n="lookupOrderButton">Consultar orden</span>
-                            </button>
-                            <button type="button" class="btn btn-secondary" onclick="clearCustomerPortalSession(true)">
-                                <span data-i18n="clearLookupButton">Limpiar</span>
-                            </button>
-                        </div>
-                    </form>
-                    <div class="booking-status" id="order-lookup-status" aria-live="polite"></div>
-                </div>
-            </div>
-
             <div class="orders-account-layout">
-                <div class="orders-portal-card orders-auth-card">
+                <aside class="orders-portal-card orders-auth-card">
                     <div class="orders-auth-header">
-                        <h3 data-i18n="accountAccessTitle">Acceso por email</h3>
-                        <p data-i18n="accountAccessIntro">Pide un código de un solo uso para reclamar tus compras y ver todas las órdenes ligadas a tu email.</p>
+                        <div class="account-identity">
+                            <div class="account-avatar" id="account-avatar">LT</div>
+                            <div>
+                                <p class="account-identity-kicker" data-i18n="accountNav">Mi cuenta</p>
+                                <h3 id="account-profile-name">Lindo Tours</h3>
+                                <p id="account-profile-email">lindotours@hotmail.com</p>
+                            </div>
+                        </div>
+                        <p data-i18n="accountOrdersIntro">Tus compras y tu carrito se sincronizan con tu cuenta para recuperarlos desde cualquier dispositivo.</p>
                     </div>
-                    <form id="customer-auth-request-form" onsubmit="requestCustomerAuthCode(event)">
-                        <div class="form-group">
-                            <label for="customer-auth-email" data-i18n="email">Email</label>
-                            <input type="email" id="customer-auth-email" autocomplete="email" placeholder="you@example.com" required>
+                    <div class="auth-inline-status" id="customer-auth-status" aria-live="polite"></div>
+                    <div class="account-summary-grid">
+                        <div class="account-summary-item">
+                            <span data-i18n="email">Email</span>
+                            <strong id="account-summary-email">lindotours@hotmail.com</strong>
                         </div>
-                        <div class="form-buttons" style="border-top:none; padding-top:0; margin-top:0;">
-                            <button type="submit" class="btn btn-primary" id="customer-auth-request-btn">
-                                <span data-i18n="requestCodeButton">Enviar código</span>
-                            </button>
+                        <div class="account-summary-item">
+                            <span data-i18n="customerOrdersTitle">Tus órdenes</span>
+                            <strong id="account-summary-orders">0</strong>
                         </div>
-                    </form>
-                    <form id="customer-auth-verify-form" onsubmit="verifyCustomerAuthCode(event)">
-                        <div class="form-group">
-                            <label for="customer-auth-code" data-i18n="accountCodeLabel">Código</label>
-                            <input type="text" id="customer-auth-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" required>
-                        </div>
-                        <div class="form-buttons" style="border-top:none; padding-top:0; margin-top:0;">
-                            <button type="submit" class="btn btn-primary" id="customer-auth-verify-btn">
-                                <span data-i18n="verifyCodeButton">Verificar código</span>
-                            </button>
-                            <button type="button" class="btn btn-secondary" id="customer-auth-logout-btn" onclick="customerLogout()" hidden>
-                                <span data-i18n="customerLogoutButton">Cerrar sesión</span>
-                            </button>
-                        </div>
-                    </form>
-                    <div class="booking-status" id="customer-auth-status" aria-live="polite"></div>
-                    <div class="orders-portal-note" id="customer-auth-debug-note" hidden>
-                        <strong data-i18n="customerAuthDebugTitle">Código de prueba</strong>
-                        <p id="customer-auth-debug-code">123456</p>
                     </div>
+                    <div class="account-guest-panel" id="account-guest-panel" hidden>
+                        <span class="account-guest-badge" data-i18n="accountGuestBadge">Cuenta opcional</span>
+                        <h4 data-i18n="accountGuestTitle">Navega, agrega tours al carrito y entra sólo cuando quieras guardar todo en tu cuenta.</h4>
+                        <p data-i18n="accountGuestCopy">No necesitas iniciar sesión para explorar la web. Usa tu cuenta sólo si quieres sincronizar compras, restaurar tu carrito o ver órdenes desde otro dispositivo.</p>
+                        <div class="account-guest-benefits">
+                            <span data-i18n="accountGuestBenefitSync">Carrito sincronizado</span>
+                            <span data-i18n="accountGuestBenefitOrders">Órdenes en un solo lugar</span>
+                            <span data-i18n="accountGuestBenefitFastCheckout">Checkout más rápido</span>
+                        </div>
+                        <div class="account-guest-google">
+                            <div class="google-signin-slot account-google-slot" id="google-signin-account"></div>
+                            <button type="button" class="auth-google-fallback account-google-fallback" id="google-fallback-account" onclick="showGoogleUnavailableMessage('account')" hidden>
+                                <span class="auth-google-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 18 18" focusable="false">
+                                        <path fill="#EA4335" d="M9 7.03v3.84h5.38c-.24 1.23-.94 2.27-1.99 2.96l3.22 2.5c1.88-1.73 2.96-4.28 2.96-7.33 0-.71-.06-1.39-.18-2.05H9z" />
+                                        <path fill="#4285F4" d="M9 18c2.7 0 4.96-.89 6.61-2.42l-3.22-2.5c-.89.6-2.02.96-3.39.96-2.6 0-4.81-1.76-5.6-4.13H.07v2.59A9 9 0 0 0 9 18z" />
+                                        <path fill="#FBBC04" d="M3.4 9.91A5.4 5.4 0 0 1 3.09 8c0-.66.11-1.3.31-1.91V3.5H.07A9 9 0 0 0 0 8c0 1.45.35 2.83.97 4.09l2.43-1.89z" />
+                                        <path fill="#34A853" d="M9 3.58c1.47 0 2.79.51 3.82 1.5l2.86-2.86C13.95.61 11.69 0 9 0A9 9 0 0 0 .07 3.5l3.33 2.59C4.19 3.76 6.4 2 9 2z" />
+                                    </svg>
+                                </span>
+                                <span data-i18n="continueWithGoogle">Continue with Google</span>
+                            </button>
+                            <p class="account-guest-note" id="account-google-status"></p>
+                        </div>
+                        <div class="account-guest-actions">
+                            <button type="button" class="btn btn-primary" onclick="window.location.href='register.html'" data-i18n="registerNav">Regístrate</button>
+                            <button type="button" class="btn btn-secondary" onclick="window.location.href='login.html'" data-i18n="loginNav">Iniciar sesión</button>
+                            <button type="button" class="btn btn-secondary" onclick="navigateTo('catalog')" data-i18n="accountGuestBrowse">Seguir explorando</button>
+                        </div>
+                    </div>
+                    <div class="account-view-actions">
+                        <button type="button" class="btn btn-secondary" id="customer-auth-logout-btn" onclick="customerLogout()" data-i18n="customerLogoutButton" hidden>Cerrar sesión</button>
+                    </div>
+                    <div id="customer-orders-list-panel" class="customer-orders-list-panel">
+                        <p class="admin-orders-empty" data-i18n="customerOrdersEmpty">Inicia sesión con tu email para ver todas tus órdenes.</p>
+                    </div>
+                </aside>
+                <div class="orders-portal-result" id="orders-portal-result">
+                    <p class="admin-orders-empty" data-i18n="accountOrdersEmptyState">Selecciona una orden para ver su detalle.</p>
                 </div>
-
-                <div class="orders-portal-result" id="customer-orders-list-panel" hidden>
-                    <p class="admin-orders-empty" data-i18n="customerOrdersEmpty">Inicia sesión con tu email para ver todas tus órdenes.</p>
-                </div>
-            </div>
-
-            <div class="orders-portal-result" id="orders-portal-result">
-                <p class="admin-orders-empty" data-i18n="myOrdersEmpty">Ingresa tu número de orden y email para ver tus compras.</p>
             </div>
         </div>
     </section>
@@ -276,12 +337,6 @@
                     <h2 class="checkout-page-heading"
                         data-es="Confirma y paga tu reservación"
                         data-en="Confirm and pay your booking">Confirm and pay your booking</h2>
-                    <p class="checkout-page-subheading"
-                        data-es="3 pasos: carrito, datos y pago."
-                        data-en="3 steps: cart, details, and payment.">
-                        3 steps: cart, details, and payment.
-                    </p>
-                    <div class="checkout-sea-gallery" id="checkout-sea-gallery"></div>
                 </div>
             </section>
             <div class="modal-header">
@@ -294,21 +349,6 @@
                     <span data-es="Tu Carrito" data-en="Your Cart">Your Cart</span>
                 </h3>
                 <button type="button" class="close-modal" aria-label="Close cart" onclick="closeCartModal()">&times;</button>
-            </div>
-
-            <div class="checkout-progress" id="checkout-progress">
-                <div class="progress-step active" id="step-1">
-                    <span class="progress-number">1</span>
-                    <span class="progress-label" data-es="Carrito" data-en="Cart">Cart</span>
-                </div>
-                <div class="progress-step" id="step-2">
-                    <span class="progress-number">2</span>
-                    <span class="progress-label" data-es="Datos" data-en="Details">Details</span>
-                </div>
-                <div class="progress-step" id="step-3">
-                    <span class="progress-number">3</span>
-                    <span class="progress-label" data-es="Confirmar" data-en="Confirm">Confirm</span>
-                </div>
             </div>
 
             <div class="modal-body">
@@ -792,413 +832,15 @@
         </div>
     </section>
 
-    <section id="admin-login-view" class="admin-login-section" style="display:none;">
-        <div class="admin-login-container">
-            <div class="admin-nav">
-                <button class="back-btn" onclick="navigateTo('catalog')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="19" y1="12" x2="5" y2="12" />
-                        <polyline points="12 19 5 12 12 5" />
-                    </svg>
-                    <span data-es="Volver a Inicio" data-en="Back to Home">Back to Home</span>
-                </button>
-            </div>
-            <div class="admin-login-card">
-                <div class="admin-login-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="1.5">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                </div>
-                <h2 data-es="Acceso Administrativo" data-en="Admin Access">Admin Access</h2>
-                <p class="admin-login-subtitle" data-es="Ingresa tus credenciales para continuar"
-                    data-en="Enter your credentials to continue">Enter your credentials to continue</p>
-                <form id="admin-login-form" onsubmit="handleAdminLogin(event)">
-                    <div class="form-group">
-                        <label data-es="Usuario" data-en="Username">Username</label>
-                        <input type="text" id="admin-username" required placeholder="Username" autocomplete="off">
-                    </div>
-                    <div class="form-group">
-                        <label data-es="Contraseña" data-en="Password">Password</label>
-                        <input type="password" id="admin-password" required placeholder="••••••••">
-                    </div>
-                    <div id="admin-login-error" class="admin-login-error" style="display:none;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="15" y1="9" x2="9" y2="15" />
-                            <line x1="9" y1="9" x2="15" y2="15" />
-                        </svg>
-                        <span data-es="Credenciales incorrectas" data-en="Invalid credentials">Invalid
-                            credentials</span>
-                    </div>
-                    <button type="submit" class="btn btn-primary admin-login-submit">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                            <polyline points="10 17 15 12 10 7" />
-                            <line x1="15" y1="12" x2="3" y2="12" />
-                        </svg>
-                        <span data-es="Iniciar Sesión" data-en="Sign In">Sign In</span>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </section>
-    <section id="admin-dashboard-view" class="admin-dashboard-section" style="display:none;">
-        <div class="admin-dashboard-container">
-            <div class="admin-dashboard-header">
-                <h2 data-es="Panel de Administración" data-en="Admin Dashboard">Admin Dashboard</h2>
-                <button class="btn btn-secondary admin-logout-btn" onclick="adminLogout()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                        <polyline points="16 17 21 12 16 7" />
-                        <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    <span data-es="Cerrar Sesión" data-en="Sign Out">Sign Out</span>
-                </button>
-            </div>
-            <div class="admin-dashboard-content">
-                <section class="admin-orders-section">
-                    <div class="admin-orders-header">
-                        <div>
-                            <h3 data-es="Órdenes y Pagos" data-en="Orders and Payments">Orders and Payments</h3>
-                            <p data-es="Revisa pagos PayPal, transferencias pendientes y detalle operativo de cada orden."
-                                data-en="Review PayPal payments, pending transfers, and operational details for each order.">
-                                Review PayPal payments, pending transfers, and operational details for each order.
-                            </p>
-                        </div>
-                        <button type="button" class="btn btn-secondary admin-refresh-btn" onclick="loadAdminOrders(true)">
-                            <span data-es="Actualizar órdenes" data-en="Refresh orders">Refresh orders</span>
-                        </button>
-                    </div>
-
-                    <div class="admin-order-metrics" id="admin-order-metrics">
-                        <div class="admin-order-metric">
-                            <span data-es="Órdenes" data-en="Orders">Orders</span>
-                            <strong id="admin-metric-orders">0</strong>
-                        </div>
-                        <div class="admin-order-metric">
-                            <span data-es="Pendientes" data-en="Pending">Pending</span>
-                            <strong id="admin-metric-pending">0</strong>
-                        </div>
-                        <div class="admin-order-metric">
-                            <span data-es="Pagadas" data-en="Paid">Paid</span>
-                            <strong id="admin-metric-paid">0</strong>
-                        </div>
-                        <div class="admin-order-metric">
-                            <span data-es="Transferencias" data-en="Transfers">Transfers</span>
-                            <strong id="admin-metric-transfers">0</strong>
-                        </div>
-                    </div>
-
-                    <div class="admin-orders-grid">
-                        <div class="admin-card">
-                            <div class="admin-card-header">
-                                <h4 data-es="Lista de órdenes" data-en="Order list">Order list</h4>
-                            </div>
-                            <div class="admin-card-body">
-                                <div class="admin-orders-list" id="admin-orders-list">
-                                    <p class="admin-orders-empty"
-                                        data-es="Inicia sesión y actualiza para ver órdenes."
-                                        data-en="Sign in and refresh to view orders.">
-                                        Sign in and refresh to view orders.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="admin-card">
-                            <div class="admin-card-header">
-                                <h4 data-es="Detalle de orden" data-en="Order detail">Order detail</h4>
-                            </div>
-                            <div class="admin-card-body">
-                                <div class="admin-order-detail" id="admin-order-detail">
-                                    <p class="admin-orders-empty"
-                                        data-es="Selecciona una orden para ver el detalle y las acciones disponibles."
-                                        data-en="Select an order to view details and available actions.">
-                                        Select an order to view details and available actions.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <div class="admin-dashboard-banner">
-                    <div class="admin-banner-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h3>Agregar Nuevo Tour</h3>
-                        <p>Completa la información a continuación para publicar una nueva experiencia en el catálogo.
-                        </p>
-                    </div>
-                </div>
-
-                <form id="admin-add-tour-form" onsubmit="handleAdminAddTour(event)">
-                    <div class="cms-layout">
-                        <!-- COLUMNA PRINCIPAL DE CONTENIDO -->
-                        <div class="cms-main">
-                            <div class="admin-card">
-                                <div class="admin-card-header">
-                                    <div class="admin-card-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                    <h4>Textos y Descripciones</h4>
-                                </div>
-                                <div class="admin-card-body">
-                                    <div class="form-grid">
-                                        <div class="form-group">
-                                            <label>Título del Tour (Español) *</label>
-                                            <input type="text" id="admin-tour-title-es" required
-                                                placeholder="ej. Aventura Maya en Tulum">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Título del Tour (Inglés) *</label>
-                                            <input type="text" id="admin-tour-title-en" required
-                                                placeholder="ej. Mayan Adventure in Tulum">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Subtítulo (Español)</label>
-                                            <input type="text" id="admin-tour-subtitle-es"
-                                                placeholder="Opcional. ej. Ruinas y Cenotes">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Subtítulo (Inglés)</label>
-                                            <input type="text" id="admin-tour-subtitle-en"
-                                                placeholder="Opcional. ej. Ruins and Cenotes">
-                                        </div>
-                                    </div>
-                                    <div class="form-grid" style="margin-top: 16px;">
-                                        <div class="form-group">
-                                            <label>Descripción Corta (Español) *</label>
-                                            <textarea id="admin-tour-short-es" rows="2" required
-                                                placeholder="Resumen breve para la tarjeta..."></textarea>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Descripción Corta (Inglés) *</label>
-                                            <textarea id="admin-tour-short-en" rows="2" required
-                                                placeholder="Brief summary for the card..."></textarea>
-                                        </div>
-                                        <div class="form-group" style="grid-column: 1 / -1;">
-                                            <label>Descripción Completa (Español) *</label>
-                                            <textarea id="admin-tour-desc-es" rows="6" required
-                                                placeholder="Historia completa del tour..."></textarea>
-                                        </div>
-                                        <div class="form-group" style="grid-column: 1 / -1;">
-                                            <label>Descripción Completa (Inglés) *</label>
-                                            <textarea id="admin-tour-desc-en" rows="6" required
-                                                placeholder="Full story of the tour..."></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="admin-card">
-                                <div class="admin-card-header">
-                                    <div class="admin-card-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                                        </svg>
-                                    </div>
-                                    <h4>Itinerario del Tour</h4>
-                                </div>
-                                <div class="admin-card-body">
-                                    <div id="admin-itinerary-container" class="dynamic-container"></div>
-                                    <button type="button" class="btn-add-dynamic" onclick="addAdminItineraryRow()">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                                        </svg>
-                                        Agregar Paso al Itinerario
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="form-grid">
-                                <div class="admin-card">
-                                    <div class="admin-card-header">
-                                        <div class="admin-card-icon">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2">
-                                                <polyline points="20 6 9 17 4 12"></polyline>
-                                            </svg>
-                                        </div>
-                                        <h4>Qué Incluye</h4>
-                                    </div>
-                                    <div class="admin-card-body">
-                                        <div id="admin-includes-container" class="dynamic-container"></div>
-                                        <button type="button" class="btn-add-dynamic"
-                                            onclick="addAdminInclRow('includes')">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2">
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                            </svg>
-                                            Incluir
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="admin-card">
-                                    <div class="admin-card-header">
-                                        <div class="admin-card-icon">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2">
-                                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                                            </svg>
-                                        </div>
-                                        <h4>No Incluye</h4>
-                                    </div>
-                                    <div class="admin-card-body">
-                                        <div id="admin-excludes-container" class="dynamic-container"></div>
-                                        <button type="button" class="btn-add-dynamic"
-                                            onclick="addAdminInclRow('excludes')">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2">
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                            </svg>
-                                            Excluir
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- COLUMNA LATERAL (SIDEBAR) -->
-                        <div class="cms-sidebar">
-
-                            <!-- Tarjeta de Publicación (Sticky effect inside CSS) -->
-                            <div class="admin-card publish-card">
-                                <div class="admin-card-header">
-                                    <h4>Publicar Tour</h4>
-                                </div>
-                                <div class="admin-card-body">
-                                    <p class="admin-text-sm" style="color: var(--text-secondary); margin-bottom: 16px;">
-                                        Asegúrate de haber llenado todos los campos obligatorios (*) antes de publicar.
-                                    </p>
-                                    <button type="submit" class="btn btn-primary btn-block btn-lg"
-                                        id="admin-submit-tour-btn" style="width: 100%;">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
-                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z">
-                                            </path>
-                                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                                            <polyline points="7 3 7 8 15 8"></polyline>
-                                        </svg>
-                                        Guardar Oficial
-                                    </button>
-                                    <button type="button" class="btn btn-secondary btn-block"
-                                        style="width: 100%; margin-top: 10px;"
-                                        onclick="document.getElementById('admin-add-tour-form').reset()">
-                                        Limpiar Formulario
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="admin-card">
-                                <div class="admin-card-header">
-                                    <h4>Info y Enlace</h4>
-                                </div>
-                                <div class="admin-card-body">
-                                    <div class="form-group">
-                                        <label>Slug (URL) *</label>
-                                        <input type="text" id="admin-tour-slug" required
-                                            placeholder="tulum-cenote-privado">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="admin-card">
-                                <div class="admin-card-header">
-                                    <h4>Precios Base</h4>
-                                </div>
-                                <div class="admin-card-body">
-                                    <div class="form-group">
-                                        <label>Precio Desde (USD) *</label>
-                                        <div class="input-with-icon">
-                                            <span class="input-icon">$</span>
-                                            <input type="number" id="admin-tour-price-from" required placeholder="150">
-                                        </div>
-                                    </div>
-                                    <div class="form-group" style="margin-top: 16px;">
-                                        <label>Precio Niños (Fijo) *</label>
-                                        <div class="input-with-icon">
-                                            <span class="input-icon">$</span>
-                                            <input type="number" id="admin-tour-child-price" required placeholder="99">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="admin-card">
-                                <div class="admin-card-header">
-                                    <h4>Tiers de Precios</h4>
-                                </div>
-                                <div class="admin-card-body">
-                                    <div id="admin-pricing-container" class="dynamic-container"></div>
-                                    <button type="button" class="btn-add-dynamic" onclick="addAdminPricingRow()"
-                                        style="width: 100%; justify-content: center;">
-                                        + Agregar Precio Extra
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="admin-card">
-                                <div class="admin-card-header">
-                                    <h4>Multimedia</h4>
-                                </div>
-                                <div class="admin-card-body">
-                                    <div class="form-group">
-                                        <label>Hero (Principal) *</label>
-                                        <div class="file-upload-wrapper">
-                                            <input type="file" id="admin-img-hero" name="1.jpg" accept="image/jpeg,image/jpg"
-                                                required class="file-input">
-                                        </div>
-                                    </div>
-                                    <div class="form-group" style="margin-top: 16px;">
-                                        <label>Card (Catálogo) *</label>
-                                        <div class="file-upload-wrapper">
-                                            <input type="file" id="admin-img-card" name="2.jpg" accept="image/jpeg,image/jpg"
-                                                required class="file-input">
-                                        </div>
-                                    </div>
-                                    <div class="form-group" style="margin-top: 16px;">
-                                        <label>Galería Múltiple *</label>
-                                        <div class="file-upload-wrapper">
-                                            <input type="file" id="admin-img-gallery" accept="image/jpeg,image/jpg" multiple required
-                                                class="file-input">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </section>
     <div class="toast-container" id="toast-container"></div>
     <footer>
         <p>&copy; 2026 Lindo Tours. <span data-es="Todos los derechos reservados." data-en="All rights reserved.">All
                 rights reserved.</span></p>
-        <p>lindotours@hotmail.com | +52 1 998 144 0320</p>
+        <p><span id="footer-contact-email">lindotours@hotmail.com</span> | <span id="footer-contact-phone">+52 1 998 144 0320</span></p>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script src="js/main.js"></script>
 </body>
