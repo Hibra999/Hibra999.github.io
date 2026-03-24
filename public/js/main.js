@@ -42,8 +42,18 @@ let CONFIG = {
     },
     payments: {
         currency: 'USD',
-        paypal: { enabled: false, clientId: null, feePercent: 0 },
-        bankTransfer: { enabled: false, bankName: null, account: null, cardNumber: null, feePercent: 0 }
+        paypal: { enabled: false, clientId: null, accountEmail: null, feePercent: 0 },
+        bankTransfer: {
+            enabled: false,
+            bankName: null,
+            beneficiary: null,
+            clabe: null,
+            account: null,
+            cardNumber: null,
+            swift: null,
+            referencePrefix: null,
+            feePercent: 0
+        }
     }
 };
 
@@ -85,6 +95,7 @@ var CUSTOMER_CART_OWNER_KEY = 'lindotours_cart_owner';
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const PAYPAL_LOGO_FALLBACK_SRC = '/imagenes/pagos/paypal-logo.svg';
+const BANK_TRANSFER_LOGO_FALLBACK_SRC = '/imagenes/pagos/bank-transfer-icon.svg';
 const PAYPAL_PAYER_AVATAR_ROUTE = '/imagenes/pagos/paypal-payer-avatar.jpg';
 
 const I18N = {
@@ -169,15 +180,15 @@ const I18N = {
         backToCart: 'Volver al carrito',
         editDetails: 'Editar datos',
         paymentMethod: 'Método de pago',
-        paymentMethodHelp: 'Elige una opción para finalizar.',
+        paymentMethodHelp: 'Elige PayPal o transferencia y revisa exactamente a dónde enviar el pago.',
         paymentPayPal: 'PayPal / Tarjeta',
-        paymentPayPalDesc: 'Paga online con comisión.',
+        paymentPayPalDesc: 'Paga en línea y te redirigimos al perfil configurado de PayPal.',
         paymentTransfer: 'Transferencia bancaria',
-        paymentTransferDesc: 'Recibe los datos exactos para transferir.',
+        paymentTransferDesc: 'Copia los datos bancarios y envía el monto exacto.',
         paymentManual: 'Reservar por contacto',
         paymentManualDesc: 'Envía tu solicitud por WhatsApp o email para confirmación manual.',
-        continueWithPayPal: 'Pagar online',
-        getTransferInstructions: 'Ver datos para transferencia',
+        continueWithPayPal: 'Pagar con PayPal',
+        getTransferInstructions: 'Ver instrucciones de transferencia',
         sendReservationEmail: 'Enviar reservación por email',
         sendReservationWhatsApp: 'Enviar por WhatsApp',
         orderNumber: 'Número de orden',
@@ -191,6 +202,9 @@ const I18N = {
         depositCard: 'Tarjeta para depósito',
         swift: 'SWIFT / BIC',
         reference: 'Referencia',
+        paypalProfileLabel: 'Perfil PayPal',
+        paypalProfileLink: 'Abrir perfil de PayPal',
+        referencePending: 'Se confirma con tu número de orden',
         expiresAt: 'Vence',
         copy: 'Copiar',
         copiedTitle: 'Copiado',
@@ -430,15 +444,15 @@ const I18N = {
         backToCart: 'Back to cart',
         editDetails: 'Edit details',
         paymentMethod: 'Payment method',
-        paymentMethodHelp: 'Choose one option to finish.',
+        paymentMethodHelp: 'Choose PayPal or bank transfer and review exactly where the money goes.',
         paymentPayPal: 'PayPal / Card',
-        paymentPayPalDesc: 'Pay online with a fee.',
+        paymentPayPalDesc: 'Pay online and we will redirect you to the configured PayPal profile.',
         paymentTransfer: 'Bank transfer',
-        paymentTransferDesc: 'Get the exact transfer details.',
+        paymentTransferDesc: 'Copy the bank details and send the exact amount.',
         paymentManual: 'Book by contact',
         paymentManualDesc: 'Send your request by WhatsApp or email for manual confirmation.',
-        continueWithPayPal: 'Pay online',
-        getTransferInstructions: 'Get transfer instructions',
+        continueWithPayPal: 'Pay with PayPal',
+        getTransferInstructions: 'Show transfer instructions',
         sendReservationEmail: 'Send booking by email',
         sendReservationWhatsApp: 'Send via WhatsApp',
         orderNumber: 'Order number',
@@ -452,6 +466,9 @@ const I18N = {
         depositCard: 'Deposit card',
         swift: 'SWIFT / BIC',
         reference: 'Reference',
+        paypalProfileLabel: 'PayPal profile',
+        paypalProfileLink: 'Open PayPal profile',
+        referencePending: 'Confirmed with your order number',
         expiresAt: 'Expires',
         copy: 'Copy',
         copiedTitle: 'Copied',
@@ -839,6 +856,7 @@ function clearCheckoutResult() {
     }
     if (proofBox) proofBox.hidden = true;
     if (proofFile) proofFile.value = '';
+    renderCheckoutPaymentCards();
 }
 
 async function copyTextValue(value) {
@@ -878,8 +896,18 @@ function appendCheckoutResultItem(container, label, value, options) {
     var valueWrap = document.createElement('div');
     valueWrap.className = 'checkout-result-item-value';
 
-    var valueEl = document.createElement('strong');
-    valueEl.textContent = value;
+    var valueEl;
+    if (opts.href) {
+        valueEl = document.createElement('a');
+        valueEl.className = 'checkout-result-link';
+        valueEl.href = opts.href;
+        valueEl.target = '_blank';
+        valueEl.rel = 'noopener';
+        valueEl.textContent = opts.linkText || value;
+    } else {
+        valueEl = document.createElement('strong');
+        valueEl.textContent = value;
+    }
 
     item.appendChild(labelEl);
     valueWrap.appendChild(valueEl);
@@ -890,6 +918,55 @@ function appendCheckoutResultItem(container, label, value, options) {
         button.className = 'checkout-copy-btn';
         button.textContent = t('copy');
         button.addEventListener('click', function () {
+            copyTextValue(opts.copyValue);
+        });
+        valueWrap.appendChild(button);
+    }
+
+    item.appendChild(valueWrap);
+    container.appendChild(item);
+}
+
+function appendPaymentCardDetail(container, label, value, options) {
+    if (!container) return;
+
+    var opts = options || {};
+    var normalizedValue = safeText(value).trim();
+    if (!normalizedValue && !opts.href) return;
+
+    var item = document.createElement('div');
+    item.className = 'payment-card-detail';
+
+    var labelEl = document.createElement('span');
+    labelEl.className = 'payment-card-detail-label';
+    labelEl.textContent = label;
+
+    var valueWrap = document.createElement('div');
+    valueWrap.className = 'payment-card-detail-value';
+
+    var valueEl;
+    if (opts.href) {
+        valueEl = document.createElement('a');
+        valueEl.className = 'payment-card-detail-link';
+        valueEl.href = opts.href;
+        valueEl.target = '_blank';
+        valueEl.rel = 'noopener';
+        valueEl.textContent = opts.linkText || normalizedValue;
+    } else {
+        valueEl = document.createElement('strong');
+        valueEl.textContent = normalizedValue;
+    }
+
+    item.appendChild(labelEl);
+    valueWrap.appendChild(valueEl);
+
+    if (opts.copyValue) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'checkout-copy-btn';
+        button.textContent = t('copy');
+        button.addEventListener('click', function (event) {
+            event.stopPropagation();
             copyTextValue(opts.copyValue);
         });
         valueWrap.appendChild(button);
@@ -1128,24 +1205,12 @@ function getPaymentTitle(method, feePercentOverride) {
 
 function getPaymentDescription(method) {
     var bankName = getDisplayBankTransferConfig().bankName;
-    var feePercentValue = getPaymentFeePercent(method);
-    var feePercent = formatFeePercent(feePercentValue);
 
     if (method === 'paypal') {
-        if (feePercentValue > 0) {
-            return state.language === 'en'
-                ? 'Pay online with PayPal or card. +' + feePercent + '% fee.'
-                : 'Paga online con PayPal o tarjeta. +' + feePercent + '% de comisión.';
-        }
-        return state.language === 'en'
-            ? 'Pay online with PayPal or card.'
-            : 'Paga online con PayPal o tarjeta.';
+        return t('paymentPayPalDesc');
     }
     if (method === 'bank_transfer') {
-        if (state.language === 'en') {
-            return (bankName ? bankName + '. ' : '') + 'No fee. Get exact transfer details.';
-        }
-        return (bankName ? bankName + '. ' : '') + 'Sin comisión. Recibe datos exactos para transferir.';
+        return bankName ? bankName + '. ' + t('paymentTransferDesc') : t('paymentTransferDesc');
     }
     return t('paymentManualDesc');
 }
@@ -1166,32 +1231,81 @@ function getPayPalCtaLabel() {
 function getPrimaryCheckoutActionLabel(method) {
     var value = safeText(method).toLowerCase();
     if (value === 'bank_transfer') return t('getTransferInstructions');
-    if (value === 'manual_contact') return t('paymentHelpWhatsApp');
     return getPayPalCtaLabel();
 }
 
-function renderPayPalBrandIcon(iconContainer) {
+function getPayPalProfileUrl() {
+    var paypal = CONFIG.payments && CONFIG.payments.paypal ? CONFIG.payments.paypal : {};
+    return safeText(paypal.profileUrl || (CONFIG.demoMode && CONFIG.demoMode.paypalUrl) || '').trim();
+}
+
+function getPayPalAccountEmail() {
+    var paypal = CONFIG.payments && CONFIG.payments.paypal ? CONFIG.payments.paypal : {};
+    return safeText(paypal.accountEmail || paypal.email || '').trim();
+}
+
+function getLatestTransferReference() {
+    var latest = state.latestCheckoutOrder;
+    var bankConfig = getDisplayBankTransferConfig();
+    var latestMethod = safeText(latest && latest.order && latest.order.paymentMethod).toLowerCase();
+    if (latestMethod === 'bank_transfer') {
+        return safeText(
+            (latest && latest.bankTransfer && latest.bankTransfer.reference)
+            || ([bankConfig.referencePrefix, latest && latest.order && latest.order.publicId].filter(Boolean).join('-'))
+        ).trim();
+    }
+    return '';
+}
+
+function getTransferReferencePreview() {
+    var reference = getLatestTransferReference();
+    if (reference) return reference;
+
+    var prefix = safeText(getDisplayBankTransferConfig().referencePrefix).trim() || 'LT';
+    return prefix + '-{orderId}';
+}
+
+function renderPaymentBrandIcon(iconContainer, fallbackSvg, fallbackSrc, altText) {
     if (!iconContainer) return;
 
-    var logoSource = safeText(iconContainer.getAttribute('data-logo-src')) || PAYPAL_LOGO_FALLBACK_SRC;
-    iconContainer.classList.remove('paypal-logo-ready');
+    var logoSource = safeText(iconContainer.getAttribute('data-logo-src') || fallbackSrc).trim();
+    iconContainer.classList.remove('logo-ready');
+    iconContainer.innerHTML = fallbackSvg;
+    if (!logoSource) return;
+
     iconContainer.innerHTML = '';
 
     var logo = document.createElement('img');
-    logo.className = 'paypal-logo';
-    logo.alt = 'PayPal';
+    logo.className = 'payment-brand-logo';
+    if (fallbackSrc === PAYPAL_LOGO_FALLBACK_SRC) {
+        logo.classList.add('paypal-logo');
+    }
+    logo.alt = altText || '';
     logo.src = logoSource;
     logo.loading = 'lazy';
     logo.decoding = 'async';
     logo.addEventListener('load', function () {
-        iconContainer.classList.add('paypal-logo-ready');
+        iconContainer.classList.add('logo-ready');
     });
     logo.addEventListener('error', function () {
-        iconContainer.classList.remove('paypal-logo-ready');
-        iconContainer.innerHTML = SVG.card;
+        iconContainer.classList.remove('logo-ready');
+        iconContainer.innerHTML = fallbackSvg;
     });
 
     iconContainer.appendChild(logo);
+}
+
+function renderPayPalBrandIcon(iconContainer) {
+    renderPaymentBrandIcon(iconContainer, SVG.card, PAYPAL_LOGO_FALLBACK_SRC, 'PayPal');
+}
+
+function renderBankTransferBrandIcon(iconContainer) {
+    renderPaymentBrandIcon(
+        iconContainer,
+        SVG.bank,
+        BANK_TRANSFER_LOGO_FALLBACK_SRC,
+        state.language === 'en' ? 'Bank transfer' : 'Transferencia bancaria'
+    );
 }
 
 function triggerPrimaryCheckoutAction() {
@@ -1200,10 +1314,6 @@ function triggerPrimaryCheckoutAction() {
     var method = getSelectedPaymentMethod();
     if (method === 'bank_transfer') {
         startBankTransferCheckout();
-        return;
-    }
-    if (method === 'manual_contact') {
-        openPaymentSupportWhatsApp();
         return;
     }
     startPayPalCheckout();
@@ -1224,34 +1334,21 @@ function renderPaymentMethodCopy() {
     var transferDesc = document.getElementById('payment-option-bank-transfer-desc');
     var paypalIcon = document.getElementById('payment-option-paypal-icon');
     var transferIcon = document.getElementById('payment-option-bank-transfer-icon');
-    var previewBadgeIcon = document.querySelector('.payment-demo-badge-icon');
-    var transferChip = document.getElementById('payment-option-bank-transfer-chip');
     var transferFee = document.getElementById('payment-option-bank-transfer-fee');
     var paypalFee = document.getElementById('payment-option-paypal-fee');
-    var transferLegend = document.getElementById('payment-legend-transfer');
-    var paypalLegend = document.getElementById('payment-legend-paypal');
     var payLabel = document.getElementById('pay-paypal-label');
     var mobilePayLabel = document.getElementById('confirm-mobile-pay-label');
-    var bankConfig = getDisplayBankTransferConfig();
     var transferFeeValue = getPaymentFeePercent('bank_transfer');
     var paypalFeeValue = getPaymentFeePercent('paypal');
 
-    if (paypalTitle) paypalTitle.textContent = getPaymentTitle('paypal');
+    if (paypalTitle) paypalTitle.textContent = t('paymentPayPal');
     if (paypalDesc) paypalDesc.textContent = getPaymentDescription('paypal');
-    if (transferTitle) transferTitle.textContent = getPaymentTitle('bank_transfer');
+    if (transferTitle) transferTitle.textContent = t('paymentTransfer');
     if (transferDesc) transferDesc.textContent = getPaymentDescription('bank_transfer');
     renderPayPalBrandIcon(paypalIcon);
-    if (transferIcon) transferIcon.innerHTML = SVG.bank;
-    if (previewBadgeIcon) previewBadgeIcon.innerHTML = SVG.sparkles;
-    if (transferChip) transferChip.textContent = bankConfig.bankName || 'Banamex';
+    renderBankTransferBrandIcon(transferIcon);
     if (transferFee) transferFee.textContent = transferFeeValue > 0 ? '+' + formatFeePercent(transferFeeValue) + '%' : t('noCommission');
     if (paypalFee) paypalFee.textContent = paypalFeeValue > 0 ? '+' + formatFeePercent(paypalFeeValue) + '%' : t('noCommission');
-    if (transferLegend) {
-        transferLegend.textContent = t('paymentLegendTransfer') + ': ' + (transferFeeValue > 0 ? '+' + formatFeePercent(transferFeeValue) + '%' : t('noCommission'));
-    }
-    if (paypalLegend) {
-        paypalLegend.textContent = t('paymentLegendPayPal') + ': ' + (paypalFeeValue > 0 ? '+' + formatFeePercent(paypalFeeValue) + '%' : t('noCommission'));
-    }
     if (isDemoModeEnabled() && paypalDesc) {
         paypalDesc.textContent = state.language === 'en'
             ? 'Demo mode. Opens the personal PayPal test link and never uses the company account.'
@@ -1259,6 +1356,7 @@ function renderPaymentMethodCopy() {
     }
     if (payLabel) payLabel.textContent = getPayPalCtaLabel();
     if (mobilePayLabel) mobilePayLabel.textContent = getPrimaryCheckoutActionLabel(getSelectedPaymentMethod());
+    renderCheckoutPaymentCards();
 }
 
 function normalizeStatusLabel(status) {
@@ -3915,6 +4013,8 @@ function getSelectedPaymentMethod() {
 }
 
 function setSelectedPaymentMethod(method) {
+    if (getConfiguredPaymentMethods().indexOf(method) === -1) return;
+
     if (state.selectedPaymentMethod !== method && state.latestCheckoutOrder) {
         clearCheckoutResult();
     }
@@ -3937,17 +4037,15 @@ function updatePaymentMethodUI() {
         var enabled = available.indexOf(method) !== -1;
         option.classList.toggle('disabled', !enabled);
         option.classList.toggle('active', enabled && method === selected);
+        option.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+        option.setAttribute('aria-checked', enabled && method === selected ? 'true' : 'false');
         if (input) {
             input.disabled = !enabled;
             input.checked = enabled && method === selected;
         }
     });
 
-    var whatsappPreview = document.getElementById('whatsapp-preview');
-    var emailPreview = document.getElementById('email-preview');
-    if (whatsappPreview) whatsappPreview.style.display = 'none';
-    if (emailPreview) emailPreview.style.display = 'none';
-
+    hideBookingPreviews();
     renderCheckoutPricingSummary();
     syncCheckoutActionButtons();
 }
@@ -4183,7 +4281,7 @@ function activateCheckoutPreviewMode() {
         state.cart = [previewItem];
     }
 
-    state.selectedPaymentMethod = 'paypal';
+    state.selectedPaymentMethod = getConfiguredPaymentMethods().indexOf('bank_transfer') !== -1 ? 'bank_transfer' : getDefaultPaymentMethod();
     applyCheckoutPreviewDummyData(previewItem);
     updatePaymentMethodUI();
 }
@@ -4216,6 +4314,7 @@ function syncCheckoutActionButtons() {
     var canAdvance = hasItems || previewMode;
     var nextStep = state.checkoutStep;
     var selected = getSelectedPaymentMethod();
+    var available = getConfiguredPaymentMethods();
     var hasActiveResult = Boolean(
         state.latestCheckoutOrder
         && state.latestCheckoutOrder.order
@@ -4227,19 +4326,17 @@ function syncCheckoutActionButtons() {
     var confirmBtn = document.getElementById('confirm-btn');
     var backToCartBtn = document.getElementById('back-to-cart-btn');
     var editDetailsBtn = document.getElementById('edit-details-btn');
-    var sendEmailBtn = document.getElementById('send-email-btn');
-    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
     var payPayPalBtn = document.getElementById('pay-paypal-btn');
     var bankTransferBtn = document.getElementById('bank-transfer-btn');
-    var paymentHelpCard = document.getElementById('payment-help-card');
-    var previewCard = document.getElementById('checkout-preview-card');
+    var payPayPalCardBtn = document.getElementById('payment-option-paypal-cta');
+    var bankTransferCardBtn = document.getElementById('payment-option-bank-transfer-cta');
     var confirmMobileActionBar = document.getElementById('confirm-mobile-action-bar');
     var confirmMobilePayBtn = document.getElementById('confirm-mobile-pay-btn');
     var confirmMobilePayLabel = document.getElementById('confirm-mobile-pay-label');
-    var showMobileActionBar = hasItems
+    var showMobileActionBar = canAdvance
         && nextStep === 3
         && !hasActiveResult
-        && (selected === 'paypal' || selected === 'bank_transfer' || selected === 'manual_contact');
+        && (selected === 'paypal' || selected === 'bank_transfer');
 
     if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
     if (previewCheckoutBtn) previewCheckoutBtn.style.display = !hasItems ? 'flex' : 'none';
@@ -4247,12 +4344,14 @@ function syncCheckoutActionButtons() {
     if (backToCartBtn) backToCartBtn.style.display = canAdvance && nextStep >= 2 ? 'flex' : 'none';
     if (editDetailsBtn) editDetailsBtn.style.display = canAdvance && nextStep === 3 ? 'flex' : 'none';
 
-    if (payPayPalBtn) payPayPalBtn.style.display = hasItems && nextStep === 3 && selected === 'paypal' && !hasActiveResult ? 'flex' : 'none';
-    if (bankTransferBtn) bankTransferBtn.style.display = hasItems && nextStep === 3 && selected === 'bank_transfer' && !hasActiveResult ? 'flex' : 'none';
-    if (sendEmailBtn) sendEmailBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
-    if (sendWhatsAppBtn) sendWhatsAppBtn.style.display = hasItems && nextStep === 3 && selected === 'manual_contact' ? 'flex' : 'none';
-    if (paymentHelpCard) paymentHelpCard.hidden = !(hasItems && nextStep === 3 && CONFIG.whatsapp && CONFIG.whatsapp.phone);
-    if (previewCard) previewCard.hidden = !(previewMode && nextStep === 3);
+    if (payPayPalBtn) payPayPalBtn.style.display = 'none';
+    if (bankTransferBtn) bankTransferBtn.style.display = 'none';
+    if (payPayPalCardBtn) {
+        payPayPalCardBtn.disabled = nextStep !== 3 || available.indexOf('paypal') === -1 || (hasActiveResult && selected === 'paypal');
+    }
+    if (bankTransferCardBtn) {
+        bankTransferCardBtn.disabled = nextStep !== 3 || available.indexOf('bank_transfer') === -1 || (hasActiveResult && selected === 'bank_transfer');
+    }
     if (confirmMobileActionBar) confirmMobileActionBar.hidden = !showMobileActionBar;
     if (confirmMobilePayBtn) confirmMobilePayBtn.disabled = !showMobileActionBar;
     if (confirmMobilePayLabel) confirmMobilePayLabel.textContent = getPrimaryCheckoutActionLabel(selected);
@@ -4260,12 +4359,31 @@ function syncCheckoutActionButtons() {
 
 function initPaymentMethodOptions() {
     document.querySelectorAll('input[name="payment_method"]').forEach(function (input) {
+        if (input.dataset.bound === '1') return;
+        input.dataset.bound = '1';
         input.addEventListener('change', function () {
             setSelectedPaymentMethod(input.value);
         });
     });
 
-    state.selectedPaymentMethod = getDefaultPaymentMethod();
+    document.querySelectorAll('.payment-method-option').forEach(function (option) {
+        if (option.dataset.bound === '1') return;
+        option.dataset.bound = '1';
+
+        option.addEventListener('click', function (event) {
+            if (event.target.closest('button') || event.target.closest('a') || event.target.closest('input')) return;
+            setSelectedPaymentMethod(option.getAttribute('data-payment-method'));
+        });
+
+        option.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            if (event.target.closest('button') || event.target.closest('a')) return;
+            event.preventDefault();
+            setSelectedPaymentMethod(option.getAttribute('data-payment-method'));
+        });
+    });
+
+    state.selectedPaymentMethod = getConfiguredPaymentMethods().indexOf('bank_transfer') !== -1 ? 'bank_transfer' : getDefaultPaymentMethod();
     updatePaymentMethodUI();
 }
 
@@ -4396,6 +4514,7 @@ async function cancelPayPalOrder(orderPublicId, paypalOrderId) {
 
 function renderCheckoutResult(orderResult, mode) {
     state.latestCheckoutOrder = orderResult;
+    renderCheckoutPaymentCards();
 
     var card = document.getElementById('checkout-result-card');
     var orderId = document.getElementById('checkout-result-order-id');
@@ -4407,48 +4526,19 @@ function renderCheckoutResult(orderResult, mode) {
 
     card.hidden = false;
     orderId.textContent = orderResult && orderResult.order ? orderResult.order.publicId : 'LT-XXXX';
-    grid.className = 'checkout-result-grid';
+    grid.className = 'checkout-result-layout';
     grid.replaceChildren();
     if (proofBox) proofBox.hidden = true;
 
     var order = orderResult && orderResult.order ? orderResult.order : null;
     var finalTotal = order ? (order.totalFinal != null ? order.totalFinal : order.total) : null;
-    var isBankTransfer = mode === 'bank_transfer' && orderResult && orderResult.bankTransfer;
-
-    if (order && !isBankTransfer) {
-        appendCheckoutResultItem(grid, t('subtotal'), formatCurrency(orderResult.order.subtotal, orderResult.order.currency));
-        appendCheckoutResultItem(
-            grid,
-            t('commission') + (orderResult.order.feePercent > 0 ? ' (+' + formatFeePercent(orderResult.order.feePercent) + '%)' : ''),
-            orderResult.order.feePercent > 0 ? formatCurrency(orderResult.order.feeAmount, orderResult.order.currency) : t('noCommission')
-        );
-        appendCheckoutResultItem(grid, t('totalFinal'), formatCurrency(finalTotal, orderResult.order.currency));
-    }
+    var normalizedMode = safeText(mode || (order && order.paymentMethod)).toLowerCase();
+    var isBankTransfer = normalizedMode === 'bank_transfer' && orderResult && orderResult.bankTransfer;
 
     if (isBankTransfer) {
         message.textContent = orderResult.demo
             ? t('previewTransferSimulated')
             : t('transferInstructionsReady') + ' ' + t('transferExactMatchNote');
-
-        grid.className = 'checkout-result-layout';
-
-        var destinationSection = createCheckoutResultSection(t('transferDestinationTitle'));
-        appendCheckoutResultItem(destinationSection.grid, t('bankName'), safeText(orderResult.bankTransfer.bankName || t('notSpecified')));
-        appendCheckoutResultItem(destinationSection.grid, t('beneficiary'), safeText(orderResult.bankTransfer.beneficiary || t('notSpecified')));
-        appendCheckoutResultItem(destinationSection.grid, t('clabe'), safeText(orderResult.bankTransfer.clabe || t('notSpecified')), {
-            copyValue: orderResult.bankTransfer.clabe || ''
-        });
-        if (orderResult.bankTransfer.account) {
-            appendCheckoutResultItem(destinationSection.grid, t('account'), safeText(orderResult.bankTransfer.account), {
-                copyValue: orderResult.bankTransfer.account
-            });
-        }
-        if (orderResult.bankTransfer.cardNumber) {
-            appendCheckoutResultItem(destinationSection.grid, t('depositCard'), safeText(orderResult.bankTransfer.cardNumber), {
-                copyValue: orderResult.bankTransfer.cardNumber
-            });
-        }
-        grid.appendChild(destinationSection.section);
 
         var transferDetailsSection = createCheckoutResultSection(t('transferDetailsTitle'));
         if (order) {
@@ -4461,34 +4551,68 @@ function renderCheckoutResult(orderResult, mode) {
         appendCheckoutResultItem(transferDetailsSection.grid, t('reference'), safeText(orderResult.bankTransfer.reference || t('notSpecified')), {
             copyValue: orderResult.bankTransfer.reference || ''
         });
-        if (orderResult.bankTransfer.swift) {
-            appendCheckoutResultItem(transferDetailsSection.grid, t('swift'), safeText(orderResult.bankTransfer.swift));
-        }
         appendCheckoutResultItem(transferDetailsSection.grid, t('expiresAt'), formatDateTime(orderResult.bankTransfer.expiresAt));
         grid.appendChild(transferDetailsSection.section);
+
+        var destinationSection = createCheckoutResultSection(t('transferDestinationTitle'));
+        appendCheckoutResultItem(destinationSection.grid, t('bankName'), safeText(orderResult.bankTransfer.bankName || t('notSpecified')), {
+            copyValue: orderResult.bankTransfer.bankName || ''
+        });
+        appendCheckoutResultItem(destinationSection.grid, t('beneficiary'), safeText(orderResult.bankTransfer.beneficiary || t('notSpecified')), {
+            copyValue: orderResult.bankTransfer.beneficiary || ''
+        });
+        appendCheckoutResultItem(destinationSection.grid, t('clabe'), safeText(orderResult.bankTransfer.clabe || t('notSpecified')), {
+            copyValue: orderResult.bankTransfer.clabe || ''
+        });
+        appendCheckoutResultItem(destinationSection.grid, t('account'), safeText(orderResult.bankTransfer.account || t('notSpecified')), {
+            copyValue: orderResult.bankTransfer.account || ''
+        });
+        appendCheckoutResultItem(destinationSection.grid, t('depositCard'), safeText(orderResult.bankTransfer.cardNumber || t('notSpecified')), {
+            copyValue: orderResult.bankTransfer.cardNumber || ''
+        });
+        appendCheckoutResultItem(destinationSection.grid, t('swift'), safeText(orderResult.bankTransfer.swift || t('notSpecified')), {
+            copyValue: orderResult.bankTransfer.swift || ''
+        });
+        grid.appendChild(destinationSection.section);
 
         if (proofBox) proofBox.hidden = Boolean(orderResult.demo);
         return;
     }
 
-    if (mode === 'manual_contact') {
-        message.textContent = t('manualOrderCreated') + ' ' + t('manualOrderReference');
-        appendCheckoutResultItem(grid, t('paymentMethod'), t('paymentManual'));
-        return;
-    }
+    if (normalizedMode === 'paypal') {
+        var providerStatus = safeText(orderResult && orderResult.payment && orderResult.payment.providerStatus).toUpperCase();
+        var paypalStatus = safeText((orderResult && orderResult.payment && orderResult.payment.status) || (order && order.status)).toUpperCase();
+        var isPending = providerStatus === 'CREATED'
+            || providerStatus === 'PENDING'
+            || providerStatus === 'AUTHORIZED'
+            || paypalStatus === 'AUTHORIZED'
+            || paypalStatus === 'PAYMENT_AUTHORIZED';
+        var paypalSection = createCheckoutResultSection(t('paymentPayPal'));
+        var paypalProfileUrl = safeText((orderResult && orderResult.paypalUrl) || getPayPalProfileUrl()).trim();
 
-    if (mode === 'paypal') {
-        message.textContent = orderResult && orderResult.demo ? t('previewPayPalSimulated') : t('paypalPaymentCompleted');
-        appendCheckoutResultItem(grid, t('paymentMethod'), normalizePaymentMethodLabel('paypal', orderResult && orderResult.order ? orderResult.order.feePercent : undefined));
-        if (orderResult && orderResult.demo && orderResult.paypalUrl) {
-            appendCheckoutResultItem(grid, t('demoPayPalLinkLabel'), safeText(orderResult.paypalUrl), {
-                copyValue: orderResult.paypalUrl
+        message.textContent = orderResult && orderResult.demo
+            ? t('previewPayPalSimulated')
+            : (isPending ? t('paypalPaymentPending') : t('paypalPaymentCompleted'));
+
+        if (order) {
+            appendCheckoutResultHighlight(
+                paypalSection.section,
+                t('totalFinal'),
+                formatCurrency(finalTotal, order.currency)
+            );
+        }
+        if (paypalProfileUrl) {
+            appendCheckoutResultItem(paypalSection.grid, t('paypalProfileLabel'), paypalProfileUrl, {
+                href: paypalProfileUrl,
+                linkText: t('paypalProfileLink'),
+                copyValue: paypalProfileUrl
             });
         }
         if (orderResult && orderResult.payment && orderResult.payment.providerStatus) {
-            appendCheckoutResultItem(grid, t('adminProviderStatus'), safeText(orderResult.payment.providerStatus));
+            appendCheckoutResultItem(paypalSection.grid, t('adminProviderStatus'), safeText(orderResult.payment.providerStatus));
         }
-        renderPayPalPayerCard(grid, orderResult);
+        grid.appendChild(paypalSection.section);
+        renderPayPalPayerCard(paypalSection.section, orderResult);
         return;
     }
 
@@ -5067,35 +5191,74 @@ function formatFeeAmountValue(breakdown) {
     return formatCurrency(breakdown.feeAmount, CONFIG.payments && CONFIG.payments.currency);
 }
 
-function renderCheckoutPreviewCard() {
-    var serviceEl = document.getElementById('preview-demo-service-value');
-    var travelersEl = document.getElementById('preview-demo-travelers-value');
-    var paymentEl = document.getElementById('preview-demo-payment-value');
-    var subtotalEl = document.getElementById('preview-demo-subtotal-value');
-    var noteEl = document.getElementById('preview-demo-note');
-    var firstItem = state.cart[0];
-    var breakdown = getCartPricingBreakdown(getSelectedPaymentMethod());
+function renderCheckoutPaymentCards() {
+    var paypalTotalEl = document.getElementById('payment-option-paypal-total');
+    var bankTotalEl = document.getElementById('payment-option-bank-transfer-total');
+    var paypalDetails = document.getElementById('payment-option-paypal-details');
+    var bankDetails = document.getElementById('payment-option-bank-transfer-details');
+    var bankConfig = getDisplayBankTransferConfig();
+    var paypalBreakdown = getCartPricingBreakdown('paypal');
+    var bankBreakdown = getCartPricingBreakdown('bank_transfer');
+    var paypalUrl = getPayPalProfileUrl();
+    var paypalEmail = getPayPalAccountEmail();
+    var transferReference = getTransferReferencePreview();
+    var exactTransferReference = getLatestTransferReference();
+    var paypalFee = getPaymentFeePercent('paypal');
+    var bankName = safeText(bankConfig.bankName).trim();
+    var beneficiary = safeText(bankConfig.beneficiary).trim();
+    var clabe = safeText(bankConfig.clabe).trim();
+    var account = safeText(bankConfig.account).trim();
+    var cardNumber = safeText(bankConfig.cardNumber).trim();
+    var swift = safeText(bankConfig.swift).trim();
 
-    if (!serviceEl || !travelersEl || !paymentEl || !subtotalEl || !noteEl) return;
+    if (paypalTotalEl) paypalTotalEl.textContent = formatCurrency(paypalBreakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency);
+    if (bankTotalEl) bankTotalEl.textContent = formatCurrency(bankBreakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency);
 
-    if (!isCheckoutPreviewModeActive() || !firstItem) {
-        serviceEl.textContent = t('previewCheckoutCartValue');
-        travelersEl.textContent = '0';
-        paymentEl.textContent = normalizePaymentMethodLabel(getSelectedPaymentMethod());
-        subtotalEl.textContent = formatCurrency(0, CONFIG.payments && CONFIG.payments.currency);
-        noteEl.textContent = t('previewSimulationNote');
-        return;
+    if (paypalDetails) {
+        paypalDetails.replaceChildren();
+        if (paypalUrl) {
+            appendPaymentCardDetail(paypalDetails, t('paypalProfileLabel'), paypalUrl, {
+                href: paypalUrl,
+                linkText: t('paypalProfileLink'),
+                copyValue: paypalUrl
+            });
+        }
+        if (paypalEmail) {
+            appendPaymentCardDetail(paypalDetails, t('email'), paypalEmail, {
+                copyValue: paypalEmail
+            });
+        }
+        appendPaymentCardDetail(
+            paypalDetails,
+            t('commission'),
+            paypalFee > 0 ? '+' + formatFeePercent(paypalFee) + '%' : t('noCommission')
+        );
     }
 
-    var travelers = [];
-    if (safeInt(firstItem.adults, 0) > 0) travelers.push(safeInt(firstItem.adults, 0) + ' ' + t('confirmLineAdults'));
-    if (safeInt(firstItem.children, 0) > 0) travelers.push(safeInt(firstItem.children, 0) + ' ' + t('confirmLineChildren'));
-
-    serviceEl.textContent = getCartItemName(firstItem);
-    travelersEl.textContent = travelers.join(', ') || '1 ' + t('confirmLineAdults');
-    paymentEl.textContent = normalizePaymentMethodLabel(getSelectedPaymentMethod(), breakdown.feePercent);
-    subtotalEl.textContent = formatCurrency(firstItem.subtotalUSD, CONFIG.payments && CONFIG.payments.currency);
-    noteEl.textContent = t('previewSimulationNote');
+    if (bankDetails) {
+        bankDetails.replaceChildren();
+        appendPaymentCardDetail(bankDetails, t('bankName'), bankName || t('notSpecified'), {
+            copyValue: bankName
+        });
+        appendPaymentCardDetail(bankDetails, t('beneficiary'), beneficiary || t('notSpecified'), {
+            copyValue: beneficiary
+        });
+        appendPaymentCardDetail(bankDetails, t('clabe'), clabe || t('notSpecified'), {
+            copyValue: clabe
+        });
+        appendPaymentCardDetail(bankDetails, t('account'), account || t('notSpecified'), {
+            copyValue: account
+        });
+        appendPaymentCardDetail(bankDetails, t('depositCard'), cardNumber || t('notSpecified'), {
+            copyValue: cardNumber
+        });
+        appendPaymentCardDetail(bankDetails, t('swift'), swift || t('notSpecified'), {
+            copyValue: swift
+        });
+        appendPaymentCardDetail(bankDetails, t('reference'), transferReference || t('referencePending'), {
+            copyValue: exactTransferReference
+        });
+    }
 }
 
 function renderCheckoutPricingSummary() {
@@ -5131,7 +5294,7 @@ function renderCheckoutPricingSummary() {
     if (confirmMobileTotal) confirmMobileTotal.textContent = totalText;
     if (mobileAmount) mobileAmount.textContent = totalText;
     if (mobileLabel) mobileLabel.textContent = t('totalToPay');
-    renderCheckoutPreviewCard();
+    renderCheckoutPaymentCards();
 }
 
 function updateCartTotal() {
@@ -5690,64 +5853,7 @@ function updatePreviews() {
         return;
     }
 
-    if (getSelectedPaymentMethod() !== 'manual_contact') {
-        hideBookingPreviews();
-        if (state.checkoutStep === 3) renderConfirmSummary();
-        return;
-    }
-
-    var whatsappPreview = document.getElementById('whatsapp-preview');
-    var whatsappContent = document.getElementById('whatsapp-message-content');
-    if (whatsappPreview && whatsappContent) {
-        whatsappPreview.style.display = 'block';
-        whatsappContent.textContent = buildWhatsAppMessage();
-    }
-
-    var emailPreview = document.getElementById('email-preview');
-    var emailContent = document.getElementById('email-preview-content');
-    if (!emailPreview || !emailContent) return;
-
-    emailPreview.style.display = 'block';
-    emailContent.replaceChildren();
-
-    var title = document.createElement('h4');
-    title.textContent = t('bookingSummary');
-    emailContent.appendChild(title);
-
-    var pickupTime = document.getElementById('pickup-time').value || t('notSpecified');
-    var hotel = document.getElementById('customer-hotel').value || t('notSpecified');
-
-    appendEmailRow(emailContent, t('name'), document.getElementById('customer-name').value);
-    appendEmailRow(emailContent, t('email'), document.getElementById('customer-email').value);
-    appendEmailRow(emailContent, t('phone'), document.getElementById('customer-phone').value);
-    appendEmailRow(emailContent, t('tourDate'), document.getElementById('tour-date').value);
-    appendEmailRow(emailContent, t('pickupTime'), pickupTime);
-    appendEmailRow(emailContent, t('hotel'), hotel);
-
-    var hr = document.createElement('hr');
-    hr.style.border = 'none';
-    hr.style.borderTop = '1px dashed #ddd';
-    hr.style.margin = '12px 0';
-    emailContent.appendChild(hr);
-
-    state.cart.forEach(function (item) {
-        appendEmailRow(emailContent, getCartItemName(item), '$' + safeInt(item.subtotalUSD, 0));
-    });
-
-    var total = getCartTotalUSD();
-
-    var totalRow = document.createElement('div');
-    totalRow.className = 'email-total';
-
-    var left = document.createElement('span');
-    left.textContent = 'TOTAL';
-    var right = document.createElement('span');
-    right.textContent = '$' + total + ' USD';
-
-    totalRow.appendChild(left);
-    totalRow.appendChild(right);
-    emailContent.appendChild(totalRow);
-
+    hideBookingPreviews();
     if (state.checkoutStep === 3) renderConfirmSummary();
 }
 
@@ -5803,12 +5909,13 @@ function validateCheckoutSubmission() {
 }
 
 function setBookingButtonsLoading(loading) {
-    var sendEmailBtn = document.getElementById('send-email-btn');
-    var sendWhatsAppBtn = document.getElementById('send-whatsapp-btn');
     var payPayPalBtn = document.getElementById('pay-paypal-btn');
     var bankTransferBtn = document.getElementById('bank-transfer-btn');
+    var payPayPalCardBtn = document.getElementById('payment-option-paypal-cta');
+    var bankTransferCardBtn = document.getElementById('payment-option-bank-transfer-cta');
+    var confirmMobilePayBtn = document.getElementById('confirm-mobile-pay-btn');
 
-    [sendEmailBtn, sendWhatsAppBtn, payPayPalBtn, bankTransferBtn].forEach(function (btn) {
+    [payPayPalBtn, bankTransferBtn, payPayPalCardBtn, bankTransferCardBtn, confirmMobilePayBtn].forEach(function (btn) {
         if (!btn) return;
         btn.disabled = loading;
         btn.classList.toggle('loading', loading);

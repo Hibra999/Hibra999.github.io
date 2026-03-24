@@ -46,6 +46,7 @@ const PAYPAL_CLIENT_ID = String(process.env.PAYPAL_CLIENT_ID || '').trim();
 const PAYPAL_CLIENT_SECRET = String(process.env.PAYPAL_CLIENT_SECRET || '').trim();
 const PAYPAL_WEBHOOK_ID = String(process.env.PAYPAL_WEBHOOK_ID || '').trim();
 const PAYPAL_API_BASE = String(process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com').trim();
+const PAYPAL_ACCOUNT_EMAIL = sanitizeText(process.env.PAYPAL_ACCOUNT_EMAIL, 180);
 const ORDER_PUBLIC_ID_PREFIX = sanitizeText(process.env.ORDER_PUBLIC_ID_PREFIX || 'LT', 12) || 'LT';
 const ORDER_CURRENCY = 'USD';
 const CUSTOMER_PORTAL_TOKEN_TTL_MS = Math.max(5 * 60 * 1000, Number(process.env.CUSTOMER_PORTAL_TOKEN_TTL_MS || 1000 * 60 * 30));
@@ -3285,6 +3286,7 @@ app.get('/api/config', (req, res) => {
             paypal: {
                 enabled: hasPayPalConfig(),
                 clientId: PAYPAL_CLIENT_ID || null,
+                accountEmail: PAYPAL_ACCOUNT_EMAIL || null,
                 feePercent: PAYPAL_FEE_PERCENT
             },
             bankTransfer: {

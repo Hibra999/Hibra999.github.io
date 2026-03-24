@@ -482,6 +482,65 @@
                             Review the total and choose your payment method.
                         </p>
 
+                        <div class="checkout-payment-focus" id="checkout-payment-focus">
+                            <div class="checkout-payment-focus-header">
+                                <h5 data-i18n="paymentMethod">Método de pago</h5>
+                                <p data-i18n="paymentMethodHelp">Elige una opción para finalizar.</p>
+                            </div>
+                            <div class="payment-methods" id="payment-methods" role="radiogroup" aria-labelledby="confirm-step-title">
+                                <article class="payment-method-option" id="payment-option-paypal" data-payment-method="paypal" tabindex="0" role="radio">
+                                    <div class="payment-method-select">
+                                        <input type="radio" name="payment_method" value="paypal">
+                                    </div>
+                                    <div class="payment-method-head">
+                                        <span class="payment-method-icon payment-method-icon-paypal" id="payment-option-paypal-icon" data-logo-src="/imagenes/pagos/paypal-logo.svg" aria-hidden="true"></span>
+                                        <div class="payment-method-copy">
+                                            <div class="payment-method-title-row">
+                                                <strong id="payment-option-paypal-title">PayPal / Tarjeta +5%</strong>
+                                                <span class="payment-method-chip payment-method-chip-accent" id="payment-option-paypal-fee">+5%</span>
+                                            </div>
+                                            <small id="payment-option-paypal-desc">Paga online con PayPal o tarjeta.</small>
+                                        </div>
+                                    </div>
+                                    <div class="payment-method-amount">
+                                        <span data-i18n="totalFinal">Total final</span>
+                                        <strong id="payment-option-paypal-total">$0 USD</strong>
+                                    </div>
+                                    <div class="payment-card-detail-list" id="payment-option-paypal-details"></div>
+                                    <button type="button" class="btn btn-primary payment-method-cta" id="payment-option-paypal-cta"
+                                        onclick="setSelectedPaymentMethod('paypal'); startPayPalCheckout();">
+                                        <span data-i18n="continueWithPayPal">Pagar con PayPal</span>
+                                    </button>
+                                </article>
+                                <article class="payment-method-option payment-method-option-transfer" id="payment-option-bank-transfer" data-payment-method="bank_transfer"
+                                    tabindex="0" role="radio">
+                                    <div class="payment-method-select">
+                                        <input type="radio" name="payment_method" value="bank_transfer">
+                                    </div>
+                                    <div class="payment-method-head">
+                                        <span class="payment-method-icon payment-method-icon-transfer" id="payment-option-bank-transfer-icon"
+                                            data-logo-src="/imagenes/pagos/bank-transfer-icon.svg" aria-hidden="true"></span>
+                                        <div class="payment-method-copy">
+                                            <div class="payment-method-title-row">
+                                                <strong id="payment-option-bank-transfer-title">Transferencia bancaria</strong>
+                                                <span class="payment-method-chip payment-method-chip-muted" id="payment-option-bank-transfer-fee">Sin comisión</span>
+                                            </div>
+                                            <small id="payment-option-bank-transfer-desc">Recibe los datos exactos para transferir.</small>
+                                        </div>
+                                    </div>
+                                    <div class="payment-method-amount payment-method-amount-transfer">
+                                        <span data-i18n="transferAmountToSend">Monto a transferir</span>
+                                        <strong id="payment-option-bank-transfer-total">$0 USD</strong>
+                                    </div>
+                                    <div class="payment-card-detail-list" id="payment-option-bank-transfer-details"></div>
+                                    <button type="button" class="btn btn-primary payment-method-cta" id="payment-option-bank-transfer-cta"
+                                        onclick="setSelectedPaymentMethod('bank_transfer'); startBankTransferCheckout();">
+                                        <span data-i18n="getTransferInstructions">Ver instrucciones de transferencia</span>
+                                    </button>
+                                </article>
+                            </div>
+                        </div>
+
                         <div class="confirm-grid">
                             <div class="confirm-card">
                                 <h5 data-es="Datos del Cliente" data-en="Customer Details">Customer Details</h5>
@@ -507,78 +566,6 @@
                             </div>
                         </div>
 
-                        <div class="payment-selection-card" id="checkout-preview-card" hidden>
-                            <div class="payment-selection-header">
-                                <span class="payment-demo-badge">
-                                    <span class="payment-demo-badge-icon" aria-hidden="true"></span>
-                                    <span data-i18n="previewDemoBadge">MODO DEMO</span>
-                                </span>
-                                <h5 data-i18n="previewCheckoutTitle">Checkout demo</h5>
-                                <p data-i18n="previewCheckoutMessage">Cargamos un servicio aleatorio y habilitamos una simulacion del pago final para revisar UI, comision y pasos sin depender de datos reales.</p>
-                            </div>
-                            <div class="preview-demo-grid">
-                                <div class="preview-demo-item">
-                                    <span data-i18n="previewDemoService">Servicio</span>
-                                    <strong id="preview-demo-service-value">Tour de prueba</strong>
-                                </div>
-                                <div class="preview-demo-item">
-                                    <span data-i18n="previewDemoTravelers">Viajeros</span>
-                                    <strong id="preview-demo-travelers-value">4 Adultos</strong>
-                                </div>
-                                <div class="preview-demo-item">
-                                    <span data-i18n="paymentMethod">Metodo de pago</span>
-                                    <strong id="preview-demo-payment-value">PayPal / Tarjeta +5%</strong>
-                                </div>
-                                <div class="preview-demo-item">
-                                    <span data-i18n="subtotal">Subtotal</span>
-                                    <strong id="preview-demo-subtotal-value">$0 USD</strong>
-                                </div>
-                            </div>
-                            <p class="preview-demo-note" id="preview-demo-note" data-i18n="previewSimulationNote">Los botones finales usan datos demo y no cobran de verdad.</p>
-                        </div>
-
-                        <div class="payment-selection-card" id="payment-selection-card">
-                            <div class="payment-selection-header">
-                                <h5 data-i18n="paymentMethod">Método de pago</h5>
-                                <p data-i18n="paymentMethodHelp">Elige una opción para finalizar.</p>
-                            </div>
-                            <div class="payment-fee-legend">
-                                <span class="payment-fee-pill" id="payment-legend-transfer">Transferencia: Sin comisión</span>
-                                <span class="payment-fee-pill" id="payment-legend-paypal">PayPal / Tarjeta: +5%</span>
-                            </div>
-                            <div class="payment-methods" id="payment-methods">
-                                <label class="payment-method-option" id="payment-option-bank-transfer" data-payment-method="bank_transfer">
-                                    <input type="radio" name="payment_method" value="bank_transfer">
-                                    <span class="payment-method-visual payment-method-visual-bank" aria-hidden="true">
-                                        <span class="payment-method-icon" id="payment-option-bank-transfer-icon"></span>
-                                        <span class="payment-method-chip-row">
-                                            <span class="payment-method-chip" id="payment-option-bank-transfer-chip">Banamex</span>
-                                            <span class="payment-method-chip payment-method-chip-muted" id="payment-option-bank-transfer-fee">Sin comisión</span>
-                                        </span>
-                                    </span>
-                                    <span class="payment-method-copy">
-                                        <strong id="payment-option-bank-transfer-title">Transferencia bancaria</strong>
-                                        <small id="payment-option-bank-transfer-desc">Recibe los datos exactos para transferir.</small>
-                                    </span>
-                                </label>
-                                <label class="payment-method-option" id="payment-option-paypal" data-payment-method="paypal">
-                                    <input type="radio" name="payment_method" value="paypal">
-                                    <span class="payment-method-visual payment-method-visual-paypal" aria-hidden="true">
-                                        <span class="payment-method-icon" id="payment-option-paypal-icon" data-logo-src="/imagenes/pagos/paypal-logo.svg"></span>
-                                        <span class="payment-method-chip-row">
-                                            <span class="payment-method-chip payment-method-chip-paypal">PayPal</span>
-                                            <span class="payment-method-chip payment-method-chip-muted">Cards</span>
-                                            <span class="payment-method-chip payment-method-chip-accent" id="payment-option-paypal-fee">+5%</span>
-                                        </span>
-                                    </span>
-                                    <span class="payment-method-copy">
-                                        <strong id="payment-option-paypal-title">PayPal / Tarjeta +5%</strong>
-                                        <small id="payment-option-paypal-desc">Paga online con PayPal o tarjeta.</small>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-
                         <div class="confirm-mobile-action-bar" id="confirm-mobile-action-bar" hidden>
                             <div class="confirm-mobile-action-copy">
                                 <span data-i18n="totalFinal">Total final</span>
@@ -586,20 +573,6 @@
                             </div>
                             <button type="button" class="btn btn-primary" id="confirm-mobile-pay-btn" onclick="triggerPrimaryCheckoutAction()">
                                 <span id="confirm-mobile-pay-label" data-i18n="continueWithPayPal">Pagar online</span>
-                            </button>
-                        </div>
-
-                        <div class="payment-selection-card payment-help-card" id="payment-help-card" hidden>
-                            <div class="payment-selection-header">
-                                <h5 data-i18n="paymentHelpTitle">¿Necesitas ayuda para pagar?</h5>
-                                <p data-i18n="paymentHelpText">Te ayudamos por WhatsApp.</p>
-                            </div>
-                            <button type="button" class="btn btn-whatsapp" onclick="openPaymentSupportWhatsApp()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                </svg>
-                                <span data-i18n="paymentHelpWhatsApp">Ayuda por WhatsApp</span>
                             </button>
                         </div>
 
@@ -621,29 +594,6 @@
                                     </button>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="whatsapp-preview" id="whatsapp-preview" style="display:none;">
-                            <div class="whatsapp-preview-header">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                </svg>
-                                <span data-es="Vista Previa de WhatsApp" data-en="WhatsApp Preview">WhatsApp Preview</span>
-                            </div>
-                            <div class="whatsapp-message-preview" id="whatsapp-message-content"></div>
-                        </div>
-
-                        <div class="email-preview" id="email-preview" style="display:none;">
-                            <div class="email-preview-header">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                                    <polyline points="22,6 12,13 2,6" />
-                                </svg>
-                                <span data-es="Vista Previa de Email" data-en="Email Preview">Email Preview</span>
-                            </div>
-                            <div class="email-preview-content" id="email-preview-content"></div>
                         </div>
                     </div>
                 </section>
