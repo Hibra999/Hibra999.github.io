@@ -67,8 +67,6 @@ function setupEnvironment(rootDir) {
     process.env.ADMIN_USERNAME = 'smoke-admin';
     process.env.ADMIN_PASSWORD = 'smoke-password';
     process.env.ADMIN_TOKEN_TTL_MS = '28800000';
-    process.env.CUSTOMER_AUTH_DEBUG = 'true';
-    process.env.CUSTOMER_AUTH_CODE_TTL_MS = '600000';
     process.env.CUSTOMER_SESSION_TTL_MS = '604800000';
     process.env.CUSTOMER_PORTAL_TOKEN_TTL_MS = '1800000';
     process.env.GOOGLE_CLIENT_ID = 'smoke-google-client-id';
@@ -115,38 +113,23 @@ async function runOrdersScenario(ctx) {
     const email = uniqueEmail('orders');
     const created = await createCheckoutOrder(ctx, {
         email,
-        paymentMethod: 'manual_contact',
+        paymentMethod: 'bank_transfer',
         tour: ctx.regularTour
     });
 
-    assert.equal(created.order.status, 'pending_review');
-    assert.equal(created.order.paymentMethod, 'manual_contact');
-
-    const lookup = await postJson(ctx.baseUrl, '/api/orders/lookup', {
-        publicId: created.order.publicId,
-        email
-    });
-
-    assert.equal(lookup.status, 'ok');
-    assert.equal(lookup.data.order.publicId, created.order.publicId);
-    assert.equal(lookup.data.order.status, 'pending_review');
-    assert.equal(lookup.data.items.length, 1);
-
-    const portal = await getJson(ctx.baseUrl, `/api/orders/${created.order.publicId}/portal`, {
-        headers: {
-            Authorization: `Bearer ${lookup.portal.token}`
-        }
-    });
-
-    assert.equal(portal.status, 'ok');
-    assert.equal(portal.data.order.publicId, created.order.publicId);
+    assert.equal(created.order.status, 'awaiting_transfer');
+    assert.equal(created.order.paymentMethod, 'bank_transfer');
+    assert.ok(created.portal);
+    assert.ok(created.portal.token);
+    assert.ok(created.bankTransfer);
+    assert.match(created.bankTransfer.reference, new RegExp(`^${process.env.BANK_TRANSFER_REFERENCE_PREFIX}-`));
 }
 
 async function runCustomerAuthScenario(ctx) {
     const email = uniqueEmail('auth');
     const created = await createCheckoutOrder(ctx, {
         email,
-        paymentMethod: 'manual_contact',
+        paymentMethod: 'bank_transfer',
         tour: ctx.regularTour
     });
 
@@ -209,7 +192,7 @@ async function runCustomerAuthScenario(ctx) {
 
     const secondGuestOrder = await createCheckoutOrder(ctx, {
         email,
-        paymentMethod: 'manual_contact',
+        paymentMethod: 'bank_transfer',
         tour: ctx.privateTour
     });
 
@@ -284,20 +267,20 @@ async function runBankTransferScenario(ctx) {
     assert.equal(confirm.status, 'ok');
     assert.equal(confirm.payment.status, 'paid');
 
-    const portal = await getJson(ctx.baseUrl, `/api/orders/${created.order.publicId}/portal`, {
+    const refreshedAdminDetail = await getJson(ctx.baseUrl, `/api/admin/orders/${created.order.publicId}`, {
         headers: {
-            Authorization: `Bearer ${created.portal.token}`
+            Authorization: `Bearer ${adminToken}`
         }
     });
 
-    assert.equal(portal.data.order.status, 'paid');
-    assert.equal(portal.data.payment.status, 'paid');
+    assert.equal(refreshedAdminDetail.order.status, 'paid');
+    assert.equal(refreshedAdminDetail.payment.status, 'paid');
 }
 
 async function runAdminScenario(ctx) {
     const created = await createCheckoutOrder(ctx, {
         email: uniqueEmail('admin'),
-        paymentMethod: 'manual_contact',
+        paymentMethod: 'bank_transfer',
         tour: ctx.regularTour
     });
 
@@ -439,7 +422,9 @@ async function createCheckoutOrder(ctx, options) {
         currency: 'USD'
     });
     const expectedSubtotal = tier.adults * tier.adultPrice;
-    const expectedFeePercent = options.paymentMethod === 'paypal' ? Number(process.env.PAYPAL_FEE_PERCENT) : 0;
+    const expectedFeePercent = options.paymentMethod === 'paypal'
+        ? Number(process.env.PAYPAL_FEE_PERCENT)
+        : Number(process.env.BANK_TRANSFER_FEE_PERCENT);
     const expectedFeeAmount = roundMoney(quote.subtotal * (expectedFeePercent / 100));
 
     assert.equal(quote.subtotal, expectedSubtotal);
@@ -469,13 +454,14 @@ async function createCheckoutOrder(ctx, options) {
     assert.equal(created.order.feeAmount, quote.feeAmount);
     assert.equal(created.order.totalFinal, quote.totalFinal);
     assert.equal(created.order.total, quote.totalFinal);
-    if (created.payment) {
-        assert.equal(created.payment.subtotal, quote.subtotal);
-        assert.equal(created.payment.feePercent, quote.feePercent);
-        assert.equal(created.payment.feeAmount, quote.feeAmount);
-        assert.equal(created.payment.totalFinal, quote.totalFinal);
-        assert.equal(created.payment.amount, quote.totalFinal);
-    }
+    assert.ok(created.payment);
+    assert.equal(created.payment.subtotal, quote.subtotal);
+    assert.equal(created.payment.feePercent, quote.feePercent);
+    assert.equal(created.payment.feeAmount, quote.feeAmount);
+    assert.equal(created.payment.totalFinal, quote.totalFinal);
+    assert.equal(created.payment.amount, quote.totalFinal);
+    assert.ok(created.portal);
+    assert.ok(created.portal.token);
 
     return created;
 }

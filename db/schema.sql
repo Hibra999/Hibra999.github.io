@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS itinerary_steps(id INTEGER PRIMARY KEY AUTOINCREMENT,
 CREATE TABLE IF NOT EXISTS addons(id INTEGER PRIMARY KEY AUTOINCREMENT,tour_id INTEGER NOT NULL,slug TEXT,title_en TEXT,title_es TEXT,desc_en TEXT,desc_es TEXT,price_per_person INTEGER,FOREIGN KEY(tour_id) REFERENCES tours(id) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS packing_items(id INTEGER PRIMARY KEY AUTOINCREMENT,tour_id INTEGER NOT NULL,text_en TEXT,text_es TEXT,icon TEXT,FOREIGN KEY(tour_id) REFERENCES tours(id) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS hotels(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,zone TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS bookings(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_name TEXT,customer_email TEXT,customer_phone TEXT,tour_date TEXT,pickup_time TEXT,hotel TEXT,comments TEXT,cart_json TEXT,total_usd INTEGER,status TEXT DEFAULT 'pending',created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS orders(
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 public_id TEXT UNIQUE NOT NULL,
@@ -82,17 +81,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_identities_provider_user ON custo
 CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_identities_profile_provider ON customer_identities(profile_public_id, provider);
 CREATE INDEX IF NOT EXISTS idx_customer_identities_profile ON customer_identities(profile_public_id);
 
-CREATE TABLE IF NOT EXISTS customer_auth_codes(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-email TEXT NOT NULL,
-code_hash TEXT NOT NULL,
-purpose TEXT NOT NULL DEFAULT 'login',
-expires_at DATETIME NOT NULL,
-consumed_at DATETIME,
-created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_customer_auth_codes_email ON customer_auth_codes(email);
-
 CREATE TABLE IF NOT EXISTS customer_sessions(
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 token_hash TEXT UNIQUE NOT NULL,
@@ -119,7 +107,7 @@ id INTEGER PRIMARY KEY AUTOINCREMENT,
 order_id INTEGER NOT NULL,
 profile_public_id TEXT NOT NULL,
 claimed_email TEXT NOT NULL,
-claim_method TEXT NOT NULL DEFAULT 'email_otp',
+claim_method TEXT NOT NULL DEFAULT 'email_password',
 claimed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE
 );

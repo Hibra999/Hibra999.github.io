@@ -51,9 +51,7 @@ const ORDER_PUBLIC_ID_PREFIX = sanitizeText(process.env.ORDER_PUBLIC_ID_PREFIX |
 const ORDER_CURRENCY = 'USD';
 const CUSTOMER_PORTAL_TOKEN_TTL_MS = Math.max(5 * 60 * 1000, Number(process.env.CUSTOMER_PORTAL_TOKEN_TTL_MS || 1000 * 60 * 30));
 const CUSTOMER_PROFILE_ID_PREFIX = sanitizeText(process.env.CUSTOMER_PROFILE_ID_PREFIX || 'CUS', 12) || 'CUS';
-const CUSTOMER_AUTH_CODE_TTL_MS = Math.max(5 * 60 * 1000, Number(process.env.CUSTOMER_AUTH_CODE_TTL_MS || 1000 * 60 * 10));
 const CUSTOMER_SESSION_TTL_MS = Math.max(60 * 60 * 1000, Number(process.env.CUSTOMER_SESSION_TTL_MS || 1000 * 60 * 60 * 24 * 7));
-const CUSTOMER_AUTH_DEBUG = process.env.CUSTOMER_AUTH_DEBUG === 'true' || !IS_PRODUCTION;
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
 const GOOGLE_CLIENT_IDS = String(process.env.GOOGLE_CLIENT_IDS || process.env.GOOGLE_CLIENT_ID || '')
     .split(',')
@@ -212,6 +210,10 @@ function getPaymentFeePercent(paymentMethod) {
     if (paymentMethod === 'paypal') return PAYPAL_FEE_PERCENT;
     if (paymentMethod === 'bank_transfer') return BANK_TRANSFER_FEE_PERCENT;
     return 0;
+}
+
+function isSupportedCheckoutPaymentMethod(paymentMethod) {
+    return paymentMethod === 'paypal' || paymentMethod === 'bank_transfer';
 }
 
 function computePaymentBreakdown(subtotal, paymentMethod) {
@@ -507,10 +509,6 @@ function clearExpiredCustomerPortalSessions() {
     for (const [token, session] of customerPortalSessions.entries()) {
         if (!session || session.expiresAt <= now) customerPortalSessions.delete(token);
     }
-}
-
-function createCustomerAuthCode() {
-    return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 }
 
 function createCustomerSessionToken() {
@@ -993,36 +991,9 @@ function buildCustomerAuthResponse(profile, session, claimedOrders) {
     };
 }
 
-function consumeCustomerAuthCode(email, code, purpose) {
-    const normalizedEmail = normalizeEmail(email);
-    const normalizedPurpose = sanitizeText(purpose || 'login', 40) || 'login';
-    const record = db.prepare(`
-        SELECT *
-        FROM customer_auth_codes
-        WHERE email = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > ?
-        ORDER BY created_at DESC, id DESC
-        LIMIT 1
-    `).get(normalizedEmail, normalizedPurpose, nowAsSqlDateTime());
-
-    if (!record) return null;
-    if (!safeCompare(record.code_hash, hashSecret(code))) return null;
-
-    db.prepare('UPDATE customer_auth_codes SET consumed_at = ? WHERE id = ?').run(nowAsSqlDateTime(), record.id);
-    return record;
-}
-
-function countGuestOrdersByEmail(email) {
-    const normalizedEmail = normalizeEmail(email);
-    return db.prepare(`
-        SELECT count(*) AS c
-        FROM orders
-        WHERE lower(trim(guest_email)) = ?
-    `).get(normalizedEmail).c;
-}
-
 function claimOrdersForCustomer(profile, email, claimMethod) {
     const normalizedEmail = normalizeEmail(email);
-    const method = sanitizeText(claimMethod || 'email_otp', 40) || 'email_otp';
+    const method = sanitizeText(claimMethod || 'email_password', 40) || 'email_password';
     const rows = db.prepare(`
         SELECT id, public_id
         FROM orders
@@ -1298,12 +1269,11 @@ function normalizeCheckoutPayload(body, fallbackPaymentMethod) {
 
 function validateCheckoutPayload(payload, options) {
     const opts = options || {};
-    const allowedMethods = new Set(['paypal', 'bank_transfer', 'manual_contact']);
 
     if (!payload.guestName || !payload.guestEmail || !payload.guestPhone || !payload.serviceDate) {
         return 'Missing required fields';
     }
-    if (!allowedMethods.has(payload.paymentMethod)) {
+    if (!isSupportedCheckoutPaymentMethod(payload.paymentMethod)) {
         return 'Unsupported payment method';
     }
     if (payload.currency !== ORDER_CURRENCY) {
@@ -1548,31 +1518,29 @@ function createOrderRecord(payload) {
             );
         });
 
-        if (payload.paymentMethod !== 'manual_contact') {
-            const insertPayment = db.prepare(`
-                INSERT INTO payments(
-                    order_id, provider, intent, amount, currency, status, provider_status, bank_reference, metadata_json,
-                    subtotal, fee_percent, fee_amount, total_final, updated_at
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            `);
-            const paymentResult = insertPayment.run(
-                orderId,
-                payload.paymentMethod,
-                initialState.intent,
-                pricing.totalFinal,
-                ORDER_CURRENCY,
-                initialState.paymentStatus,
-                initialState.providerStatus,
-                bankReference,
-                JSON.stringify({ source: payload.source || 'checkout' }),
-                pricing.subtotal,
-                pricing.feePercent,
-                pricing.feeAmount,
-                pricing.totalFinal,
-                nowAsSqlDateTime()
-            );
-            paymentId = paymentResult.lastInsertRowid;
-        }
+        const insertPayment = db.prepare(`
+            INSERT INTO payments(
+                order_id, provider, intent, amount, currency, status, provider_status, bank_reference, metadata_json,
+                subtotal, fee_percent, fee_amount, total_final, updated_at
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        `);
+        const paymentResult = insertPayment.run(
+            orderId,
+            payload.paymentMethod,
+            initialState.intent,
+            pricing.totalFinal,
+            ORDER_CURRENCY,
+            initialState.paymentStatus,
+            initialState.providerStatus,
+            bankReference,
+            JSON.stringify({ source: payload.source || 'checkout' }),
+            pricing.subtotal,
+            pricing.feePercent,
+            pricing.feeAmount,
+            pricing.totalFinal,
+            nowAsSqlDateTime()
+        );
+        paymentId = paymentResult.lastInsertRowid;
 
         if (payload.userId) {
             db.prepare(`
@@ -2229,6 +2197,9 @@ app.post('/api/orders/quote', (req, res) => {
     if (currency !== ORDER_CURRENCY) {
         return res.status(400).json({ error: `Only ${ORDER_CURRENCY} orders are supported` });
     }
+    if (!isSupportedCheckoutPaymentMethod(paymentMethod)) {
+        return res.status(400).json({ error: 'Unsupported payment method' });
+    }
     if (paymentMethod === 'paypal' && !hasPayPalConfig()) {
         return res.status(503).json({ error: 'PayPal is not configured' });
     }
@@ -2692,76 +2663,6 @@ app.post('/api/auth/customer/google', async (req, res) => {
     }
 });
 
-app.post('/api/auth/customer/request-code', (req, res) => {
-    const email = normalizeEmail(req.body && req.body.email);
-    const fullName = sanitizeText(req.body && req.body.fullName, 180);
-    if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
-    }
-    if (!CUSTOMER_AUTH_DEBUG) {
-        return res.status(503).json({ error: 'Customer email delivery is not configured yet' });
-    }
-
-    const code = createCustomerAuthCode();
-    const expiresAt = addMsToNow(CUSTOMER_AUTH_CODE_TTL_MS);
-    const existingOrders = countGuestOrdersByEmail(email);
-
-    db.prepare('DELETE FROM customer_auth_codes WHERE email = ? AND purpose = ?').run(email, 'login');
-    db.prepare(`
-        INSERT INTO customer_auth_codes(email, code_hash, purpose, expires_at)
-        VALUES(?,?,?,?)
-    `).run(email, hashSecret(code), 'login', expiresAt);
-
-    if (fullName) {
-        upsertCustomerProfile(email, fullName);
-    }
-
-    logAudit('guest', email, 'customer_auth.code_requested', 'customer_profile', email, {
-        existingOrders
-    });
-
-    res.json({
-        status: 'ok',
-        email,
-        expiresAt,
-        existingOrders,
-        debugCode: CUSTOMER_AUTH_DEBUG ? code : undefined
-    });
-});
-
-app.post('/api/auth/customer/verify-code', (req, res) => {
-    const email = normalizeEmail(req.body && req.body.email);
-    const code = sanitizeText(req.body && req.body.code, 12);
-    const fullName = sanitizeText(req.body && req.body.fullName, 180);
-    if (!email || !code) {
-        return res.status(400).json({ error: 'Email and code are required' });
-    }
-
-    const consumed = consumeCustomerAuthCode(email, code, 'login');
-    if (!consumed) {
-        return res.status(401).json({ error: 'Invalid or expired code' });
-    }
-
-    let profile = upsertCustomerProfile(email, fullName);
-    profile = markCustomerEmailVerified(profile.public_id);
-    const claimedOrderIds = claimOrdersForCustomer(profile, email, 'email_otp');
-    profile = touchCustomerLastLogin(profile.public_id);
-    const session = createCustomerSession(profile);
-
-    logAudit('guest', email, 'customer_auth.verified', 'customer_profile', profile.public_id, {
-        claimedOrders: claimedOrderIds.length
-    });
-
-    res.json({
-        status: 'ok',
-        token: session.token,
-        expiresAt: session.expiresAt,
-        profile: serializeCustomerProfile(profile),
-        claimedOrders: claimedOrderIds,
-        cart: loadCustomerCart(profile.public_id)
-    });
-});
-
 app.post('/api/auth/customer/logout', requireCustomerAuth, (req, res) => {
     db.prepare('DELETE FROM customer_sessions WHERE token_hash = ?').run(hashSecret(req.customerToken));
     logAudit('customer', req.customer.profilePublicId, 'customer_auth.logout', 'customer_profile', req.customer.profilePublicId, null);
@@ -2855,177 +2756,10 @@ app.post('/api/me/orders/:publicId/transfer-proof', requireCustomerAuth, uploadT
     return handleTransferProofUpload(req, res, aggregate, 'customer', req.customer.profilePublicId);
 });
 
-app.post('/api/orders/lookup', (req, res) => {
-    const publicId = sanitizeText(req.body && req.body.publicId, 64);
-    const guestEmail = normalizeEmail(req.body && req.body.email);
-    if (!publicId || !guestEmail) {
-        return res.status(400).json({ error: 'publicId and email are required' });
-    }
-
-    const aggregate = loadOrderAggregateByPublicId(publicId);
-    if (!aggregate || normalizeEmail(aggregate.order.guest_email) !== guestEmail) {
-        return res.status(404).json({ error: 'Order not found for this email' });
-    }
-
-    const portalSession = createCustomerPortalSession(aggregate.order);
-    logAudit('guest', guestEmail, 'order.portal_lookup', 'order', publicId, null);
-
-    res.json({
-        status: 'ok',
-        portal: portalSession,
-        data: serializeCustomerPortalAggregate(aggregate)
-    });
-});
-
-app.get('/api/orders/:publicId/portal', requireCustomerPortal, (req, res) => {
-    const aggregate = loadOrderAggregateByPublicId(sanitizeText(req.params.publicId, 64));
-    if (!aggregate) {
-        return res.status(404).json({ error: 'Order not found' });
-    }
-
-    res.json({
-        status: 'ok',
-        data: serializeCustomerPortalAggregate(aggregate),
-        portal: {
-            expiresAt: req.customerPortal.expiresAt
-        }
-    });
-});
-
-app.get('/api/orders/:publicId/documents/:documentId/download', requireCustomerPortal, (req, res) => {
-    const publicId = sanitizeText(req.params.publicId, 64);
-    const documentId = safeInt(req.params.documentId, NaN);
-    if (!publicId || !Number.isFinite(documentId)) {
-        return res.status(400).json({ error: 'Invalid document request' });
-    }
-
-    const order = findOrderByPublicIdStmt.get(publicId);
-    if (!order) {
-        return res.status(404).json({ error: 'Order not found' });
-    }
-
-    return downloadPrivateOrderDocument(order, documentId, res);
-});
-
 app.post('/api/orders/:publicId/transfer-proof', requireCustomerPortal, uploadTransferProof.single('proof'), (req, res) => {
     const publicId = sanitizeText(req.params.publicId, 64);
     const aggregate = loadOrderAggregateByPublicId(publicId);
     return handleTransferProofUpload(req, res, aggregate, 'guest', aggregate && aggregate.order ? aggregate.order.guest_email : 'guest');
-});
-
-// POST booking
-app.post('/api/bookings', (req, res) => {
-    const payload = normalizeCheckoutPayload(req.body, 'manual_contact');
-    const validationError = validateCheckoutPayload(payload, { requireTotal: true });
-    if (validationError) {
-        return res.status(400).json({ error: validationError });
-    }
-
-    const computed = computeServerCartTotals(payload.cart);
-    if (computed.error) return res.status(400).json({ error: computed.error });
-    if (!amountsEqual(payload.total, computePaymentBreakdown(computed.totalUSD, payload.paymentMethod).totalFinal)) {
-        return res.status(400).json({ error: 'Total mismatch. Refresh your cart and try again.' });
-    }
-
-    const stmt = db.prepare(`
-        INSERT INTO bookings(
-            customer_name, customer_email, customer_phone, tour_date, pickup_time, hotel, comments, cart_json, total_usd, status
-        ) VALUES(?,?,?,?,?,?,?,?,?,?)
-    `);
-    const r = stmt.run(
-        payload.guestName,
-        payload.guestEmail,
-        payload.guestPhone,
-        payload.serviceDate,
-        payload.pickupTime || '',
-        payload.hotel || '',
-        payload.comments || '',
-        JSON.stringify(computed.normalizedCart),
-        computed.totalUSD,
-        'pending'
-    );
-
-    const orderResult = createOrderRecord({
-        ...payload,
-        paymentMethod: 'manual_contact',
-        source: 'legacy_booking'
-    });
-    if (orderResult.error) {
-        return res.status(500).json({ error: orderResult.error });
-    }
-
-    res.json({
-        id: r.lastInsertRowid,
-        status: 'ok',
-        orderPublicId: orderResult.publicId
-    });
-});
-
-// GET bookings (admin, summary without raw PII)
-app.get('/api/bookings', requireAdmin, (req, res) => {
-    const rows = db.prepare(`
-        SELECT id, customer_name, customer_email, customer_phone, tour_date, pickup_time, hotel, comments, cart_json, total_usd, status, created_at
-        FROM bookings
-        ORDER BY created_at DESC
-    `).all();
-
-    const safeRows = rows.map((row) => {
-        let itemsCount = 0;
-        try {
-            const parsed = JSON.parse(row.cart_json || '[]');
-            itemsCount = Array.isArray(parsed) ? parsed.length : 0;
-        } catch (_) {
-            itemsCount = 0;
-        }
-
-        return {
-            id: row.id,
-            customer_name: sanitizeText(row.customer_name, 180),
-            customer_email_masked: maskEmail(row.customer_email),
-            customer_phone_masked: maskPhone(row.customer_phone),
-            tour_date: row.tour_date,
-            pickup_time: row.pickup_time,
-            hotel_provided: Boolean(row.hotel),
-            comments_provided: Boolean(row.comments),
-            items_count: itemsCount,
-            total_usd: row.total_usd,
-            status: row.status,
-            created_at: row.created_at
-        };
-    });
-
-    res.json(safeRows);
-});
-
-// Optional full booking detail by id (admin only)
-app.get('/api/bookings/:id', requireAdmin, (req, res) => {
-    const id = safeInt(req.params.id, NaN);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid booking id' });
-
-    const row = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
-    if (!row) return res.status(404).json({ error: 'Booking not found' });
-
-    let cart = [];
-    try {
-        cart = JSON.parse(row.cart_json || '[]');
-    } catch (_) {
-        cart = [];
-    }
-
-    res.json({
-        id: row.id,
-        customer_name: row.customer_name,
-        customer_email: row.customer_email,
-        customer_phone: row.customer_phone,
-        tour_date: row.tour_date,
-        pickup_time: row.pickup_time,
-        hotel: row.hotel,
-        comments: row.comments,
-        cart,
-        total_usd: row.total_usd,
-        status: row.status,
-        created_at: row.created_at
-    });
 });
 
 app.get('/api/admin/orders', requireAdmin, (req, res) => {
@@ -3251,11 +2985,6 @@ app.post('/api/admin/payments/:id/confirm-transfer', requireAdmin, (req, res) =>
 // Config endpoint
 app.get('/api/config', (req, res) => {
     res.json({
-        emailjs: {
-            publicKey: 'adpBU-SgpefU02llA',
-            serviceId: 'lindo_Tours',
-            templateId: 'template_ms3160x'
-        },
         whatsapp: {
             phone: WHATSAPP_PHONE,
             url: buildWhatsAppUrl(WHATSAPP_PHONE)
@@ -3276,8 +3005,6 @@ app.get('/api/config', (req, res) => {
                 passwordEnabled: true,
                 googleEnabled: Boolean(GOOGLE_PRIMARY_CLIENT_ID),
                 googleClientId: GOOGLE_PRIMARY_CLIENT_ID || null,
-                debugOtp: CUSTOMER_AUTH_DEBUG,
-                codeTtlMs: CUSTOMER_AUTH_CODE_TTL_MS,
                 sessionTtlMs: CUSTOMER_SESSION_TTL_MS
             }
         },

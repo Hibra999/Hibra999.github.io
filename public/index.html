@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lindo Tours — Private Tours in Mexico</title>
-    <meta name="description"
-        content="Premium private tours in the Riviera Maya. Tulum ruins, cenotes, snorkeling and more. Comfortable and flexible.">
+    <title>Lindo Tours | Tours privados en la Riviera Maya</title>
+    <meta name="description" id="page-description"
+        content="Tours privados y experiencias exclusivas en la Riviera Maya. Tulum, cenotes, snorkel y más con atención personalizada.">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -21,36 +21,21 @@
             <h1>Lindo Tours</h1>
         </a>
         <nav class="header-nav" aria-label="Primary navigation">
-            <button type="button" class="header-nav-link" onclick="navigateTo('catalog'); scrollToTopTours();">
+            <button type="button" class="header-nav-link" data-nav-target="catalog" onclick="navigateTo('catalog'); scrollToTopTours();">
                 <span data-es="Tours" data-en="Tours">Tours</span>
             </button>
-            <button type="button" class="header-nav-link" onclick="navigateTo('about')">
-                <span data-es="Nosotros" data-en="About Us">About Us</span>
+            <button type="button" class="header-nav-link" data-nav-target="about" onclick="navigateTo('about')">
+                <span data-es="Nosotros" data-en="About Us">Nosotros</span>
             </button>
         </nav>
         <div class="header-actions">
             <div class="selector" id="language-selector-container">
-                <div class="selector-current" onclick="toggleLanguageDropdown()">
-                    <img id="lang-flag" src="imagenes/flags/es.jpg" alt="flag" class="lang-flag">
-                    <span id="lang-text">Español</span>
-                    <svg class="selector-arrow" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M1 1l4 4 4-4" />
-                    </svg>
-                </div>
-                <select id="language-selector">
+                <label class="visually-hidden" id="language-selector-label" for="language-selector" data-es="Idioma" data-en="Language">Idioma</label>
+                <img id="lang-flag" src="imagenes/flags/es.jpg" alt="" class="lang-flag" aria-hidden="true">
+                <select id="language-selector" aria-labelledby="language-selector-label">
                     <option value="es" selected>Español</option>
                     <option value="en">English</option>
                 </select>
-                <div class="selector-dropdown" id="language-dropdown">
-                    <div class="selector-option" onclick="changeLanguage('es')" data-lang="es">
-                        <img src="imagenes/flags/es.jpg" alt="Español">
-                        <span>Español</span>
-                    </div>
-                    <div class="selector-option" onclick="changeLanguage('en')" data-lang="en">
-                        <img src="imagenes/flags/us.jpg" alt="English">
-                        <span>English</span>
-                    </div>
-                </div>
             </div>
             <button class="auth-nav-btn auth-nav-primary" id="auth-login-btn" onclick="openAuthModal('login')">
                 <span data-i18n="loginNav">Iniciar sesión</span>
@@ -65,13 +50,13 @@
                 </svg>
                 <span id="account-nav-label" data-i18n="accountNav">Mi cuenta</span>
             </button>
-            <button class="preview-flow-btn" id="preview-checkout-btn" onclick="startCheckoutPreview()" style="display:none;" type="button">
+            <button class="preview-flow-btn" id="preview-checkout-btn" onclick="startCheckoutPreview()" hidden type="button">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 12h14" />
                     <path d="M13 6l6 6-6 6" />
                     <path d="M5 6v12" />
                 </svg>
-                <span data-i18n="previewCheckoutButton">Ver flujo sin tour</span>
+                <span data-i18n="previewCheckoutButton">Probar checkout demo</span>
             </button>
             <button class="cart-btn" id="cart-btn" onclick="navigateTo('checkout')" type="button">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -92,8 +77,8 @@
             <button type="button" class="close-modal auth-modal-close" aria-label="Close auth modal" onclick="closeAuthModal()">&times;</button>
             <div class="auth-card-header">
                 <div class="auth-brand-pill">
-                    <img src="imagenes/Lindo_Tours.jpeg" alt="Lindo Tours Logo" class="auth-brand-pill-icon">
-                    <span>Lindo Tours</span>
+            <img src="imagenes/Lindo_Tours.jpeg" alt="Lindo Tours Logo" class="auth-brand-pill-icon">
+            <span>Lindo Tours</span>
                 </div>
                 <h2 id="auth-modal-title">Iniciar sesión</h2>
             </div>
@@ -142,17 +127,28 @@
         <div class="catalog-hero-bg" id="catalog-hero-bg-b"></div>
         <div class="catalog-hero-content">
             <h2 data-es="Tours privados y experiencias exclusivas en la Riviera Maya"
-                data-en="Private tours and exclusive experiences in the Riviera Maya">Private tours and exclusive
-                experiences in the Riviera Maya</h2>
+                data-en="Private tours and exclusive experiences in the Riviera Maya">Tours privados y experiencias exclusivas en la Riviera Maya</h2>
             <p data-es="Reserva en minutos con atención personalizada y confirmación rápida."
                 data-en="Book in minutes with personalized support and fast confirmation.">
-                Book in minutes with personalized support and fast confirmation.
+                Reserva en minutos con atención personalizada y confirmación rápida.
             </p>
-            <button type="button" class="hero-cta-btn" onclick="scrollToTopTours()" data-i18n="heroCta">Explore Tours</button>
+            <button type="button" class="hero-cta-btn" onclick="scrollToTopTours()" data-i18n="heroCta">Explorar tours</button>
         </div>
     </section>
     <main id="main-view">
         <div class="catalog-section">
+            <section class="app-state app-state-error" id="app-state" hidden>
+                <div class="app-state-card">
+                    <span class="app-state-kicker" data-es="Error de carga" data-en="Loading error">Error de carga</span>
+                    <h2 id="app-state-title" data-es="No pudimos cargar el catálogo." data-en="We couldn't load the catalog.">No pudimos cargar el catálogo.</h2>
+                    <p id="app-state-message"
+                        data-es="Revisa tu conexión o intenta nuevamente para recuperar los tours y la configuración."
+                        data-en="Check your connection or try again to recover tours and configuration.">
+                        Revisa tu conexión o intenta nuevamente para recuperar los tours y la configuración.
+                    </p>
+                    <button type="button" class="btn btn-primary" id="app-retry-btn" onclick="retryInitialLoad()" data-i18n="retryButton">Reintentar</button>
+                </div>
+            </section>
             <div class="catalog-grid" id="catalog-grid">
                 <div class="loading" style="height:300px;"></div>
             </div>
@@ -172,7 +168,7 @@
             </div>
             <div class="about-content">
                 <div class="about-image">
-                    <img src="imagenes/contacto.jpg" alt="Lindo Tours">
+                    <img src="imagenes/contacto.jpg" alt="Lindo Tours" loading="lazy" decoding="async">
                 </div>
                 <div class="about-info">
                     <h2 data-es="Sobre Nosotros" data-en="About Us">About Us</h2>
@@ -315,6 +311,20 @@
                     <span data-es="Tu Carrito" data-en="Your Cart">Your Cart</span>
                 </h3>
                 <button type="button" class="close-modal" aria-label="Close cart" onclick="closeCartModal()">&times;</button>
+            </div>
+            <div class="checkout-progress" aria-label="Checkout progress">
+                <div class="progress-step active" id="step-1">
+                    <span class="progress-number">1</span>
+                    <span class="progress-label" data-es="Carrito" data-en="Cart">Carrito</span>
+                </div>
+                <div class="progress-step" id="step-2">
+                    <span class="progress-number">2</span>
+                    <span class="progress-label" data-es="Datos" data-en="Details">Datos</span>
+                </div>
+                <div class="progress-step" id="step-3">
+                    <span class="progress-number">3</span>
+                    <span class="progress-label" data-es="Pago" data-en="Payment">Pago</span>
+                </div>
             </div>
 
             <div class="modal-body">
@@ -482,88 +492,117 @@
                             Review the total and choose your payment method.
                         </p>
 
-                        <div class="checkout-payment-focus" id="checkout-payment-focus">
-                            <div class="checkout-payment-focus-header">
-                                <h5 data-i18n="paymentMethod">Método de pago</h5>
-                                <p data-i18n="paymentMethodHelp">Elige una opción para finalizar.</p>
-                            </div>
-                            <div class="payment-methods" id="payment-methods" role="radiogroup" aria-labelledby="confirm-step-title">
-                                <article class="payment-method-option" id="payment-option-paypal" data-payment-method="paypal" tabindex="0" role="radio">
-                                    <div class="payment-method-select">
-                                        <input type="radio" name="payment_method" value="paypal">
-                                    </div>
-                                    <div class="payment-method-head">
-                                        <span class="payment-method-icon payment-method-icon-paypal" id="payment-option-paypal-icon" data-logo-src="/imagenes/pagos/paypal-logo.svg" aria-hidden="true"></span>
-                                        <div class="payment-method-copy">
-                                            <div class="payment-method-title-row">
-                                                <strong id="payment-option-paypal-title">PayPal / Tarjeta +5%</strong>
-                                                <span class="payment-method-chip payment-method-chip-accent" id="payment-option-paypal-fee">+5%</span>
-                                            </div>
-                                            <small id="payment-option-paypal-desc">Paga online con PayPal o tarjeta.</small>
+                        <div class="checkout-step-layout">
+                            <div class="checkout-step-main">
+                                <div class="checkout-payment-panel">
+                                    <div class="checkout-payment-focus" id="checkout-payment-focus">
+                                        <div class="checkout-payment-focus-header">
+                                            <span class="checkout-panel-kicker" data-es="Paso final" data-en="Final step">Paso final</span>
+                                            <h5 data-i18n="paymentMethod">Método de pago</h5>
+                                            <p data-i18n="paymentMethodHelp">Elige una opción para finalizar.</p>
+                                        </div>
+                                        <div class="payment-methods" id="payment-methods" role="radiogroup" aria-labelledby="confirm-step-title">
+                                            <article class="payment-method-option" id="payment-option-paypal" data-payment-method="paypal" tabindex="0" role="radio">
+                                                <div class="payment-method-select">
+                                                    <input type="radio" name="payment_method" value="paypal">
+                                                </div>
+                                                <div class="payment-method-head">
+                                                    <span class="payment-method-icon payment-method-icon-paypal" id="payment-option-paypal-icon" data-logo-src="/imagenes/pagos/paypal-logo.svg" aria-hidden="true"></span>
+                                                    <div class="payment-method-copy">
+                                                        <div class="payment-method-title-row">
+                                                            <strong id="payment-option-paypal-title">PayPal / Tarjeta +5%</strong>
+                                                            <span class="payment-method-chip payment-method-chip-accent" id="payment-option-paypal-fee">+5%</span>
+                                                        </div>
+                                                        <small id="payment-option-paypal-desc">Paga online con PayPal o tarjeta.</small>
+                                                    </div>
+                                                </div>
+                                                <div class="payment-method-amount">
+                                                    <span data-i18n="totalFinal">Total final</span>
+                                                    <strong id="payment-option-paypal-total">$0 USD</strong>
+                                                </div>
+                                                <div class="payment-card-detail-list" id="payment-option-paypal-details"></div>
+                                                <button type="button" class="btn btn-primary payment-method-cta" id="payment-option-paypal-cta"
+                                                    onclick="setSelectedPaymentMethod('paypal'); startPayPalCheckout();">
+                                                    <span data-i18n="continueWithPayPal">Pagar con PayPal</span>
+                                                </button>
+                                            </article>
+                                            <article class="payment-method-option payment-method-option-transfer" id="payment-option-bank-transfer" data-payment-method="bank_transfer"
+                                                tabindex="0" role="radio">
+                                                <div class="payment-method-select">
+                                                    <input type="radio" name="payment_method" value="bank_transfer">
+                                                </div>
+                                                <div class="payment-method-head">
+                                                    <span class="payment-method-icon payment-method-icon-transfer" id="payment-option-bank-transfer-icon"
+                                                        data-logo-src="/imagenes/pagos/bank-transfer-icon.svg" aria-hidden="true"></span>
+                                                    <div class="payment-method-copy">
+                                                        <div class="payment-method-title-row">
+                                                            <strong id="payment-option-bank-transfer-title">Transferencia bancaria</strong>
+                                                            <span class="payment-method-chip payment-method-chip-muted" id="payment-option-bank-transfer-fee">Sin comisión</span>
+                                                        </div>
+                                                        <small id="payment-option-bank-transfer-desc">Recibe los datos exactos para transferir.</small>
+                                                    </div>
+                                                </div>
+                                                <div class="payment-method-amount payment-method-amount-transfer">
+                                                    <span data-i18n="transferAmountToSend">Monto a transferir</span>
+                                                    <strong id="payment-option-bank-transfer-total">$0 USD</strong>
+                                                </div>
+                                                <div class="payment-card-detail-list" id="payment-option-bank-transfer-details"></div>
+                                                <button type="button" class="btn btn-primary payment-method-cta" id="payment-option-bank-transfer-cta"
+                                                    onclick="setSelectedPaymentMethod('bank_transfer'); startBankTransferCheckout();">
+                                                    <span data-i18n="getTransferInstructions">Ver instrucciones de transferencia</span>
+                                                </button>
+                                            </article>
                                         </div>
                                     </div>
-                                    <div class="payment-method-amount">
-                                        <span data-i18n="totalFinal">Total final</span>
-                                        <strong id="payment-option-paypal-total">$0 USD</strong>
-                                    </div>
-                                    <div class="payment-card-detail-list" id="payment-option-paypal-details"></div>
-                                    <button type="button" class="btn btn-primary payment-method-cta" id="payment-option-paypal-cta"
-                                        onclick="setSelectedPaymentMethod('paypal'); startPayPalCheckout();">
-                                        <span data-i18n="continueWithPayPal">Pagar con PayPal</span>
-                                    </button>
-                                </article>
-                                <article class="payment-method-option payment-method-option-transfer" id="payment-option-bank-transfer" data-payment-method="bank_transfer"
-                                    tabindex="0" role="radio">
-                                    <div class="payment-method-select">
-                                        <input type="radio" name="payment_method" value="bank_transfer">
-                                    </div>
-                                    <div class="payment-method-head">
-                                        <span class="payment-method-icon payment-method-icon-transfer" id="payment-option-bank-transfer-icon"
-                                            data-logo-src="/imagenes/pagos/bank-transfer-icon.svg" aria-hidden="true"></span>
-                                        <div class="payment-method-copy">
-                                            <div class="payment-method-title-row">
-                                                <strong id="payment-option-bank-transfer-title">Transferencia bancaria</strong>
-                                                <span class="payment-method-chip payment-method-chip-muted" id="payment-option-bank-transfer-fee">Sin comisión</span>
-                                            </div>
-                                            <small id="payment-option-bank-transfer-desc">Recibe los datos exactos para transferir.</small>
-                                        </div>
-                                    </div>
-                                    <div class="payment-method-amount payment-method-amount-transfer">
-                                        <span data-i18n="transferAmountToSend">Monto a transferir</span>
-                                        <strong id="payment-option-bank-transfer-total">$0 USD</strong>
-                                    </div>
-                                    <div class="payment-card-detail-list" id="payment-option-bank-transfer-details"></div>
-                                    <button type="button" class="btn btn-primary payment-method-cta" id="payment-option-bank-transfer-cta"
-                                        onclick="setSelectedPaymentMethod('bank_transfer'); startBankTransferCheckout();">
-                                        <span data-i18n="getTransferInstructions">Ver instrucciones de transferencia</span>
-                                    </button>
-                                </article>
-                            </div>
-                        </div>
 
-                        <div class="confirm-grid">
-                            <div class="confirm-card">
-                                <h5 data-es="Datos del Cliente" data-en="Customer Details">Customer Details</h5>
-                                <div class="confirm-summary-list" id="confirm-customer-summary"></div>
-                            </div>
-                            <div class="confirm-card">
-                                <h5 data-es="Tours y Total" data-en="Tours and Total">Tours and Total</h5>
-                                <div class="confirm-summary-list" id="confirm-cart-summary"></div>
-                                <div class="confirm-total">
-                                    <div class="confirm-total-line">
-                                        <span data-i18n="subtotal">Subtotal</span>
-                                        <strong id="confirm-subtotal-amount">$0 USD</strong>
-                                    </div>
-                                    <div class="confirm-total-line">
-                                        <span id="confirm-fee-label" data-i18n="commission">Comisión</span>
-                                        <strong id="confirm-fee-amount">$0 USD</strong>
-                                    </div>
-                                    <div class="confirm-total-line confirm-total-line-final">
-                                        <span data-i18n="totalFinal">Total final</span>
-                                        <strong id="confirm-total-amount">$0 USD</strong>
+                                    <div class="checkout-result-card" id="checkout-result-card" hidden>
+                                        <div class="checkout-result-header">
+                                            <span data-i18n="orderNumber">Número de orden</span>
+                                            <strong id="checkout-result-order-id">LT-XXXX</strong>
+                                        </div>
+                                        <p class="checkout-result-text" id="checkout-result-message"></p>
+                                        <div class="checkout-result-grid" id="checkout-result-grid"></div>
+
+                                        <div class="transfer-proof-box" id="transfer-proof-box" hidden>
+                                            <h6 data-i18n="uploadProofTitle">Subir comprobante</h6>
+                                            <p data-i18n="uploadProofHelp">Sube tu comprobante para revisión.</p>
+                                            <div class="transfer-proof-fields">
+                                                <input type="file" id="transfer-proof-file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                                                <button type="button" class="btn btn-secondary" id="upload-transfer-proof-btn" onclick="uploadTransferProof()">
+                                                    <span data-i18n="uploadProofButton">Subir comprobante</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+
+                            <aside class="checkout-step-sidebar">
+                                <div class="checkout-summary-column">
+                                    <div class="confirm-card confirm-card-customer">
+                                        <h5 data-es="Datos del Cliente" data-en="Customer Details">Customer Details</h5>
+                                        <div class="confirm-summary-list" id="confirm-customer-summary"></div>
+                                    </div>
+                                    <div class="confirm-card confirm-card-summary">
+                                        <h5 data-es="Tours y Total" data-en="Tours and Total">Tours and Total</h5>
+                                        <div class="confirm-summary-list" id="confirm-cart-summary"></div>
+                                        <div class="confirm-total">
+                                            <div class="confirm-total-line">
+                                                <span data-i18n="subtotal">Subtotal</span>
+                                                <strong id="confirm-subtotal-amount">$0 USD</strong>
+                                            </div>
+                                            <div class="confirm-total-line">
+                                                <span id="confirm-fee-label" data-i18n="commission">Comisión</span>
+                                                <strong id="confirm-fee-amount">$0 USD</strong>
+                                            </div>
+                                            <div class="confirm-total-line confirm-total-line-final">
+                                                <span data-i18n="totalFinal">Total final</span>
+                                                <strong id="confirm-total-amount">$0 USD</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </aside>
                         </div>
 
                         <div class="confirm-mobile-action-bar" id="confirm-mobile-action-bar" hidden>
@@ -574,26 +613,6 @@
                             <button type="button" class="btn btn-primary" id="confirm-mobile-pay-btn" onclick="triggerPrimaryCheckoutAction()">
                                 <span id="confirm-mobile-pay-label" data-i18n="continueWithPayPal">Pagar online</span>
                             </button>
-                        </div>
-
-                        <div class="checkout-result-card" id="checkout-result-card" hidden>
-                            <div class="checkout-result-header">
-                                <span data-i18n="orderNumber">Número de orden</span>
-                                <strong id="checkout-result-order-id">LT-XXXX</strong>
-                            </div>
-                            <p class="checkout-result-text" id="checkout-result-message"></p>
-                            <div class="checkout-result-grid" id="checkout-result-grid"></div>
-
-                            <div class="transfer-proof-box" id="transfer-proof-box" hidden>
-                                <h6 data-i18n="uploadProofTitle">Subir comprobante</h6>
-                                <p data-i18n="uploadProofHelp">Sube tu comprobante para revisión.</p>
-                                <div class="transfer-proof-fields">
-                                    <input type="file" id="transfer-proof-file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
-                                    <button type="button" class="btn btn-secondary" id="upload-transfer-proof-btn" onclick="uploadTransferProof()">
-                                        <span data-i18n="uploadProofButton">Subir comprobante</span>
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -612,14 +631,6 @@
                     <button type="button" class="btn btn-primary" id="confirm-btn" onclick="proceedToConfirmation()"
                         style="display:none;"><span data-es="Continuar a Confirmar" data-en="Continue to Confirm">Continue
                             to Confirm</span></button>
-                    <button type="button" class="btn btn-primary" id="pay-paypal-btn" onclick="startPayPalCheckout()"
-                        style="display:none;">
-                        <span id="pay-paypal-label" data-i18n="continueWithPayPal">Pagar online</span>
-                    </button>
-                    <button type="button" class="btn btn-primary" id="bank-transfer-btn" onclick="startBankTransferCheckout()"
-                        style="display:none;">
-                        <span data-i18n="getTransferInstructions">Ver datos para transferencia</span>
-                    </button>
                 </div>
             </div>
         </div>
@@ -662,7 +673,7 @@
                         Amazing experience in Tulum. The guide was very professional and the transportation super
                         comfortable. Definitely recommend it!</p>
                     <div class="testimonial-author">
-                        <img class="testimonial-avatar" src="imagenes/testimonials/sarah.png" alt="Sarah M.">
+                        <img class="testimonial-avatar" src="imagenes/testimonials/sarah.webp" alt="Sarah M." loading="lazy" decoding="async">
                         <div class="testimonial-info">
                             <div class="testimonial-name">Sarah M.</div>
                             <div class="testimonial-tour" data-es="Tour: Tulum Privado" data-en="Tour: Private Tulum">
@@ -699,7 +710,7 @@
                         Swimming with turtles in Akumal was the highlight of our trip. The kids were fascinated. Thank
                         you Lindo Tours!</p>
                     <div class="testimonial-author">
-                        <img class="testimonial-avatar" src="imagenes/testimonials/james.png" alt="James R.">
+                        <img class="testimonial-avatar" src="imagenes/testimonials/james.webp" alt="James R." loading="lazy" decoding="async">
                         <div class="testimonial-info">
                             <div class="testimonial-name">James R.</div>
                             <div class="testimonial-tour" data-es="Tour: Tulum & Akumal" data-en="Tour: Tulum & Akumal">
@@ -736,7 +747,7 @@
                         The ATVs and cenote adventure was extreme! Pure adrenaline. The equipment was in perfect
                         condition and very safe.</p>
                     <div class="testimonial-author">
-                        <img class="testimonial-avatar" src="imagenes/testimonials/carlos.png" alt="Carlos L.">
+                        <img class="testimonial-avatar" src="imagenes/testimonials/carlos.webp" alt="Carlos L." loading="lazy" decoding="async">
                         <div class="testimonial-info">
                             <div class="testimonial-name">Carlos L.</div>
                             <div class="testimonial-tour" data-es="Tour: ATV Cenote Zipline"
@@ -757,7 +768,6 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script src="js/main.js"></script>
 </body>
 

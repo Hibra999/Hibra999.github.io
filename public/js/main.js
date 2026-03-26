@@ -8,8 +8,10 @@ let state = {
     cart: [],
     checkoutMode: false,
     checkoutStep: 1,
+    checkoutReturnHash: '',
     checkoutPreviewMode: false,
     checkoutPreviewBackup: null,
+    editingCartIndex: null,
     selectedPaymentMethod: 'bank_transfer',
     latestCheckoutOrder: null
 };
@@ -17,7 +19,6 @@ let state = {
 let TOURS = {};
 let HOTELS = [];
 let CONFIG = {
-    emailjs: {},
     whatsapp: {},
     contact: {
         email: '',
@@ -35,8 +36,6 @@ let CONFIG = {
             passwordEnabled: false,
             googleEnabled: false,
             googleClientId: '',
-            debugOtp: false,
-            codeTtlMs: 0,
             sessionTtlMs: 0
         }
     },
@@ -68,14 +67,14 @@ let lastFocusedBeforeAuthModal = null;
 let localCartOwner = 'guest';
 let customerCartSyncTimer = null;
 let googleIdentityInitialized = false;
+let initialDataState = {
+    ready: false,
+    loading: false,
+    error: ''
+};
 let authUIState = {
     mode: 'login',
     busy: false
-};
-let adminOrdersState = {
-    rows: [],
-    selectedPublicId: '',
-    detail: null
 };
 let customerAccountState = {
     session: null,
@@ -84,12 +83,10 @@ let customerAccountState = {
     selectedPublicId: ''
 };
 let customerPortalState = {
-    session: null,
     data: null,
-    source: 'portal'
+    source: 'account'
 };
 
-var CUSTOMER_PORTAL_SESSION_KEY = 'lindotours_customer_portal';
 var CUSTOMER_AUTH_SESSION_KEY = 'lindotours_customer_auth';
 var CUSTOMER_CART_OWNER_KEY = 'lindotours_cart_owner';
 
@@ -125,6 +122,12 @@ const I18N = {
         sessionExpiredTitle: 'Sesión expirada',
         sessionExpiredMessage: 'Vuelve a iniciar sesión para continuar',
         cartEmpty: 'Tu carrito está vacío',
+        cartEmptyMessage: 'Agrega tours para revisar viajeros, totales y pago sin perder el contexto.',
+        browseToursButton: 'Ver tours',
+        editCartItem: 'Editar',
+        updateCart: 'Actualizar carrito',
+        updated: 'Actualizado',
+        updatedMessage: 'Tour actualizado en el carrito',
         previewCheckoutButton: 'Probar checkout demo',
         previewCheckoutTitle: 'Checkout demo',
         previewCheckoutMessage: 'Cargamos un servicio aleatorio y habilitamos una simulacion del pago final para revisar UI, comision y pasos sin depender de datos reales.',
@@ -156,10 +159,8 @@ const I18N = {
         bookingFailed: 'No se pudo enviar la reservación',
         bookingSentTitle: 'Reservación Enviada',
         bookingSentMessage: 'Te contactaremos pronto para confirmar.',
-        bookingSavedForWhatsApp: 'Reservación guardada. Abriendo WhatsApp...',
         whatsappErrorTitle: 'Error en envío',
         whatsappErrorMessage: 'No se pudo guardar la reservación antes de abrir WhatsApp.',
-        emailFallbackError: 'Error. Usa WhatsApp.',
         heroCta: 'Explorar Tours',
         bookingStatusIdle: '',
         bookingStatusLoading: 'Procesando y guardando tu reservación...',
@@ -183,14 +184,14 @@ const I18N = {
         paymentMethodHelp: 'Elige PayPal o transferencia y revisa exactamente a dónde enviar el pago.',
         paymentPayPal: 'PayPal / Tarjeta',
         paymentPayPalDesc: 'Paga en línea y te redirigimos al perfil configurado de PayPal.',
+        paymentPayPalNote: 'Confirmación inmediata y cobro seguro en línea.',
         paymentTransfer: 'Transferencia bancaria',
         paymentTransferDesc: 'Copia los datos bancarios y envía el monto exacto.',
+        paymentTransferPreviewNote: 'Los datos exactos y la referencia aparecen después de crear la orden.',
         paymentManual: 'Reservar por contacto',
         paymentManualDesc: 'Envía tu solicitud por WhatsApp o email para confirmación manual.',
         continueWithPayPal: 'Pagar con PayPal',
         getTransferInstructions: 'Ver instrucciones de transferencia',
-        sendReservationEmail: 'Enviar reservación por email',
-        sendReservationWhatsApp: 'Enviar por WhatsApp',
         orderNumber: 'Número de orden',
         subtotal: 'Subtotal',
         commission: 'Comisión',
@@ -239,8 +240,6 @@ const I18N = {
         previewPayPalSimulated: 'Pago PayPal simulado para revision visual.',
         previewTransferSimulated: 'Transferencia Banamex simulada con datos de prueba.',
         paymentMethodUnavailable: 'Este método de pago no está disponible en este momento.',
-        manualOrderCreated: 'Tu solicitud fue registrada. Te contactaremos para confirmar.',
-        manualOrderReference: 'Comparte tu número de orden si nos contactas por WhatsApp.',
         transferProofMissing: 'Selecciona un archivo antes de subir el comprobante.',
         adminOrdersTitle: 'Órdenes',
         adminPaymentsTitle: 'Pagos',
@@ -282,18 +281,9 @@ const I18N = {
         adminStatusFailed: 'Fallida',
         adminStatusCancelled: 'Cancelada',
         adminStatusVoid: 'Anulada',
-        myOrdersNav: 'Mis compras',
         myOrdersTitle: 'Mis compras',
-        myOrdersIntro: 'Consulta el estado de tu orden, pagos y documentos usando tu número de orden y el email de compra.',
-        myOrdersHint: 'Lo encuentras en el email de confirmación, en PayPal o en el mensaje de WhatsApp generado al reservar.',
-        lookupOrderButton: 'Consultar orden',
-        clearLookupButton: 'Limpiar',
-        myOrdersEmpty: 'Ingresa tu número de orden y email para ver tus compras.',
         portalLoading: 'Buscando tu orden...',
-        portalLookupSuccess: 'Orden encontrada.',
-        portalLookupError: 'No encontramos una orden con esos datos.',
         portalSessionExpired: 'La sesión de esta orden expiró. Vuelve a consultarla.',
-        portalSessionCleared: 'Se limpió la consulta de tu orden.',
         portalOrderSummary: 'Resumen de orden',
         portalPaymentSummary: 'Pago',
         portalServicesTitle: 'Servicios',
@@ -306,19 +296,11 @@ const I18N = {
         portalSessionExpires: 'Sesión disponible hasta',
         portalSubmittedAt: 'Enviado',
         portalReviewStatus: 'Revisión',
-        accountAccessTitle: 'Acceso por email',
-        accountAccessIntro: 'Pide un código de un solo uso para reclamar tus compras y ver todas las órdenes ligadas a tu email.',
-        accountCodeLabel: 'Código',
-        requestCodeButton: 'Enviar código',
-        verifyCodeButton: 'Verificar código',
         customerLogoutButton: 'Cerrar sesión',
-        customerAuthRequestSent: 'Código enviado. Revisa tu email o usa el código de prueba.',
         customerAuthVerified: 'Acceso confirmado. Tus órdenes ya están disponibles.',
-        customerAuthInvalid: 'El código no es válido o ya venció.',
-        customerAuthDebugTitle: 'Código de prueba',
         customerOrdersTitle: 'Tus órdenes',
         customerOrdersEmpty: 'Inicia sesión con tu email para ver todas tus órdenes.',
-        customerOrdersHint: 'Las compras guest con el mismo email se enlazan después de verificar el código.',
+        customerOrdersHint: 'Las compras hechas con el mismo email se vinculan cuando inicias sesión en tu cuenta.',
         customerLoggedOut: 'Sesión de cliente cerrada',
         registerNav: 'Regístrate',
         loginNav: 'Iniciar sesión',
@@ -361,7 +343,10 @@ const I18N = {
         accountGuestBrowse: 'Seguir explorando',
         accountGuestOrdersEmpty: 'Inicia sesión cuando quieras para ver aquí todas tus órdenes y compras recuperadas.',
         accountGuestDetailEmpty: 'Explora tours o inicia sesión para ver aquí el detalle de tus órdenes.',
-        accountRestored: 'Restauramos tu cuenta y tu carrito.'
+        accountRestored: 'Restauramos tu cuenta y tu carrito.',
+        catalogLoadErrorTitle: 'No pudimos cargar el catálogo.',
+        catalogLoadErrorMessage: 'Revisa tu conexión o intenta nuevamente para recuperar tours y configuración.',
+        retryButton: 'Reintentar'
     },
     en: {
         from: 'From',
@@ -389,6 +374,12 @@ const I18N = {
         sessionExpiredTitle: 'Session expired',
         sessionExpiredMessage: 'Sign in again to continue',
         cartEmpty: 'Your cart is empty',
+        cartEmptyMessage: 'Add tours to review travelers, totals, and payment without losing your place.',
+        browseToursButton: 'Browse tours',
+        editCartItem: 'Edit',
+        updateCart: 'Update cart',
+        updated: 'Updated',
+        updatedMessage: 'Tour updated in your cart',
         previewCheckoutButton: 'Try demo checkout',
         previewCheckoutTitle: 'Demo checkout',
         previewCheckoutMessage: 'We preload a random service and enable a simulated final payment so you can review the UI, fee, and steps without real customer data.',
@@ -420,10 +411,8 @@ const I18N = {
         bookingFailed: 'Booking could not be sent',
         bookingSentTitle: 'Booking Sent',
         bookingSentMessage: 'We will contact you soon to confirm.',
-        bookingSavedForWhatsApp: 'Booking saved. Opening WhatsApp...',
         whatsappErrorTitle: 'Send error',
         whatsappErrorMessage: 'Booking could not be saved before opening WhatsApp.',
-        emailFallbackError: 'Error. Use WhatsApp.',
         heroCta: 'Explore Tours',
         bookingStatusIdle: '',
         bookingStatusLoading: 'Processing and saving your booking...',
@@ -447,14 +436,14 @@ const I18N = {
         paymentMethodHelp: 'Choose PayPal or bank transfer and review exactly where the money goes.',
         paymentPayPal: 'PayPal / Card',
         paymentPayPalDesc: 'Pay online and we will redirect you to the configured PayPal profile.',
+        paymentPayPalNote: 'Fast confirmation and secure online payment.',
         paymentTransfer: 'Bank transfer',
         paymentTransferDesc: 'Copy the bank details and send the exact amount.',
+        paymentTransferPreviewNote: 'Exact transfer details and the reference appear after the order is created.',
         paymentManual: 'Book by contact',
         paymentManualDesc: 'Send your request by WhatsApp or email for manual confirmation.',
         continueWithPayPal: 'Pay with PayPal',
         getTransferInstructions: 'Show transfer instructions',
-        sendReservationEmail: 'Send booking by email',
-        sendReservationWhatsApp: 'Send via WhatsApp',
         orderNumber: 'Order number',
         subtotal: 'Subtotal',
         commission: 'Fee',
@@ -503,8 +492,6 @@ const I18N = {
         previewPayPalSimulated: 'PayPal payment simulated for visual review.',
         previewTransferSimulated: 'Banamex transfer simulated with sample data.',
         paymentMethodUnavailable: 'This payment method is not available right now.',
-        manualOrderCreated: 'Your request was recorded. We will contact you to confirm.',
-        manualOrderReference: 'Share your order number if you contact us on WhatsApp.',
         transferProofMissing: 'Select a file before uploading your proof.',
         adminOrdersTitle: 'Orders',
         adminPaymentsTitle: 'Payments',
@@ -546,18 +533,9 @@ const I18N = {
         adminStatusFailed: 'Failed',
         adminStatusCancelled: 'Cancelled',
         adminStatusVoid: 'Voided',
-        myOrdersNav: 'My orders',
         myOrdersTitle: 'My orders',
-        myOrdersIntro: 'Check your order status, payments, and documents using your order number and purchase email.',
-        myOrdersHint: 'You can find it in your confirmation email, in PayPal, or in the WhatsApp message generated during checkout.',
-        lookupOrderButton: 'Find order',
-        clearLookupButton: 'Clear',
-        myOrdersEmpty: 'Enter your order number and email to view your purchases.',
         portalLoading: 'Looking up your order...',
-        portalLookupSuccess: 'Order found.',
-        portalLookupError: 'We could not find an order matching those details.',
         portalSessionExpired: 'This order session expired. Look it up again.',
-        portalSessionCleared: 'Your order lookup was cleared.',
         portalOrderSummary: 'Order summary',
         portalPaymentSummary: 'Payment',
         portalServicesTitle: 'Services',
@@ -570,19 +548,11 @@ const I18N = {
         portalSessionExpires: 'Session available until',
         portalSubmittedAt: 'Submitted',
         portalReviewStatus: 'Review',
-        accountAccessTitle: 'Email access',
-        accountAccessIntro: 'Request a one-time code to claim your purchases and view all orders linked to your email.',
-        accountCodeLabel: 'Code',
-        requestCodeButton: 'Send code',
-        verifyCodeButton: 'Verify code',
         customerLogoutButton: 'Sign out',
-        customerAuthRequestSent: 'Code sent. Check your email or use the debug code.',
         customerAuthVerified: 'Access confirmed. Your orders are now available.',
-        customerAuthInvalid: 'The code is invalid or expired.',
-        customerAuthDebugTitle: 'Debug code',
         customerOrdersTitle: 'Your orders',
         customerOrdersEmpty: 'Sign in with your email to view all of your orders.',
-        customerOrdersHint: 'Guest purchases with the same email are linked after you verify the code.',
+        customerOrdersHint: 'Purchases made with the same email are linked when you sign in to your account.',
         customerLoggedOut: 'Customer session closed',
         registerNav: 'Sign up',
         loginNav: 'Log in',
@@ -625,7 +595,10 @@ const I18N = {
         accountGuestBrowse: 'Keep exploring',
         accountGuestOrdersEmpty: 'Sign in whenever you want to see all your restored orders and purchases here.',
         accountGuestDetailEmpty: 'Explore tours or sign in to view your order details here.',
-        accountRestored: 'Your account and cart were restored.'
+        accountRestored: 'Your account and cart were restored.',
+        catalogLoadErrorTitle: 'We could not load the catalog.',
+        catalogLoadErrorMessage: 'Check your connection or try again to recover tours and configuration.',
+        retryButton: 'Retry'
     }
 };
 
@@ -655,15 +628,8 @@ var SEA_HERO_SLIDES = [
     'imagenes/servicios/tulum_akumal_snorkel_tortugas/1.jpg'
 ];
 
-var COMMONS_API_URL = 'https://commons.wikimedia.org/w/api.php';
-var COMMONS_HERO_SEARCH_TERMS = [
-    'Cancun beach caribbean sea',
-    'Playa Delfines Cancun beach',
-    'Riviera Maya beach Mexico'
-];
 var checkoutHeroRotationTimer = null;
 var checkoutHeroIndex = 0;
-var checkoutHeroRemoteSlides = null;
 
 var TOUR_CATEGORY_META = {
     sea: {
@@ -693,11 +659,23 @@ function isDemoModeEnabled() {
     return Boolean(CONFIG.demoMode && CONFIG.demoMode.enabled);
 }
 
+function updateSiteChromeOffset() {
+    var header = document.querySelector('header');
+    var banner = document.getElementById('demo-mode-banner');
+    var offset = 0;
+
+    if (header) offset += Math.ceil(header.getBoundingClientRect().height);
+    if (banner && !banner.hidden) offset += Math.ceil(banner.getBoundingClientRect().height);
+
+    document.documentElement.style.setProperty('--site-header-offset', Math.max(72, offset) + 'px');
+}
+
 function applyDemoModeState() {
     var enabled = isDemoModeEnabled();
     var banner = document.getElementById('demo-mode-banner');
     document.body.classList.toggle('demo-mode', enabled);
     if (banner) banner.hidden = !enabled;
+    updateSiteChromeOffset();
 }
 
 function updateContactInfoUI() {
@@ -728,6 +706,172 @@ function updateContactInfoUI() {
 
 function normalizeLanguage(lang) {
     return lang === 'en' ? 'en' : 'es';
+}
+
+function getCurrentRouteHash() {
+    return safeText(window.location.hash).replace(/^#/, '');
+}
+
+function getCurrentViewHash() {
+    if (state.currentView === 'detail' && state.currentTour) return state.currentTour;
+    if (state.currentView === 'about') return 'about';
+    if (state.currentView === 'account') return 'account';
+    return '';
+}
+
+function updateHeaderNavState() {
+    document.querySelectorAll('.header-nav-link[data-nav-target]').forEach(function (button) {
+        var target = button.getAttribute('data-nav-target');
+        var isActive = target === state.currentView;
+        button.classList.toggle('active', isActive);
+        if (isActive) {
+            button.setAttribute('aria-current', 'page');
+        } else {
+            button.removeAttribute('aria-current');
+        }
+    });
+}
+
+function getDefaultPageMeta() {
+    if (state.language === 'en') {
+        return {
+            title: 'Lindo Tours | Private tours in the Riviera Maya',
+            description: 'Private tours and curated experiences in the Riviera Maya with fast confirmation and personalized support.'
+        };
+    }
+
+    return {
+        title: 'Lindo Tours | Tours privados en la Riviera Maya',
+        description: 'Tours privados y experiencias seleccionadas en la Riviera Maya con confirmación rápida y atención personalizada.'
+    };
+}
+
+function updateDocumentMetadata() {
+    var meta = getDefaultPageMeta();
+
+    if (state.currentView === 'about') {
+        meta = state.language === 'en'
+            ? {
+                title: 'About Lindo Tours | Riviera Maya private tours',
+                description: 'Meet Lindo Tours, the private Riviera Maya tour operator focused on comfort, flexibility, and direct support.'
+            }
+            : {
+                title: 'Nosotros | Lindo Tours',
+                description: 'Conoce a Lindo Tours, tu operador de tours privados en la Riviera Maya con enfoque en comodidad, flexibilidad y atención directa.'
+            };
+    } else if (state.currentView === 'account') {
+        meta = state.language === 'en'
+            ? {
+                title: 'My account | Lindo Tours',
+                description: 'Access your Lindo Tours account to review orders, restore your cart, and manage transfer proofs.'
+            }
+            : {
+                title: 'Mi cuenta | Lindo Tours',
+                description: 'Accede a tu cuenta de Lindo Tours para revisar órdenes, restaurar tu carrito y gestionar comprobantes.'
+            };
+    } else if (state.currentView === 'checkout') {
+        meta = state.language === 'en'
+            ? {
+                title: 'Checkout | Lindo Tours',
+                description: 'Review your tours, traveler details, and payment method before completing your Lindo Tours booking.'
+            }
+            : {
+                title: 'Checkout | Lindo Tours',
+                description: 'Revisa tus tours, datos de viaje y método de pago antes de completar tu reservación con Lindo Tours.'
+            };
+    } else if (state.currentView === 'detail' && state.currentTour && TOURS[state.currentTour]) {
+        var tour = TOURS[state.currentTour];
+        meta = {
+            title: getLocalized(tour.hero && tour.hero.title, state.language) + ' | Lindo Tours',
+            description: getLocalized(tour.card && tour.card.shortDescription, state.language) || getDefaultPageMeta().description
+        };
+    }
+
+    document.title = meta.title;
+    var descriptionTag = document.getElementById('page-description');
+    if (descriptionTag) {
+        descriptionTag.setAttribute('content', meta.description);
+    }
+}
+
+function setAppState(status, message) {
+    var appState = document.getElementById('app-state');
+    var grid = document.getElementById('catalog-grid');
+    var title = document.getElementById('app-state-title');
+    var text = document.getElementById('app-state-message');
+    if (!appState || !grid) return;
+
+    if (title) title.textContent = t('catalogLoadErrorTitle');
+    if (text) text.textContent = message || t('catalogLoadErrorMessage');
+
+    if (status === 'error') {
+        appState.hidden = false;
+        grid.hidden = true;
+        return;
+    }
+
+    appState.hidden = true;
+    grid.hidden = false;
+}
+
+async function fetchJsonOrThrow(url) {
+    var response = await fetch(url);
+    var result = await response.json().catch(function () { return null; });
+    if (!response.ok) {
+        var message = result && result.error ? result.error : ('Request failed for ' + url);
+        throw new Error(message);
+    }
+    return result;
+}
+
+async function loadInitialData() {
+    initialDataState.loading = true;
+    initialDataState.error = '';
+    setAppState('loading');
+
+    try {
+        var data = await Promise.all([
+            fetchJsonOrThrow('/api/tours'),
+            fetchJsonOrThrow('/api/hotels'),
+            fetchJsonOrThrow('/api/config')
+        ]);
+
+        var tours = data[0];
+        var hotels = data[1];
+        var config = data[2];
+
+        TOURS = {};
+        tours.forEach(function (tour) {
+            TOURS[tour.id] = tour;
+        });
+        HOTELS = Array.isArray(hotels) ? hotels : [];
+        CONFIG = config || CONFIG;
+        initialDataState.ready = true;
+        setAppState('ready');
+
+        updateContactInfoUI();
+        applyDemoModeState();
+        ensureSelectedPaymentMethod();
+        updatePaymentMethodUI();
+        updateDocumentMetadata();
+        return true;
+    } catch (error) {
+        initialDataState.ready = false;
+        initialDataState.error = error && error.message ? error.message : t('catalogLoadErrorMessage');
+        console.error('Initial data load failed', error);
+        setAppState('error', initialDataState.error);
+        return false;
+    } finally {
+        initialDataState.loading = false;
+    }
+}
+
+async function retryInitialLoad() {
+    if (initialDataState.loading) return;
+    var ready = await loadInitialData();
+    if (ready) {
+        handleHash();
+    }
 }
 
 function escapeHtml(value) {
@@ -1336,7 +1480,6 @@ function renderPaymentMethodCopy() {
     var transferIcon = document.getElementById('payment-option-bank-transfer-icon');
     var transferFee = document.getElementById('payment-option-bank-transfer-fee');
     var paypalFee = document.getElementById('payment-option-paypal-fee');
-    var payLabel = document.getElementById('pay-paypal-label');
     var mobilePayLabel = document.getElementById('confirm-mobile-pay-label');
     var transferFeeValue = getPaymentFeePercent('bank_transfer');
     var paypalFeeValue = getPaymentFeePercent('paypal');
@@ -1354,7 +1497,6 @@ function renderPaymentMethodCopy() {
             ? 'Demo mode. Opens the personal PayPal test link and never uses the company account.'
             : 'Modo demo. Abre el enlace personal de PayPal de prueba y no usa la cuenta de la empresa.';
     }
-    if (payLabel) payLabel.textContent = getPayPalCtaLabel();
     if (mobilePayLabel) mobilePayLabel.textContent = getPrimaryCheckoutActionLabel(getSelectedPaymentMethod());
     renderCheckoutPaymentCards();
 }
@@ -1580,15 +1722,6 @@ function cssEscapeValue(value) {
     return String(value).replace(/(["\\])/g, '\\$1');
 }
 
-function sanitizeSlugClient(input) {
-    return String(input || '')
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9-_]+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-}
-
 function getTourCategory(tour) {
     var haystack = [
         safeText(tour && tour.id),
@@ -1613,62 +1746,6 @@ function getTourCategory(tour) {
     }
 
     return TOUR_CATEGORY_META[key] || TOUR_CATEGORY_META.adventure;
-}
-
-function buildCommonsHeroSearchUrl(searchTerm) {
-    var params = new URLSearchParams({
-        action: 'query',
-        format: 'json',
-        origin: '*',
-        generator: 'search',
-        gsrnamespace: '6',
-        gsrlimit: '8',
-        gsrsearch: searchTerm,
-        prop: 'imageinfo',
-        iiprop: 'url|size',
-        iiurlwidth: '2200'
-    });
-    return COMMONS_API_URL + '?' + params.toString();
-}
-
-function extractCommonsSlides(data) {
-    if (!data || !data.query || !data.query.pages) return [];
-
-    return Object.values(data.query.pages)
-        .sort(function (a, b) {
-            return safeInt(a && a.index, 9999) - safeInt(b && b.index, 9999);
-        })
-        .map(function (page) {
-            var info = page && Array.isArray(page.imageinfo) ? page.imageinfo[0] : null;
-            if (!info) return null;
-
-            var width = safeInt(info.width, 0);
-            var height = safeInt(info.height, 0);
-            var slideUrl = safeText(info.thumburl || info.url);
-
-            if (!slideUrl || width < 1400 || width <= height) return null;
-            if (!/\.(jpg|jpeg|png|webp)(\?|$)/i.test(slideUrl)) return null;
-
-            return slideUrl;
-        })
-        .filter(Boolean);
-}
-
-async function fetchCommonsSeaHeroSlides() {
-    var requests = COMMONS_HERO_SEARCH_TERMS.map(function (term) {
-        return fetch(buildCommonsHeroSearchUrl(term), { method: 'GET' })
-            .then(function (response) {
-                if (!response.ok) throw new Error('Commons request failed');
-                return response.json();
-            })
-            .then(extractCommonsSlides)
-            .catch(function () {
-                return [];
-            });
-    });
-
-    var results = await Promise.all(requests);
-    return Array.from(new Set([].concat.apply([], results))).slice(0, 4);
 }
 
 function applyCatalogHeroSlides(layerA, layerB, slides) {
@@ -1760,40 +1837,7 @@ function applyCheckoutHeroSlides(slides) {
 }
 
 function initCheckoutHero() {
-    if (Array.isArray(checkoutHeroRemoteSlides) && checkoutHeroRemoteSlides.length > 0) {
-        applyCheckoutHeroSlides(checkoutHeroRemoteSlides);
-        return;
-    }
-
     applyCheckoutHeroSlides(SEA_HERO_SLIDES);
-    fetchCommonsSeaHeroSlides()
-        .then(function (remoteSlides) {
-            if (!Array.isArray(remoteSlides) || remoteSlides.length === 0) return;
-            checkoutHeroRemoteSlides = remoteSlides.slice(0, 4);
-            applyCheckoutHeroSlides(checkoutHeroRemoteSlides);
-        })
-        .catch(function (error) {
-            console.warn('initCheckoutHero error', error);
-        });
-}
-
-function getAdminToken() {
-    return sessionStorage.getItem('admin_token') || '';
-}
-
-function clearAdminSession() {
-    sessionStorage.removeItem('admin_token');
-    sessionStorage.removeItem('admin_expires_at');
-    sessionStorage.removeItem('admin_auth');
-    adminOrdersState = {
-        rows: [],
-        selectedPublicId: '',
-        detail: null
-    };
-}
-
-function isAdminLoggedIn() {
-    return Boolean(getAdminToken());
 }
 
 function readStoredCustomerAuthSession() {
@@ -1851,12 +1895,6 @@ function setInlineStatus(id, status, message) {
     statusEl.textContent = message || '';
     if (status === 'loading' || status === 'success' || status === 'error') {
         statusEl.classList.add(status);
-    }
-}
-
-function renderCustomerAuthDebugCode(code) {
-    if (code) {
-        console.info('customer auth debug code', code);
     }
 }
 
@@ -1960,14 +1998,11 @@ function syncCustomerAuthForm() {
     var authGoogleNote = document.getElementById('auth-google-note');
     var accountGoogleStatus = document.getElementById('account-google-status');
     var session = getCustomerAuthSession();
-    var portalSession = getCustomerPortalSession();
     var googleHelperCopy = getGoogleSignInHelperCopy();
 
     if (emailInput) {
         if (session && session.profile && session.profile.email) {
             emailInput.value = session.profile.email;
-        } else if (!emailInput.value && portalSession && portalSession.email) {
-            emailInput.value = portalSession.email;
         }
     }
     if (nameInput && session && session.profile && session.profile.fullName && !nameInput.value.trim()) {
@@ -2481,13 +2516,9 @@ function clearCustomerAuthSession(shouldToast) {
     clearCustomerOrdersList();
     setCustomerAuthStatus('idle');
     setAuthModalStatus('idle');
-    renderCustomerAuthDebugCode('');
-
-    if (customerPortalState.source === 'account') {
-        customerPortalState.data = null;
-        customerPortalState.source = 'portal';
-        clearCustomerPortalResult();
-    }
+    customerPortalState.data = null;
+    customerPortalState.source = 'account';
+    clearCustomerPortalResult();
 
     if (state.currentView === 'account') {
         syncCustomerAuthForm();
@@ -2519,95 +2550,6 @@ async function customerAuthFetch(url, options) {
     return response;
 }
 
-function readStoredCustomerPortalSession() {
-    try {
-        var raw = sessionStorage.getItem(CUSTOMER_PORTAL_SESSION_KEY);
-        if (!raw) return null;
-
-        var session = JSON.parse(raw);
-        if (!session || !session.publicId || !session.token) return null;
-        if (safeInt(session.expiresAt, 0) <= Date.now()) {
-            sessionStorage.removeItem(CUSTOMER_PORTAL_SESSION_KEY);
-            return null;
-        }
-
-        return {
-            publicId: safeText(session.publicId),
-            token: safeText(session.token),
-            expiresAt: safeInt(session.expiresAt, 0),
-            email: safeText(session.email).toLowerCase()
-        };
-    } catch (_) {
-        sessionStorage.removeItem(CUSTOMER_PORTAL_SESSION_KEY);
-        return null;
-    }
-}
-
-function getCustomerPortalSession() {
-    if (customerPortalState.session && safeInt(customerPortalState.session.expiresAt, 0) > Date.now()) {
-        return customerPortalState.session;
-    }
-
-    customerPortalState.session = readStoredCustomerPortalSession();
-    return customerPortalState.session;
-}
-
-function rememberCustomerPortalSession(publicId, portal, email) {
-    if (!publicId || !portal || !portal.token) return null;
-
-    var session = {
-        publicId: safeText(publicId),
-        token: safeText(portal.token),
-        expiresAt: safeInt(portal.expiresAt, Date.now() + 1000 * 60 * 30),
-        email: safeText(email).toLowerCase()
-    };
-
-    customerPortalState.session = session;
-    try {
-        sessionStorage.setItem(CUSTOMER_PORTAL_SESSION_KEY, JSON.stringify(session));
-    } catch (_) {
-        // ignore storage failures
-    }
-    syncCustomerPortalLookupForm();
-    return session;
-}
-
-function ensureCustomerPortalSessionForOrder(publicId) {
-    var session = getCustomerPortalSession();
-    if (session && session.publicId === publicId) return session;
-
-    if (
-        state.latestCheckoutOrder
-        && state.latestCheckoutOrder.order
-        && state.latestCheckoutOrder.portal
-        && state.latestCheckoutOrder.order.publicId === publicId
-    ) {
-        return rememberCustomerPortalSession(
-            publicId,
-            state.latestCheckoutOrder.portal,
-            state.latestCheckoutOrder.lookupEmail
-        );
-    }
-
-    return null;
-}
-
-function setOrderLookupStatus(status, message) {
-    var statusEl = document.getElementById('order-lookup-status');
-    if (!statusEl) return;
-
-    statusEl.classList.remove('loading', 'success', 'error');
-    if (!status || status === 'idle') {
-        statusEl.textContent = '';
-        return;
-    }
-
-    statusEl.textContent = message || '';
-    if (status === 'loading' || status === 'success' || status === 'error') {
-        statusEl.classList.add(status);
-    }
-}
-
 function clearCustomerPortalResult() {
     var container = document.getElementById('orders-portal-result');
     if (!container) return;
@@ -2617,62 +2559,7 @@ function clearCustomerPortalResult() {
         return;
     }
 
-    var key = customerPortalState.source === 'account' || state.currentView === 'account'
-        ? 'accountOrdersEmptyState'
-        : 'myOrdersEmpty';
-    container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t(key)) + '</p>';
-}
-
-function syncCustomerPortalLookupForm() {
-    var form = document.getElementById('order-lookup-form');
-    var publicIdInput = document.getElementById('order-lookup-public-id');
-    var emailInput = document.getElementById('order-lookup-email');
-    var session = getCustomerPortalSession();
-
-    if (!publicIdInput || !emailInput) return;
-    if (!session) {
-        if (form) form.reset();
-        return;
-    }
-
-    publicIdInput.value = safeText(session.publicId);
-    if (session.email) emailInput.value = session.email;
-}
-
-function clearCustomerPortalSession(shouldToast) {
-    customerPortalState.session = null;
-    if (customerPortalState.source === 'portal') {
-        customerPortalState.data = null;
-    }
-    sessionStorage.removeItem(CUSTOMER_PORTAL_SESSION_KEY);
-    syncCustomerPortalLookupForm();
-    if (customerPortalState.source === 'portal') {
-        clearCustomerPortalResult();
-    }
-    setOrderLookupStatus('idle');
-
-    if (shouldToast) {
-        showToast('info', t('myOrdersTitle'), t('portalSessionCleared'));
-    }
-}
-
-async function customerPortalFetch(url, options) {
-    var session = getCustomerPortalSession();
-    if (!session) {
-        throw new Error(t('portalSessionExpired'));
-    }
-
-    var init = options || {};
-    var headers = new Headers(init.headers || {});
-    headers.set('Authorization', 'Bearer ' + session.token);
-
-    var response = await fetch(url, Object.assign({}, init, { headers: headers }));
-    if (response.status === 401 || response.status === 403) {
-        clearCustomerPortalSession(false);
-        throw new Error(t('portalSessionExpired'));
-    }
-
-    return response;
+    container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('accountOrdersEmptyState')) + '</p>';
 }
 
 function buildPortalDetailList(items) {
@@ -2723,16 +2610,22 @@ function getActiveCustomerOrderAccess(publicId) {
         };
     }
 
-    var portalSession = ensureCustomerPortalSessionForOrder(normalizedPublicId);
-    if (!portalSession) return null;
+    if (
+        !state.latestCheckoutOrder
+        || !state.latestCheckoutOrder.order
+        || !state.latestCheckoutOrder.portal
+        || state.latestCheckoutOrder.order.publicId !== normalizedPublicId
+    ) {
+        return null;
+    }
+
     return {
         type: 'portal',
         headers: {
-            Authorization: 'Bearer ' + portalSession.token
+            Authorization: 'Bearer ' + safeText(state.latestCheckoutOrder.portal.token)
         },
-        documentPath: '/api/orders/' + encodeURIComponent(normalizedPublicId) + '/documents/',
         transferPath: '/api/orders/' + encodeURIComponent(normalizedPublicId) + '/transfer-proof',
-        expiresAt: portalSession.expiresAt
+        expiresAt: safeText(state.latestCheckoutOrder.portal.expiresAt)
     };
 }
 
@@ -2751,7 +2644,7 @@ function renderCustomerPortalResult() {
     if (!container) return;
 
     var detail = customerPortalState.data;
-    var session = customerPortalState.source === 'account' ? getCustomerAuthSession() : getCustomerPortalSession();
+    var session = getCustomerAuthSession();
     if (!detail || !detail.order) {
         clearCustomerPortalResult();
         return;
@@ -2863,89 +2756,6 @@ function renderCustomerPortalResult() {
         + '</div>';
 }
 
-async function loadCustomerPortalDetail(options) {
-    var opts = Object.assign({ silent: false }, options || {});
-    var session = getCustomerPortalSession();
-    if (!session) {
-        customerPortalState.data = null;
-        clearCustomerPortalResult();
-        if (!opts.silent) setOrderLookupStatus('error', t('portalSessionExpired'));
-        return null;
-    }
-
-    if (!opts.silent) {
-        setOrderLookupStatus('loading', t('portalLoading'));
-    }
-
-    try {
-        var response = await customerPortalFetch('/api/orders/' + encodeURIComponent(session.publicId) + '/portal');
-        var result = await response.json();
-        if (!response.ok || (result && result.error)) {
-            throw new Error(result && result.error ? result.error : t('portalLookupError'));
-        }
-
-        if (result && result.portal && result.portal.expiresAt) {
-            rememberCustomerPortalSession(session.publicId, {
-                token: session.token,
-                expiresAt: result.portal.expiresAt
-            }, session.email);
-        }
-
-        customerPortalState.data = result.data || null;
-        customerPortalState.source = 'portal';
-        renderCustomerPortalResult();
-        if (!opts.silent) setOrderLookupStatus('success', t('portalLookupSuccess'));
-        return result;
-    } catch (error) {
-        customerPortalState.data = null;
-        clearCustomerPortalResult();
-        setOrderLookupStatus('error', error.message || t('portalLookupError'));
-        throw error;
-    }
-}
-
-async function handleOrderLookup(event) {
-    if (event) event.preventDefault();
-
-    var publicIdInput = document.getElementById('order-lookup-public-id');
-    var emailInput = document.getElementById('order-lookup-email');
-    if (!publicIdInput || !emailInput) return;
-
-    var publicId = safeText(publicIdInput.value).trim().toUpperCase();
-    var email = safeText(emailInput.value).trim().toLowerCase();
-    if (!publicId || !email) return;
-
-    publicIdInput.value = publicId;
-    emailInput.value = email;
-    setOrderLookupStatus('loading', t('portalLoading'));
-
-    try {
-        var response = await fetch('/api/orders/lookup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                publicId: publicId,
-                email: email
-            })
-        });
-        var result = await response.json().catch(function () { return {}; });
-
-        if (!response.ok || (result && result.error)) {
-            throw new Error(result && result.error ? result.error : t('portalLookupError'));
-        }
-
-        rememberCustomerPortalSession(publicId, result.portal, email);
-        customerPortalState.data = result.data || null;
-        customerPortalState.source = 'portal';
-        renderCustomerPortalResult();
-        setOrderLookupStatus('success', t('portalLookupSuccess'));
-    } catch (error) {
-        customerPortalState.data = null;
-        clearCustomerPortalResult();
-        setOrderLookupStatus('error', error.message || t('portalLookupError'));
-    }
-}
-
 function renderCustomerAccountOrders() {
     var panel = document.getElementById('customer-orders-list-panel');
     if (!panel) return;
@@ -3024,7 +2834,7 @@ async function loadCustomerAccountOrders(options) {
 
         if (customerAccountState.orders.length === 0 && customerPortalState.source === 'account') {
             customerPortalState.data = null;
-            customerPortalState.source = 'portal';
+            customerPortalState.source = 'account';
             clearCustomerPortalResult();
         }
 
@@ -3070,94 +2880,13 @@ async function selectCustomerAccountOrder(publicId, options) {
         console.error(error);
         if (customerPortalState.source === 'account') {
             customerPortalState.data = null;
-            customerPortalState.source = 'portal';
+            customerPortalState.source = 'account';
             clearCustomerPortalResult();
         }
         if (!opts.silent) {
             setCustomerAuthStatus('error', error.message || t('adminActionFailed'));
         }
         throw error;
-    }
-}
-
-async function requestCustomerAuthCode(event) {
-    if (event) event.preventDefault();
-
-    var emailInput = document.getElementById('customer-auth-email');
-    var button = document.getElementById('customer-auth-request-btn');
-    if (!emailInput) return;
-
-    var email = safeText(emailInput.value).trim().toLowerCase();
-    if (!email) return;
-
-    if (button) button.disabled = true;
-    setCustomerAuthStatus('loading', t('portalLoading'));
-    renderCustomerAuthDebugCode('');
-
-    try {
-        var response = await fetch('/api/auth/customer/request-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email })
-        });
-        var result = await response.json().catch(function () { return {}; });
-        if (!response.ok || (result && result.error)) {
-            throw new Error(result && result.error ? result.error : t('adminActionFailed'));
-        }
-
-        setCustomerAuthStatus('success', t('customerAuthRequestSent'));
-        renderCustomerAuthDebugCode(result.debugCode || '');
-        if (result.debugCode) {
-            var codeInput = document.getElementById('customer-auth-code');
-            if (codeInput) codeInput.value = result.debugCode;
-        }
-    } catch (error) {
-        console.error(error);
-        setCustomerAuthStatus('error', error.message || t('adminActionFailed'));
-    } finally {
-        if (button) button.disabled = false;
-    }
-}
-
-async function verifyCustomerAuthCode(event) {
-    if (event) event.preventDefault();
-
-    var emailInput = document.getElementById('customer-auth-email');
-    var codeInput = document.getElementById('customer-auth-code');
-    var button = document.getElementById('customer-auth-verify-btn');
-    if (!emailInput || !codeInput) return;
-
-    var email = safeText(emailInput.value).trim().toLowerCase();
-    var code = safeText(codeInput.value).trim();
-    if (!email || !code) return;
-
-    if (button) button.disabled = true;
-    setCustomerAuthStatus('loading', t('portalLoading'));
-
-    try {
-        var response = await fetch('/api/auth/customer/verify-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: email,
-                code: code
-            })
-        });
-        var result = await response.json().catch(function () { return {}; });
-        if (!response.ok || (result && result.error)) {
-            throw new Error(result && result.error ? result.error : t('customerAuthInvalid'));
-        }
-
-        rememberCustomerAuthSession(result);
-        customerAccountState.selectedPublicId = '';
-        await loadCustomerAccountOrders({ silent: true, autoSelect: true });
-        setCustomerAuthStatus('success', t('customerAuthVerified'));
-        showToast('success', t('myOrdersTitle'), t('customerAuthVerified'));
-    } catch (error) {
-        console.error(error);
-        setCustomerAuthStatus('error', error.message || t('customerAuthInvalid'));
-    } finally {
-        if (button) button.disabled = false;
     }
 }
 
@@ -3169,11 +2898,6 @@ async function customerLogout() {
     }
 
     clearCustomerAuthSession(true);
-    if (getCustomerPortalSession()) {
-        loadCustomerPortalDetail({ silent: true }).catch(function () {
-            clearCustomerPortalResult();
-        });
-    }
 }
 
 async function downloadCustomerDocument(documentId) {
@@ -3194,11 +2918,7 @@ async function downloadCustomerDocument(documentId) {
             headers: access.headers
         });
         if (response.status === 401) {
-            if (access.type === 'account') {
-                clearCustomerAuthSession(false);
-            } else {
-                clearCustomerPortalSession(false);
-            }
+            clearCustomerAuthSession(false);
             throw new Error(t('portalSessionExpired'));
         }
         if (!response.ok) {
@@ -3222,26 +2942,6 @@ async function downloadCustomerDocument(documentId) {
         console.error(error);
         showToast('error', t('myOrdersTitle'), error.message || t('adminActionFailed'));
     }
-}
-
-async function adminFetch(url, options) {
-    var token = getAdminToken();
-    if (!token) {
-        throw new Error(t('adminAuthRequired'));
-    }
-
-    var init = options || {};
-    var headers = new Headers(init.headers || {});
-    headers.set('Authorization', 'Bearer ' + token);
-
-    var response = await fetch(url, Object.assign({}, init, { headers: headers }));
-    if (response.status === 401) {
-        clearAdminSession();
-        navigateTo('admin');
-        showToast('error', t('sessionExpiredTitle'), t('sessionExpiredMessage'));
-        throw new Error(t('sessionExpiredMessage'));
-    }
-    return response;
 }
 
 function redirectStandaloneAuthFallback() {
@@ -3331,34 +3031,6 @@ async function initApp() {
     }
 
     try {
-        var data = await Promise.all([
-            fetch('/api/tours').then(function (r) { return r.json(); }),
-            fetch('/api/hotels').then(function (r) { return r.json(); }),
-            fetch('/api/config').then(function (r) { return r.json(); })
-        ]);
-
-        var tours = data[0];
-        var hotels = data[1];
-        var config = data[2];
-
-        TOURS = {};
-        tours.forEach(function (tour) {
-            TOURS[tour.id] = tour;
-        });
-        HOTELS = hotels;
-        CONFIG = config;
-
-        if (CONFIG.emailjs && CONFIG.emailjs.publicKey && typeof emailjs !== 'undefined') {
-            emailjs.init(CONFIG.emailjs.publicKey);
-        }
-
-        updateContactInfoUI();
-        applyDemoModeState();
-    } catch (e6) {
-        console.error('API error', e6);
-    }
-
-    try {
         initHotelAutocomplete();
     } catch (e7) {
         console.warn('initHotelAutocomplete error', e7);
@@ -3378,6 +3050,8 @@ async function initApp() {
 
     initRevealObserver();
     bindBookingPreviewListeners();
+
+    await loadInitialData();
 
     var modal = document.getElementById('cart-modal');
     if (modal) {
@@ -3400,8 +3074,10 @@ async function initApp() {
     });
 
     window.addEventListener('hashchange', handleHash);
+    window.addEventListener('resize', updateSiteChromeOffset);
 
     updateCartUI();
+    updateSiteChromeOffset();
     setBookingStatus('idle');
     syncCustomerAuthForm();
     ensureGoogleSignInUI();
@@ -3420,6 +3096,10 @@ async function initApp() {
 
 function handleHash() {
     var hash = window.location.hash.slice(1);
+
+    if (hash !== 'checkout') {
+        state.checkoutReturnHash = hash;
+    }
 
     if (hash === 'checkout') {
         showCheckoutView();
@@ -3450,9 +3130,18 @@ function handleHash() {
 }
 
 function navigateTo(view, tourId) {
+    if (view === 'checkout') {
+        var currentHash = getCurrentRouteHash();
+        if (currentHash !== 'checkout') {
+            state.checkoutReturnHash = currentHash || getCurrentViewHash();
+        }
+        window.location.hash = 'checkout';
+        return;
+    }
+
+    state.editingCartIndex = null;
     if (view === 'catalog') window.location.hash = '';
     else if (view === 'detail' && tourId) window.location.hash = tourId;
-    else if (view === 'checkout') window.location.hash = 'checkout';
     else if (view === 'about') window.location.hash = 'about';
     else if (view === 'account') window.location.hash = 'account';
     else window.location.hash = '';
@@ -3484,9 +3173,6 @@ function hideAllViews() {
     var detailView = document.getElementById('detail-view');
     var aboutView = document.getElementById('about-view');
     var accountView = document.getElementById('account-view');
-    var ordersView = document.getElementById('orders-view');
-    var adminLoginView = document.getElementById('admin-login-view');
-    var adminDashboardView = document.getElementById('admin-dashboard-view');
     var testimonials = document.getElementById('testimonials');
 
     if (catalogHero) catalogHero.style.display = 'none';
@@ -3494,9 +3180,6 @@ function hideAllViews() {
     if (detailView) detailView.style.display = 'none';
     if (aboutView) aboutView.style.display = 'none';
     if (accountView) accountView.style.display = 'none';
-    if (ordersView) ordersView.style.display = 'none';
-    if (adminLoginView) adminLoginView.style.display = 'none';
-    if (adminDashboardView) adminDashboardView.style.display = 'none';
     if (testimonials) testimonials.style.display = 'none';
     setCheckoutLayoutActive(false);
 
@@ -3515,6 +3198,8 @@ function showCatalog() {
 
     renderCatalog();
     applyLanguage({ rerender: false, persist: false });
+    updateHeaderNavState();
+    updateDocumentMetadata();
 
     window.scrollTo(0, 0);
 }
@@ -3531,10 +3216,13 @@ function showDetail(tourId) {
     state.adults = 0;
     state.children = 0;
     state.addOns = {};
+    applyPendingCartEdit(tourId);
 
     hideAllViews();
     document.getElementById('detail-view').style.display = '';
     renderTourDetail(tour);
+    updateHeaderNavState();
+    updateDocumentMetadata();
 
     window.scrollTo(0, 0);
 }
@@ -3544,6 +3232,8 @@ function showAbout() {
     hideAllViews();
     document.getElementById('about-view').style.display = '';
     applyLanguage({ rerender: false, persist: false });
+    updateHeaderNavState();
+    updateDocumentMetadata();
     window.scrollTo(0, 0);
 }
 
@@ -3564,6 +3254,8 @@ function showAccount() {
     applyLanguage({ rerender: false, persist: false });
     ensureGoogleSignInUI();
     syncCustomerAuthForm();
+    updateHeaderNavState();
+    updateDocumentMetadata();
     window.scrollTo(0, 0);
 }
 
@@ -3578,316 +3270,10 @@ function showCheckoutView() {
     initCheckoutHero();
     updateCartUI();
     applyLanguage({ rerender: false, persist: false });
+    updateHeaderNavState();
+    updateDocumentMetadata();
     focusCartModalPrimaryControl();
     window.scrollTo(0, 0);
-}
-
-function showAdminLogin() {
-    showCatalog();
-}
-
-function showAdminDashboard() {
-    showCatalog();
-}
-
-async function handleAdminLogin(e) {
-    e.preventDefault();
-
-    var username = document.getElementById('admin-username').value.trim();
-    var password = document.getElementById('admin-password').value.trim();
-    var errorEl = document.getElementById('admin-login-error');
-    var submitBtn = document.querySelector('.admin-login-submit');
-
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.classList.add('loading');
-    }
-
-    try {
-        var response = await fetch('/api/admin/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username, password: password })
-        });
-
-        if (!response.ok) {
-            throw new Error(t('invalidCredentials'));
-        }
-
-        var result = await response.json();
-        sessionStorage.setItem('admin_token', result.token);
-        sessionStorage.setItem('admin_expires_at', String(result.expiresAt || ''));
-
-        document.getElementById('admin-login-form').reset();
-        errorEl.style.display = 'none';
-        navigateTo('dashboard');
-    } catch (err) {
-        console.error(err);
-        errorEl.style.display = 'flex';
-        errorEl.querySelector('span').textContent = t('invalidCredentials');
-    } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('loading');
-        }
-    }
-}
-
-async function adminLogout() {
-    try {
-        await adminFetch('/api/admin/logout', { method: 'POST' });
-    } catch (_) {
-        // Session may already be expired.
-    }
-
-    clearAdminSession();
-    navigateTo('catalog');
-    showToast('info', t('signedOut'), '');
-}
-
-function renderAdminOrderMetrics() {
-    var rows = adminOrdersState.rows || [];
-    var pendingCount = 0;
-    var paidCount = 0;
-    var transferCount = 0;
-
-    rows.forEach(function (row) {
-        var status = safeText(row.status).toLowerCase();
-        var paymentMethod = safeText(row.payment_method).toLowerCase();
-        if (status === 'paid') paidCount += 1;
-        if (status !== 'paid') pendingCount += 1;
-        if (paymentMethod === 'bank_transfer') transferCount += 1;
-    });
-
-    var ordersEl = document.getElementById('admin-metric-orders');
-    var pendingEl = document.getElementById('admin-metric-pending');
-    var paidEl = document.getElementById('admin-metric-paid');
-    var transfersEl = document.getElementById('admin-metric-transfers');
-
-    if (ordersEl) ordersEl.textContent = String(rows.length);
-    if (pendingEl) pendingEl.textContent = String(pendingCount);
-    if (paidEl) paidEl.textContent = String(paidCount);
-    if (transfersEl) transfersEl.textContent = String(transferCount);
-}
-
-function renderAdminOrdersList() {
-    var container = document.getElementById('admin-orders-list');
-    if (!container) return;
-
-    var rows = adminOrdersState.rows || [];
-    if (rows.length === 0) {
-        container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminNoOrders')) + '</p>';
-        return;
-    }
-
-    var html = '';
-    rows.forEach(function (row) {
-        var activeClass = row.public_id === adminOrdersState.selectedPublicId ? ' active' : '';
-        html += '<button type="button" class="admin-order-row' + activeClass + '" onclick="selectAdminOrder(\'' + escapeAttr(row.public_id) + '\')">';
-        html += '<div class="admin-order-row-top">';
-        html += '<div><div class="admin-order-row-id">' + escapeHtml(row.public_id) + '</div><div class="admin-order-row-name">' + escapeHtml(row.guest_name || row.guest_email_masked || '') + '</div></div>';
-        html += '<div class="admin-order-row-total">' + escapeHtml(formatCurrency(row.total, row.currency)) + '</div>';
-        html += '</div>';
-        html += '<div class="admin-order-row-bottom">';
-        html += '<div class="admin-order-row-meta">';
-        html += '<span class="admin-order-chip ' + escapeAttr(toStatusClass(row.status)) + '">' + escapeHtml(normalizeStatusLabel(row.status)) + '</span>';
-        html += '<span class="admin-order-chip">' + escapeHtml(normalizeStatusLabel(row.payment_status || row.payment_method)) + '</span>';
-        html += '<span class="admin-order-chip">' + escapeHtml(normalizePaymentMethodLabel(row.payment_method, row.fee_percent)) + '</span>';
-        html += '</div>';
-        html += '<div class="admin-order-row-name">' + escapeHtml(formatDateTime(row.created_at)) + '</div>';
-        html += '</div>';
-        html += '</button>';
-    });
-
-    container.innerHTML = html;
-}
-
-function buildAdminDetailList(items) {
-    return items.map(function (item) {
-        return '<div class="admin-detail-item"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>';
-    }).join('');
-}
-
-function renderAdminOrderDetail() {
-    var container = document.getElementById('admin-order-detail');
-    if (!container) return;
-
-    var detail = adminOrdersState.detail;
-    if (!detail || !detail.order) {
-        container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminOrderDetailEmpty')) + '</p>';
-        return;
-    }
-
-    var order = detail.order;
-    var payment = detail.payment || null;
-    var items = Array.isArray(detail.items) ? detail.items : [];
-    var documents = Array.isArray(detail.documents) ? detail.documents : [];
-    var transferSubmissions = Array.isArray(detail.transferSubmissions) ? detail.transferSubmissions : [];
-
-    var actionsHtml = '';
-    if (payment && payment.provider === 'paypal' && payment.intent === 'AUTHORIZE' && payment.paypal_authorization_id && payment.status !== 'paid') {
-        actionsHtml += '<button type="button" class="btn btn-primary" onclick="captureAdminPayment(' + safeInt(payment.id, 0) + ')">' + escapeHtml(t('adminCapturePayment')) + '</button>';
-    }
-    if (payment && payment.provider === 'bank_transfer' && payment.status !== 'paid') {
-        actionsHtml += '<button type="button" class="btn btn-primary" onclick="confirmAdminTransfer(' + safeInt(payment.id, 0) + ')">' + escapeHtml(t('adminConfirmTransfer')) + '</button>';
-    }
-
-    var itemHtml = items.length === 0 ? '<p class="admin-orders-empty">' + escapeHtml(t('cartEmpty')) + '</p>' : items.map(function (item) {
-        var addOns = Array.isArray(item.add_ons) ? item.add_ons : [];
-        var description = safeInt(item.adults, 0) + ' ' + t('adultUnit') + ', ' + safeInt(item.children, 0) + ' ' + t('childUnit');
-        if (addOns.length > 0) {
-            description += ' + ' + addOns.map(function (addOn) {
-                return safeText(addOn.id || addOn.slug || 'add-on');
-            }).join(', ');
-        }
-
-        return '<div class="admin-order-item"><strong>' + escapeHtml(item.tour_title_en || item.tour_slug) + '</strong><p>' + escapeHtml(description) + '</p><p>' + escapeHtml(formatCurrency(item.subtotal, order.currency)) + '</p></div>';
-    }).join('');
-
-    var documentsHtml = documents.length === 0 ? '<p class="admin-orders-empty">' + escapeHtml(t('adminNoDocuments')) + '</p>' : documents.map(function (document) {
-        var downloadHref = '/api/admin/orders/' + encodeURIComponent(order.public_id) + '/documents/' + encodeURIComponent(document.id) + '/download';
-        return '<div class="admin-order-document"><strong>' + escapeHtml(document.document_type) + '</strong><p>' + escapeHtml(formatDateTime(document.created_at)) + '</p><p><a href="' + escapeAttr(downloadHref) + '" target="_blank" rel="noopener">' + escapeHtml(t('adminDownloadDocument')) + '</a></p></div>';
-    }).join('');
-
-    var transfersHtml = transferSubmissions.length === 0 ? '<p class="admin-orders-empty">' + escapeHtml(t('adminNoTransfers')) + '</p>' : transferSubmissions.map(function (submission) {
-        return '<div class="admin-order-document"><strong>' + escapeHtml((submission.review_status || 'pending').replace(/_/g, ' ')) + '</strong><p>' + escapeHtml(t('adminMatchScore') + ': ' + safeInt(submission.match_score, 0)) + '</p><p>' + escapeHtml(t('reference') + ': ' + (submission.submitted_reference || t('notSpecified'))) + '</p><p>' + escapeHtml(t('adminReviewedBy') + ': ' + (submission.reviewed_by || t('notSpecified'))) + '</p></div>';
-    }).join('');
-
-    container.innerHTML = ''
-        + '<div class="admin-detail-header">'
-        + '<div><h5>' + escapeHtml(order.public_id) + '</h5><p class="admin-detail-subtitle">' + escapeHtml(formatDateTime(order.created_at)) + '</p></div>'
-        + '<div class="admin-order-row-meta"><span class="admin-order-chip ' + escapeAttr(toStatusClass(order.status)) + '">' + escapeHtml(normalizeStatusLabel(order.status)) + '</span></div>'
-        + '</div>'
-        + (actionsHtml ? '<div class="admin-detail-actions">' + actionsHtml + '</div>' : '')
-        + '<div class="admin-detail-grid">'
-        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminCustomer')) + '</h6><div class="admin-detail-list">' + buildAdminDetailList([
-            { label: t('name'), value: order.guest_name || t('notSpecified') },
-            { label: t('adminGuestEmail'), value: order.guest_email || t('notSpecified') },
-            { label: t('adminGuestPhone'), value: order.guest_phone || t('notSpecified') },
-            { label: t('hotel'), value: order.hotel || t('notSpecified') },
-            { label: t('comments'), value: order.comments || t('noComments') }
-        ]) + '</div></div>'
-        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminPayment')) + '</h6><div class="admin-detail-list">' + buildAdminDetailList([
-            { label: t('adminMethod'), value: normalizePaymentMethodLabel(order.payment_method, order.fee_percent) },
-            { label: t('adminOrderStatus'), value: normalizeStatusLabel(order.status) },
-            { label: t('adminProviderStatus'), value: order.provider_status || t('notSpecified') },
-            { label: t('adminServiceDate'), value: order.service_date || t('notSpecified') },
-            { label: t('pickupTime'), value: order.pickup_time || t('notSpecified') }
-        ].concat(buildPricingDetailItems({
-            subtotal: order.subtotal,
-            feePercent: order.fee_percent,
-            feeAmount: order.fee_amount,
-            totalFinal: order.total_final || order.total,
-            currency: order.currency
-        })).concat(detail.bankTransfer ? [
-            { label: t('bankName'), value: detail.bankTransfer.bankName || t('notSpecified') },
-            { label: t('beneficiary'), value: detail.bankTransfer.beneficiary || t('notSpecified') },
-            { label: t('clabe'), value: detail.bankTransfer.clabe || t('notSpecified') },
-            { label: t('account'), value: detail.bankTransfer.account || t('notSpecified') },
-            { label: t('depositCard'), value: detail.bankTransfer.cardNumber || t('notSpecified') }
-        ] : []).concat(payment ? [
-            { label: t('adminAmount'), value: formatCurrency(payment.total_final || payment.amount, order.currency) },
-            { label: t('adminPaymentId'), value: String(payment.id) },
-            { label: t('adminPaymentStatus'), value: normalizeStatusLabel(payment.status) },
-            { label: t('adminIntent'), value: payment.intent || t('notSpecified') }
-        ] : [])) + '</div></div>'
-        + '</div>'
-        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminOrderItems')) + '</h6><div class="admin-order-items">' + itemHtml + '</div></div>'
-        + '<div class="admin-detail-grid">'
-        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminDocuments')) + '</h6><div class="admin-order-documents">' + documentsHtml + '</div></div>'
-        + '<div class="admin-detail-card"><h6>' + escapeHtml(t('adminTransferSubmissions')) + '</h6><div class="admin-order-documents">' + transfersHtml + '</div></div>'
-        + '</div>';
-}
-
-async function loadAdminOrders(showSuccessToast) {
-    var list = document.getElementById('admin-orders-list');
-    var detail = document.getElementById('admin-order-detail');
-    if (list) list.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminLoadingOrders')) + '</p>';
-    if (detail && !adminOrdersState.selectedPublicId) {
-        detail.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminLoadingOrders')) + '</p>';
-    }
-
-    var response = await adminFetch('/api/admin/orders');
-    var rows = await response.json();
-
-    adminOrdersState.rows = Array.isArray(rows) ? rows : [];
-    renderAdminOrderMetrics();
-
-    if (adminOrdersState.rows.length === 0) {
-        adminOrdersState.selectedPublicId = '';
-        adminOrdersState.detail = null;
-        renderAdminOrdersList();
-        renderAdminOrderDetail();
-    } else {
-        var selectedExists = adminOrdersState.rows.some(function (row) {
-            return row.public_id === adminOrdersState.selectedPublicId;
-        });
-        if (!selectedExists) {
-            adminOrdersState.selectedPublicId = adminOrdersState.rows[0].public_id;
-        }
-        renderAdminOrdersList();
-        await selectAdminOrder(adminOrdersState.selectedPublicId, { silent: true });
-    }
-
-    if (showSuccessToast) {
-        showToast('success', t('adminOrdersTitle'), t('adminRefreshSuccess'));
-    }
-}
-
-async function selectAdminOrder(publicId, options) {
-    var opts = Object.assign({ silent: false }, options || {});
-    adminOrdersState.selectedPublicId = publicId;
-    renderAdminOrdersList();
-
-    var container = document.getElementById('admin-order-detail');
-    if (container && !opts.silent) {
-        container.innerHTML = '<p class="admin-orders-empty">' + escapeHtml(t('adminLoadingOrders')) + '</p>';
-    }
-
-    try {
-        var response = await adminFetch('/api/admin/orders/' + encodeURIComponent(publicId));
-        adminOrdersState.detail = await response.json();
-        renderAdminOrderDetail();
-    } catch (error) {
-        console.error(error);
-        adminOrdersState.detail = null;
-        renderAdminOrderDetail();
-        showToast('error', t('adminOrdersTitle'), error.message || t('adminActionFailed'));
-    }
-}
-
-async function captureAdminPayment(paymentId) {
-    try {
-        var response = await adminFetch('/api/admin/payments/' + encodeURIComponent(paymentId) + '/capture', {
-            method: 'POST'
-        });
-        var result = await response.json();
-        if (!response.ok || (result && result.error)) {
-            throw new Error(result && result.error ? result.error : t('adminActionFailed'));
-        }
-        showToast('success', t('adminPaymentsTitle'), t('adminCaptureSuccess'));
-        await loadAdminOrders(false);
-    } catch (error) {
-        console.error(error);
-        showToast('error', t('adminPaymentsTitle'), error.message || t('adminActionFailed'));
-    }
-}
-
-async function confirmAdminTransfer(paymentId) {
-    try {
-        var response = await adminFetch('/api/admin/payments/' + encodeURIComponent(paymentId) + '/confirm-transfer', {
-            method: 'POST'
-        });
-        var result = await response.json();
-        if (!response.ok || (result && result.error)) {
-            throw new Error(result && result.error ? result.error : t('adminActionFailed'));
-        }
-        showToast('success', t('adminPaymentsTitle'), t('adminTransferConfirmed'));
-        await loadAdminOrders(false);
-    } catch (error) {
-        console.error(error);
-        showToast('error', t('adminPaymentsTitle'), error.message || t('adminActionFailed'));
-    }
 }
 
 function initLanguage() {
@@ -3899,20 +3285,7 @@ function initLanguage() {
         changeLanguage(e.target.value, { rerender: true, persist: true });
     });
 
-    document.addEventListener('click', function (e) {
-        var wrapper = document.getElementById('language-selector-container');
-        if (wrapper && !wrapper.contains(e.target)) {
-            wrapper.classList.remove('open');
-        }
-    });
-
     applyLanguage({ rerender: false, persist: false });
-}
-
-function toggleLanguageDropdown() {
-    var selector = document.getElementById('language-selector-container');
-    if (!selector) return;
-    selector.classList.toggle('open');
 }
 
 function applyLanguage(options) {
@@ -3929,18 +3302,13 @@ function changeLanguage(lang, options) {
     if (selector) selector.value = state.language;
 
     var flag = document.getElementById('lang-flag');
-    var text = document.getElementById('lang-text');
     if (flag) flag.src = 'imagenes/flags/' + (state.language === 'es' ? 'es' : 'us') + '.jpg';
-    if (text) text.textContent = state.language === 'es' ? 'Español' : 'English';
-
-    document.querySelectorAll('.selector-option').forEach(function (opt) {
-        opt.classList.toggle('active', opt.dataset.lang === state.language);
-    });
-
-    var wrapper = document.getElementById('language-selector-container');
-    if (wrapper) wrapper.classList.remove('open');
+    if (selector) {
+        selector.setAttribute('aria-label', state.language === 'es' ? 'Seleccionar idioma' : 'Select language');
+    }
 
     document.documentElement.lang = state.language;
+    updateSiteChromeOffset();
     if (window.tourDatePicker) {
         window.tourDatePicker.set('locale', state.language === 'es' ? 'es' : 'default');
         window.tourDatePicker.set('dateFormat', getDateFormatByLanguage());
@@ -3954,14 +3322,11 @@ function changeLanguage(lang, options) {
         } else if (state.currentView === 'orders' || state.currentView === 'account') {
             renderCustomerAccountOrders();
             renderCustomerPortalResult();
-        } else if (state.currentView === 'dashboard') {
-            renderAdminOrderMetrics();
-            renderAdminOrdersList();
-            renderAdminOrderDetail();
         }
     }
 
     applyDataTranslations();
+    updateDocumentMetadata();
     if (isCartModalActive()) updateCartUI();
     if (state.latestCheckoutOrder && state.latestCheckoutOrder.order) {
         renderCheckoutResult(state.latestCheckoutOrder, state.latestCheckoutOrder.order.paymentMethod);
@@ -4168,7 +3533,7 @@ function buildPreviewCartItem() {
             id: 'preview-generic-' + Date.now(),
             previewDemo: true,
             name: state.language === 'en' ? 'Riviera Maya Demo Experience' : 'Experiencia demo Riviera Maya',
-            image: 'imagenes/whale.jpg',
+            image: 'imagenes/servicios/whale_shark_snorkel_from_cancun/1.jpg',
             adults: 4,
             children: 1,
             adultPriceUSD: 145,
@@ -4312,6 +3677,7 @@ function syncCheckoutActionButtons() {
     var hasItems = state.cart.length > 0;
     var previewMode = isCheckoutPreviewModeActive();
     var canAdvance = hasItems || previewMode;
+    var demoMode = isDemoModeEnabled();
     var nextStep = state.checkoutStep;
     var selected = getSelectedPaymentMethod();
     var available = getConfiguredPaymentMethods();
@@ -4326,8 +3692,6 @@ function syncCheckoutActionButtons() {
     var confirmBtn = document.getElementById('confirm-btn');
     var backToCartBtn = document.getElementById('back-to-cart-btn');
     var editDetailsBtn = document.getElementById('edit-details-btn');
-    var payPayPalBtn = document.getElementById('pay-paypal-btn');
-    var bankTransferBtn = document.getElementById('bank-transfer-btn');
     var payPayPalCardBtn = document.getElementById('payment-option-paypal-cta');
     var bankTransferCardBtn = document.getElementById('payment-option-bank-transfer-cta');
     var confirmMobileActionBar = document.getElementById('confirm-mobile-action-bar');
@@ -4339,13 +3703,11 @@ function syncCheckoutActionButtons() {
         && (selected === 'paypal' || selected === 'bank_transfer');
 
     if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
-    if (previewCheckoutBtn) previewCheckoutBtn.style.display = !hasItems ? 'flex' : 'none';
+    if (previewCheckoutBtn) previewCheckoutBtn.hidden = !demoMode || hasItems;
     if (confirmBtn) confirmBtn.style.display = canAdvance && nextStep === 2 ? 'flex' : 'none';
     if (backToCartBtn) backToCartBtn.style.display = canAdvance && nextStep >= 2 ? 'flex' : 'none';
     if (editDetailsBtn) editDetailsBtn.style.display = canAdvance && nextStep === 3 ? 'flex' : 'none';
 
-    if (payPayPalBtn) payPayPalBtn.style.display = 'none';
-    if (bankTransferBtn) bankTransferBtn.style.display = 'none';
     if (payPayPalCardBtn) {
         payPayPalCardBtn.disabled = nextStep !== 3 || available.indexOf('paypal') === -1 || (hasActiveResult && selected === 'paypal');
     }
@@ -4416,11 +3778,7 @@ async function createCheckoutOrder(paymentMethod) {
 
     var result = await response.json();
     if (result && result.order) {
-        result.lookupEmail = safeText(payload.email).trim().toLowerCase();
         state.latestCheckoutOrder = result;
-    }
-    if (result && result.order && result.portal) {
-        rememberCustomerPortalSession(result.order.publicId, result.portal, payload.email);
     }
     if (customerSession && customerSession.token) {
         loadCustomerAccountOrders({ silent: true, autoSelect: false }).catch(function () {
@@ -4628,9 +3986,6 @@ async function handleCheckoutReturnFromPayPal() {
         if (orderPublicId) {
             try {
                 await cancelPayPalOrder(orderPublicId, paypalOrderId);
-                if (ensureCustomerPortalSessionForOrder(orderPublicId)) {
-                    await loadCustomerPortalDetail({ silent: true });
-                }
             } catch (_) {
                 // Keep cancellation feedback resilient even if the backend state update fails.
             }
@@ -4648,13 +4003,6 @@ async function handleCheckoutReturnFromPayPal() {
     try {
         setBookingStatus('loading');
         var result = await finalizePayPalOrder(orderPublicId, paypalOrderId);
-        if (ensureCustomerPortalSessionForOrder(orderPublicId)) {
-            try {
-                await loadCustomerPortalDetail({ silent: true });
-            } catch (_) {
-                // Keep checkout flow resilient even if portal refresh fails.
-            }
-        }
         clearCheckoutQueryParams();
         if (result && result.order && result.order.status === 'paid') {
             setBookingStatus('success');
@@ -4705,16 +4053,6 @@ function initCatalogHero() {
     if (!hero || !layerA || !layerB) return;
 
     applyCatalogHeroSlides(layerA, layerB, SEA_HERO_SLIDES);
-
-    fetchCommonsSeaHeroSlides()
-        .then(function (remoteSlides) {
-            if (remoteSlides.length >= 2) {
-                applyCatalogHeroSlides(layerA, layerB, remoteSlides);
-            }
-        })
-        .catch(function (error) {
-            console.warn('fetchCommonsSeaHeroSlides error', error);
-        });
 }
 
 function scrollToTopTours() {
@@ -4728,6 +4066,10 @@ function renderCatalog() {
     if (!grid) return;
 
     if (Object.keys(TOURS).length === 0) {
+        if (initialDataState.ready) {
+            grid.innerHTML = '<div class="app-state-card app-state-card-inline"><h2>' + escapeHtml(t('catalogLoadErrorTitle')) + '</h2><p>' + escapeHtml(t('catalogLoadErrorMessage')) + '</p><button type="button" class="btn btn-primary" onclick="retryInitialLoad()">' + escapeHtml(t('retryButton')) + '</button></div>';
+            return;
+        }
         grid.innerHTML = '<div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
         return;
     }
@@ -4990,6 +4332,45 @@ function getCurrentTour() {
     return state.currentTour ? TOURS[state.currentTour] : null;
 }
 
+function getEditingCartItem() {
+    if (!Number.isInteger(state.editingCartIndex)) return null;
+    return state.cart[state.editingCartIndex] || null;
+}
+
+function isEditingCurrentTour() {
+    var item = getEditingCartItem();
+    return Boolean(item && state.currentTour && item.tourId === state.currentTour);
+}
+
+function applyPendingCartEdit(tourId) {
+    var item = getEditingCartItem();
+    if (!item || item.tourId !== tourId) {
+        state.editingCartIndex = null;
+        return;
+    }
+
+    state.adults = safeInt(item.adults, 0);
+    state.children = safeInt(item.children, 0);
+    state.addOns = {};
+    (item.addOns || []).forEach(function (addOn) {
+        if (!addOn || !addOn.id) return;
+        state.addOns[addOn.id] = true;
+    });
+}
+
+function editCartItem(index) {
+    if (index < 0 || index >= state.cart.length) return;
+    var item = state.cart[index];
+    if (!item || !item.tourId || !TOURS[item.tourId]) return;
+
+    resetCheckoutPreviewMode();
+    state.editingCartIndex = index;
+    state.checkoutMode = false;
+    state.checkoutStep = 1;
+    setBookingStatus('idle');
+    window.location.hash = item.tourId;
+}
+
 function selectTier(adults) {
     state.adults = adults;
     var el = document.getElementById('qty-adults');
@@ -5073,6 +4454,8 @@ function updateConfigurator() {
 
     var button = document.getElementById('btn-add-tour');
     if (button) {
+        var actionLabel = isEditingCurrentTour() ? t('updateCart') : t('addToCart');
+        button.innerHTML = SVG.cart + ' <span>' + escapeHtml(actionLabel) + '</span>';
         button.disabled = (state.adults + state.children) === 0;
     }
 }
@@ -5118,7 +4501,7 @@ function addTourToCart() {
         ? tour.gallery.images[0]
         : 1;
 
-    state.cart.push({
+    var nextItem = {
         id: tour.id + '-' + Date.now(),
         tourId: tour.id,
         name: getLocalized(tour.hero.title, state.language),
@@ -5129,13 +4512,23 @@ function addTourToCart() {
         childPriceUSD: safeInt(tour.pricing.childPriceFlat, 0),
         addOns: selectedAddOns,
         subtotalUSD: calculateTotal()
-    });
+    };
+    var editingCurrent = isEditingCurrentTour();
+
+    if (editingCurrent) {
+        var existing = getEditingCartItem();
+        if (existing && existing.id) nextItem.id = existing.id;
+        state.cart[state.editingCartIndex] = nextItem;
+    } else {
+        state.cart.push(nextItem);
+    }
 
     state.adults = 0;
     state.children = 0;
     Object.keys(state.addOns).forEach(function (key) {
         state.addOns[key] = false;
     });
+    state.editingCartIndex = null;
 
     var adultsEl = document.getElementById('qty-adults');
     var childrenEl = document.getElementById('qty-children');
@@ -5153,13 +4546,13 @@ function addTourToCart() {
     saveState();
     updateCartUI();
 
-    showToast('success', t('added'), t('addedMessage'));
+    showToast('success', editingCurrent ? t('updated') : t('added'), editingCurrent ? t('updatedMessage') : t('addedMessage'));
 
     var button = document.getElementById('btn-add-tour');
     if (button) {
         button.classList.add('added');
         var original = button.innerHTML;
-        button.innerHTML = SVG.check + ' <span>' + escapeHtml(t('added')) + '</span>';
+        button.innerHTML = SVG.check + ' <span>' + escapeHtml(editingCurrent ? t('updated') : t('added')) + '</span>';
 
         setTimeout(function () {
             button.classList.remove('added');
@@ -5173,6 +4566,11 @@ function removeFromCart(index) {
     if (index < 0 || index >= state.cart.length) return;
     resetCheckoutPreviewMode();
     state.cart.splice(index, 1);
+    if (state.editingCartIndex === index) {
+        state.editingCartIndex = null;
+    } else if (Number.isInteger(state.editingCartIndex) && state.editingCartIndex > index) {
+        state.editingCartIndex -= 1;
+    }
     saveState();
     updateCartUI();
     showToast('info', t('removed'), t('removedMessage'));
@@ -5199,30 +4597,15 @@ function renderCheckoutPaymentCards() {
     var bankConfig = getDisplayBankTransferConfig();
     var paypalBreakdown = getCartPricingBreakdown('paypal');
     var bankBreakdown = getCartPricingBreakdown('bank_transfer');
-    var paypalUrl = getPayPalProfileUrl();
     var paypalEmail = getPayPalAccountEmail();
-    var transferReference = getTransferReferencePreview();
-    var exactTransferReference = getLatestTransferReference();
     var paypalFee = getPaymentFeePercent('paypal');
     var bankName = safeText(bankConfig.bankName).trim();
-    var beneficiary = safeText(bankConfig.beneficiary).trim();
-    var clabe = safeText(bankConfig.clabe).trim();
-    var account = safeText(bankConfig.account).trim();
-    var cardNumber = safeText(bankConfig.cardNumber).trim();
-    var swift = safeText(bankConfig.swift).trim();
 
     if (paypalTotalEl) paypalTotalEl.textContent = formatCurrency(paypalBreakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency);
     if (bankTotalEl) bankTotalEl.textContent = formatCurrency(bankBreakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency);
 
     if (paypalDetails) {
         paypalDetails.replaceChildren();
-        if (paypalUrl) {
-            appendPaymentCardDetail(paypalDetails, t('paypalProfileLabel'), paypalUrl, {
-                href: paypalUrl,
-                linkText: t('paypalProfileLink'),
-                copyValue: paypalUrl
-            });
-        }
         if (paypalEmail) {
             appendPaymentCardDetail(paypalDetails, t('email'), paypalEmail, {
                 copyValue: paypalEmail
@@ -5233,31 +4616,16 @@ function renderCheckoutPaymentCards() {
             t('commission'),
             paypalFee > 0 ? '+' + formatFeePercent(paypalFee) + '%' : t('noCommission')
         );
+        appendPaymentCardDetail(paypalDetails, t('paymentMethod'), t('paymentPayPalNote'));
     }
 
     if (bankDetails) {
         bankDetails.replaceChildren();
-        appendPaymentCardDetail(bankDetails, t('bankName'), bankName || t('notSpecified'), {
+        appendPaymentCardDetail(bankDetails, t('bankName'), bankName || t('paymentTransfer'), bankName ? {
             copyValue: bankName
-        });
-        appendPaymentCardDetail(bankDetails, t('beneficiary'), beneficiary || t('notSpecified'), {
-            copyValue: beneficiary
-        });
-        appendPaymentCardDetail(bankDetails, t('clabe'), clabe || t('notSpecified'), {
-            copyValue: clabe
-        });
-        appendPaymentCardDetail(bankDetails, t('account'), account || t('notSpecified'), {
-            copyValue: account
-        });
-        appendPaymentCardDetail(bankDetails, t('depositCard'), cardNumber || t('notSpecified'), {
-            copyValue: cardNumber
-        });
-        appendPaymentCardDetail(bankDetails, t('swift'), swift || t('notSpecified'), {
-            copyValue: swift
-        });
-        appendPaymentCardDetail(bankDetails, t('reference'), transferReference || t('referencePending'), {
-            copyValue: exactTransferReference
-        });
+        } : null);
+        appendPaymentCardDetail(bankDetails, t('reference'), t('referencePending'));
+        appendPaymentCardDetail(bankDetails, t('paymentMethod'), t('paymentTransferPreviewNote'));
     }
 }
 
@@ -5349,6 +4717,7 @@ function openCartModal() {
 function closeCartModal() {
     var modal = document.getElementById('cart-modal');
     var wasOpen = Boolean(modal && modal.classList.contains('active'));
+    var returnHash = state.checkoutReturnHash;
     if (modal) {
         modal.classList.remove('active');
         modal.setAttribute('aria-hidden', 'true');
@@ -5370,7 +4739,12 @@ function closeCartModal() {
     });
 
     if (state.currentView === 'checkout' || document.body.classList.contains('checkout-view-active')) {
-        navigateTo('catalog');
+        state.checkoutReturnHash = '';
+        if (returnHash) {
+            window.location.hash = returnHash;
+        } else {
+            navigateTo('catalog');
+        }
         return;
     }
 
@@ -5388,20 +4762,19 @@ function updateCartUI() {
 
     if (!cartCount || !cartItems || !totalSection) return;
 
-    var totalPeople = 0;
-    state.cart.forEach(function (item) {
-        totalPeople += safeInt(item.adults, 0) + safeInt(item.children, 0);
-    });
-
-    cartCount.textContent = String(totalPeople);
-    cartCount.classList.toggle('empty', totalPeople === 0);
+    var itemCount = state.cart.length;
+    cartCount.textContent = String(itemCount);
+    cartCount.classList.toggle('empty', itemCount === 0);
 
     if (state.cart.length === 0) {
         var previewMode = isCheckoutPreviewModeActive();
         if (mobileSummaryBar) mobileSummaryBar.hidden = true;
         cartItems.innerHTML = '<div class="cart-empty">' +
             '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' +
-            '<p>' + escapeHtml(t('cartEmpty')) + '</p></div>';
+            '<p>' + escapeHtml(t('cartEmpty')) + '</p>' +
+            '<small>' + escapeHtml(t('cartEmptyMessage')) + '</small>' +
+            (!previewMode ? '<button type="button" class="btn btn-secondary cart-empty-action" onclick="closeCartModal()">' + escapeHtml(t('browseToursButton')) + '</button>' : '') +
+            '</div>';
 
         totalSection.style.display = 'none';
         hideBookingPreviews();
@@ -5441,6 +4814,7 @@ function updateCartUI() {
             html += '<div class="cart-item-details">';
             html += '<div class="cart-item-name">' + escapeHtml(getCartItemName(item)) + '</div>';
             html += '<div class="cart-item-qty">' + escapeHtml(qtyText) + '</div>';
+            html += '<button type="button" class="cart-item-edit" onclick="editCartItem(' + index + ')">' + escapeHtml(t('editCartItem')) + '</button>';
             html += '</div>';
             html += '<div class="cart-item-price">$' + safeInt(item.subtotalUSD, 0) + ' USD</div>';
             html += '<button type="button" class="cart-item-remove" onclick="removeFromCart(' + index + ')" aria-label="' + escapeAttr(t('removeFromCartAria')) + '">&times;</button>';
@@ -5730,122 +5104,6 @@ function goToCheckoutStep(step, options) {
     return true;
 }
 
-function buildWhatsAppMessage(options) {
-    var opts = options || {};
-    var lines = [];
-    var breakdown = getCartPricingBreakdown(getSelectedPaymentMethod());
-
-    lines.push(t('newBooking'));
-    lines.push('');
-    lines.push('*' + document.getElementById('customer-name').value + '*');
-    lines.push(document.getElementById('tour-date').value);
-
-    var pickupTime = document.getElementById('pickup-time').value;
-    if (pickupTime) lines.push(pickupTime + ' (MX Time)');
-
-    lines.push(document.getElementById('customer-phone').value);
-    lines.push('');
-    lines.push(t('tours'));
-
-    state.cart.forEach(function (item) {
-        var line = '- ' + getCartItemName(item) + ' (' + safeInt(item.adults, 0) + ' ' + t('adultUnit') + ', ' + safeInt(item.children, 0) + ' ' + t('childUnit') + ')';
-        var addOnNames = getCartItemAddonNames(item);
-        if (addOnNames.length > 0) line += ' + ' + addOnNames.join(', ');
-        line += ' - $' + safeInt(item.subtotalUSD, 0) + ' USD';
-        lines.push(line);
-    });
-
-    lines.push('');
-    lines.push('*' + t('subtotal').toUpperCase() + ': ' + formatCurrency(breakdown.subtotal, CONFIG.payments && CONFIG.payments.currency) + '*');
-    lines.push('*' + t('commission').toUpperCase() + ': ' + formatFeeAmountValue(breakdown) + '*');
-    lines.push('*' + t('totalFinal').toUpperCase() + ': ' + formatCurrency(breakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency) + '*');
-
-    if (opts.orderPublicId) {
-        lines.push('');
-        lines.push('*' + t('orderNumber').toUpperCase() + ':* ' + opts.orderPublicId);
-    }
-
-    var comments = document.getElementById('customer-comments').value.trim();
-    if (comments) {
-        lines.push('');
-        lines.push(comments);
-    }
-
-    return lines.join('\n');
-}
-
-function buildPaymentSupportWhatsAppMessage() {
-    var breakdown = getCartPricingBreakdown(getSelectedPaymentMethod());
-    var lines = [
-        t('supportPaymentMessage'),
-        '',
-        '*' + document.getElementById('customer-name').value + '*',
-        document.getElementById('tour-date').value,
-        document.getElementById('customer-phone').value,
-        '',
-        '*' + t('selectedPaymentMethod') + ':* ' + normalizePaymentMethodLabel(getSelectedPaymentMethod()),
-        '*' + t('subtotal') + ':* ' + formatCurrency(breakdown.subtotal, CONFIG.payments && CONFIG.payments.currency),
-        '*' + t('commission') + ':* ' + formatFeeAmountValue(breakdown),
-        '*' + t('totalFinal') + ':* ' + formatCurrency(breakdown.totalFinal, CONFIG.payments && CONFIG.payments.currency)
-    ];
-
-    var comments = safeText(document.getElementById('customer-comments').value).trim();
-    if (comments) {
-        lines.push('');
-        lines.push(comments);
-    }
-
-    return lines.join('\n');
-}
-
-function openPaymentSupportWhatsApp() {
-    if (!CONFIG.whatsapp || !CONFIG.whatsapp.phone) return;
-    if (!validateCheckoutSubmission()) return;
-    window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(buildPaymentSupportWhatsAppMessage()), '_blank');
-}
-
-function openDemoSupportEmail(orderResult, payload, summary) {
-    var email = safeText(CONFIG.contact && CONFIG.contact.email).trim();
-    if (!email) return;
-
-    var subject = state.language === 'en'
-        ? 'Demo booking ' + safeText(orderResult && orderResult.order && orderResult.order.publicId)
-        : 'Reservacion demo ' + safeText(orderResult && orderResult.order && orderResult.order.publicId);
-    var body = [
-        t('name') + ': ' + safeText(payload && payload.name),
-        t('email') + ': ' + safeText(payload && payload.email),
-        t('phone') + ': ' + safeText(payload && payload.phone),
-        t('tourDate') + ': ' + safeText(payload && payload.date),
-        t('pickupTime') + ': ' + safeText(payload && payload.pickup_time),
-        t('hotel') + ': ' + safeText(payload && payload.hotel),
-        '',
-        summary || '',
-        '',
-        t('totalFinal') + ': $' + safeInt(payload && payload.total, 0) + ' USD'
-    ].join('\n');
-
-    window.location.href = 'mailto:' + encodeURIComponent(email)
-        + '?subject=' + encodeURIComponent(subject)
-        + '&body=' + encodeURIComponent(body);
-}
-
-function appendEmailRow(container, label, value) {
-    var row = document.createElement('div');
-    row.className = 'email-row';
-
-    var labelEl = document.createElement('span');
-    labelEl.className = 'email-label';
-    labelEl.textContent = label;
-
-    var valueEl = document.createElement('span');
-    valueEl.className = 'email-value';
-    valueEl.textContent = value;
-
-    row.appendChild(labelEl);
-    row.appendChild(valueEl);
-    container.appendChild(row);
-}
-
 function updatePreviews() {
     var form = document.getElementById('booking-form');
     if (!form || !form.checkValidity()) {
@@ -5862,6 +5120,7 @@ function proceedToCheckout() {
 }
 
 function startCheckoutPreview() {
+    if (!isDemoModeEnabled()) return;
     clearCheckoutResult();
     activateCheckoutPreviewMode();
     openCartModal();
@@ -5909,13 +5168,11 @@ function validateCheckoutSubmission() {
 }
 
 function setBookingButtonsLoading(loading) {
-    var payPayPalBtn = document.getElementById('pay-paypal-btn');
-    var bankTransferBtn = document.getElementById('bank-transfer-btn');
     var payPayPalCardBtn = document.getElementById('payment-option-paypal-cta');
     var bankTransferCardBtn = document.getElementById('payment-option-bank-transfer-cta');
     var confirmMobilePayBtn = document.getElementById('confirm-mobile-pay-btn');
 
-    [payPayPalBtn, bankTransferBtn, payPayPalCardBtn, bankTransferCardBtn, confirmMobilePayBtn].forEach(function (btn) {
+    [payPayPalCardBtn, bankTransferCardBtn, confirmMobilePayBtn].forEach(function (btn) {
         if (!btn) return;
         btn.disabled = loading;
         btn.classList.toggle('loading', loading);
@@ -5977,6 +5234,7 @@ function resetBookingForm() {
 
 function completeCheckout() {
     state.cart = [];
+    state.editingCartIndex = null;
     resetBookingForm();
     saveState();
     state.checkoutMode = false;
@@ -5992,85 +5250,6 @@ function completeCheckout() {
     setTimeout(function () {
         closeCartModal();
     }, 1500);
-}
-
-async function sendBookingEmail() {
-    if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
-
-    updateProgressIndicator(3);
-    bookingSubmissionInProgress = true;
-    setBookingButtonsLoading(true);
-    setBookingStatus('loading');
-
-    try {
-        var payload = buildBookingPayload();
-        var orderResult = await createCheckoutOrder('manual_contact');
-
-        var summary = state.cart.map(function (item) {
-            var line = getCartItemName(item) + ': ' + safeInt(item.adults, 0) + ' ' + t('adultUnit') + ', ' + safeInt(item.children, 0) + ' ' + t('childUnit');
-            var addOnNames = getCartItemAddonNames(item);
-            if (addOnNames.length > 0) line += ' + ' + addOnNames.join(', ');
-            line += ' - $' + safeInt(item.subtotalUSD, 0) + ' USD';
-            return line;
-        }).join('\n');
-
-        if (CONFIG.emailjs && CONFIG.emailjs.serviceId && CONFIG.emailjs.templateId && typeof emailjs !== 'undefined') {
-            if (isDemoModeEnabled()) {
-                openDemoSupportEmail(orderResult, payload, summary);
-            } else {
-                await emailjs.send(CONFIG.emailjs.serviceId, CONFIG.emailjs.templateId, {
-                    customer_name: payload.name,
-                    customer_email: payload.email,
-                    customer_phone: payload.phone,
-                    tour_date: payload.date,
-                    pickup_time: payload.pickup_time || t('notSpecified'),
-                    customer_hotel: payload.hotel || t('notSpecified'),
-                    customer_comments: payload.comments || t('noComments'),
-                    cart_summary: summary,
-                    total_amount: '$' + payload.total + ' USD',
-                    order_public_id: orderResult.order.publicId
-                });
-            }
-        }
-
-        setBookingStatus('success');
-        showToast('success', t('bookingSentTitle'), t('manualOrderCreated'));
-        completeCheckout();
-    } catch (e) {
-        console.error(e);
-        setBookingStatus('error');
-        showToast('error', t('whatsappErrorTitle'), e.message || t('emailFallbackError'));
-    } finally {
-        bookingSubmissionInProgress = false;
-        setBookingButtonsLoading(false);
-    }
-}
-
-async function sendToWhatsApp() {
-    if (bookingSubmissionInProgress || !validateCheckoutSubmission()) return;
-
-    updateProgressIndicator(3);
-    bookingSubmissionInProgress = true;
-    setBookingButtonsLoading(true);
-    setBookingStatus('loading');
-
-    try {
-        var orderResult = await createCheckoutOrder('manual_contact');
-
-        var message = buildWhatsAppMessage({ orderPublicId: orderResult.order.publicId });
-        window.open('https://wa.me/' + CONFIG.whatsapp.phone + '?text=' + encodeURIComponent(message), '_blank');
-
-        setBookingStatus('success');
-        showToast('success', t('bookingSentTitle'), t('bookingSavedForWhatsApp'));
-        completeCheckout();
-    } catch (e) {
-        console.error(e);
-        setBookingStatus('error');
-        showToast('error', t('whatsappErrorTitle'), e.message || t('whatsappErrorMessage'));
-    } finally {
-        bookingSubmissionInProgress = false;
-        setBookingButtonsLoading(false);
-    }
 }
 
 function buildPreviewOrderPublicId() {
@@ -6308,6 +5487,15 @@ async function uploadTransferProof() {
             fileInput: proofInput,
             button: uploadBtn
         });
+        if (state.latestCheckoutOrder && state.latestCheckoutOrder.order) {
+            if (state.latestCheckoutOrder.payment) {
+                state.latestCheckoutOrder.payment.status = 'transfer_submitted';
+                state.latestCheckoutOrder.payment.providerStatus = 'proof_uploaded';
+            }
+            state.latestCheckoutOrder.order.status = 'transfer_submitted';
+            state.latestCheckoutOrder.order.providerStatus = 'proof_uploaded';
+            renderCheckoutResult(state.latestCheckoutOrder, 'bank_transfer');
+        }
         showToast('success', t('bookingSaved'), t('uploadProofSuccess'));
     } catch (error) {
         console.error(error);
@@ -6329,21 +5517,12 @@ async function uploadCustomerPortalTransferProof() {
             fileInput: proofInput,
             button: uploadBtn
         });
-        if (customerPortalState.source === 'account') {
-            await selectCustomerAccountOrder(detail.order.publicId, { silent: true });
-            setCustomerAuthStatus('success', t('uploadProofSuccess'));
-        } else {
-            await loadCustomerPortalDetail({ silent: true });
-            setOrderLookupStatus('success', t('uploadProofSuccess'));
-        }
+        await selectCustomerAccountOrder(detail.order.publicId, { silent: true });
+        setCustomerAuthStatus('success', t('uploadProofSuccess'));
         showToast('success', t('myOrdersTitle'), t('uploadProofSuccess'));
     } catch (error) {
         console.error(error);
-        if (customerPortalState.source === 'account') {
-            setCustomerAuthStatus('error', error.message || t('uploadProofError'));
-        } else {
-            setOrderLookupStatus('error', error.message || t('uploadProofError'));
-        }
+        setCustomerAuthStatus('error', error.message || t('uploadProofError'));
         showToast('error', t('myOrdersTitle'), error.message || t('uploadProofError'));
     }
 }
@@ -6566,164 +5745,4 @@ function hideMapBtn() {
 function openHotelMap(name) {
     var query = encodeURIComponent(name + ' Cancun Mexico');
     window.open('https://www.google.com/maps/search/?api=1&query=' + query, '_blank');
-}
-
-function addAdminPricingRow() {
-    var container = document.getElementById('admin-pricing-container');
-    if (!container) return;
-
-    var row = document.createElement('div');
-    row.className = 'admin-dynamic-row pricing-row';
-    row.innerHTML = '<input type="number" placeholder="Adults (e.g. 1)" class="p-adults" required><input type="number" placeholder="Price (e.g. 150)" class="p-price" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
-    container.appendChild(row);
-}
-
-function addAdminItineraryRow() {
-    var container = document.getElementById('admin-itinerary-container');
-    if (!container) return;
-
-    var row = document.createElement('div');
-    row.className = 'admin-dynamic-row itinerary-row';
-    row.innerHTML = '<input type="text" placeholder="EN Step" class="i-en" required><input type="text" placeholder="ES Step" class="i-es" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
-    container.appendChild(row);
-}
-
-function addAdminInclRow(type) {
-    var container = document.getElementById('admin-' + type + '-container');
-    if (!container) return;
-
-    var row = document.createElement('div');
-    row.className = 'admin-dynamic-row ' + type + '-row';
-    row.innerHTML = '<input type="text" placeholder="EN" class="inc-en" required><input type="text" placeholder="ES" class="inc-es" required><button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">X</button>';
-    container.appendChild(row);
-}
-
-function filesAreJpg(fileList) {
-    return Array.from(fileList || []).every(function (file) {
-        if (!file) return true;
-        var mime = String(file.type || '').toLowerCase();
-        return mime === 'image/jpeg' || mime === 'image/jpg' || /\.jpe?g$/i.test(file.name || '');
-    });
-}
-
-async function handleAdminAddTour(e) {
-    e.preventDefault();
-
-    var submitBtn = document.getElementById('admin-submit-tour-btn');
-    if (submitBtn) submitBtn.disabled = true;
-
-    try {
-        if (!isAdminLoggedIn()) {
-            throw new Error(t('adminAuthRequired'));
-        }
-
-        var rawSlug = document.getElementById('admin-tour-slug').value.trim();
-        var slug = sanitizeSlugClient(rawSlug);
-        if (!slug) throw new Error(t('invalidSlug'));
-
-        var heroFile = document.getElementById('admin-img-hero').files[0];
-        var cardFile = document.getElementById('admin-img-card').files[0];
-        var galleryFiles = document.getElementById('admin-img-gallery').files;
-
-        if (!filesAreJpg([heroFile, cardFile]) || !filesAreJpg(galleryFiles)) {
-            throw new Error(t('onlyJpgError'));
-        }
-
-        var data = {
-            slug: slug,
-            price_from: safeInt(document.getElementById('admin-tour-price-from').value, 0),
-            child_price_flat: safeInt(document.getElementById('admin-tour-child-price').value, 0),
-            title_en: document.getElementById('admin-tour-title-en').value,
-            title_es: document.getElementById('admin-tour-title-es').value,
-            subtitle_en: document.getElementById('admin-tour-subtitle-en').value,
-            subtitle_es: document.getElementById('admin-tour-subtitle-es').value,
-            short_desc_en: document.getElementById('admin-tour-short-en').value,
-            short_desc_es: document.getElementById('admin-tour-short-es').value,
-            description_en: document.getElementById('admin-tour-desc-en').value,
-            description_es: document.getElementById('admin-tour-desc-es').value,
-            card_thumbnail: 2,
-            hero_image: 1,
-            pricing_tiers: [],
-            itinerary: [],
-            includes: [],
-            excludes: [],
-            gallery_images: []
-        };
-
-        document.querySelectorAll('.pricing-row').forEach(function (row) {
-            data.pricing_tiers.push({
-                adults: safeInt(row.querySelector('.p-adults').value, 0),
-                adult_price: safeInt(row.querySelector('.p-price').value, 0)
-            });
-        });
-
-        document.querySelectorAll('.itinerary-row').forEach(function (row) {
-            data.itinerary.push({
-                en: row.querySelector('.i-en').value,
-                es: row.querySelector('.i-es').value
-            });
-        });
-
-        document.querySelectorAll('.includes-row').forEach(function (row) {
-            data.includes.push({
-                en: row.querySelector('.inc-en').value,
-                es: row.querySelector('.inc-es').value
-            });
-        });
-
-        document.querySelectorAll('.excludes-row').forEach(function (row) {
-            data.excludes.push({
-                en: row.querySelector('.inc-en').value,
-                es: row.querySelector('.inc-es').value
-            });
-        });
-
-        var formData = new FormData();
-        formData.append('slug', slug);
-
-        if (heroFile) formData.append('images', heroFile, '1.jpg');
-        if (cardFile) formData.append('images', cardFile, '2.jpg');
-
-        for (var i = 0; i < galleryFiles.length; i += 1) {
-            var num = i + 3;
-            data.gallery_images.push(num);
-            formData.append('images', galleryFiles[i], num + '.jpg');
-        }
-
-        formData.append('data', JSON.stringify(data));
-
-        var response = await adminFetch('/api/tours', {
-            method: 'POST',
-            body: formData
-        });
-
-        var result = await response.json();
-        if (!response.ok || result.status !== 'ok') {
-            throw new Error(result.error || t('saveError'));
-        }
-
-        showToast('success', state.language === 'es' ? 'Éxito' : 'Success', t('tourSaved'));
-
-        document.getElementById('admin-add-tour-form').reset();
-        document.getElementById('admin-itinerary-container').innerHTML = '';
-        document.getElementById('admin-pricing-container').innerHTML = '';
-        document.getElementById('admin-includes-container').innerHTML = '';
-        document.getElementById('admin-excludes-container').innerHTML = '';
-
-        try {
-            var refreshed = await fetch('/api/tours').then(function (r) { return r.json(); });
-            TOURS = {};
-            refreshed.forEach(function (tour) {
-                TOURS[tour.id] = tour;
-            });
-            if (state.currentView === 'catalog') renderCatalog();
-        } catch (_) {
-            // Ignore refresh issues after successful save.
-        }
-    } catch (err) {
-        console.error(err);
-        showToast('error', state.language === 'es' ? 'Error' : 'Error', err.message || t('saveError'));
-    } finally {
-        if (submitBtn) submitBtn.disabled = false;
-    }
 }
