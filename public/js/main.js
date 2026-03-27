@@ -64,6 +64,8 @@ let revealObserver = null;
 let bookingSubmissionInProgress = false;
 let lastFocusedBeforeCartModal = null;
 let lastFocusedBeforeAuthModal = null;
+let lastFocusedBeforeDemoModal = null;
+let lastFocusedBeforeHeaderDrawer = null;
 let localCartOwner = 'guest';
 let customerCartSyncTimer = null;
 let googleIdentityInitialized = false;
@@ -667,7 +669,15 @@ function updateSiteChromeOffset() {
     if (header) offset += Math.ceil(header.getBoundingClientRect().height);
     if (banner && !banner.hidden) offset += Math.ceil(banner.getBoundingClientRect().height);
 
-    document.documentElement.style.setProperty('--site-header-offset', Math.max(72, offset) + 'px');
+    document.documentElement.style.setProperty('--site-header-offset', Math.max(60, offset) + 'px');
+}
+
+function updateDrawerLanguageState() {
+    var spanishBtn = document.getElementById('drawer-language-es');
+    var englishBtn = document.getElementById('drawer-language-en');
+
+    if (spanishBtn) spanishBtn.classList.toggle('active', state.language === 'es');
+    if (englishBtn) englishBtn.classList.toggle('active', state.language === 'en');
 }
 
 function applyDemoModeState() {
@@ -1990,6 +2000,9 @@ function syncCustomerAuthForm() {
     var loginBtn = document.getElementById('auth-login-btn');
     var registerBtn = document.getElementById('auth-register-btn');
     var accountBtn = document.getElementById('account-nav-btn');
+    var drawerLoginBtn = document.getElementById('drawer-login-btn');
+    var drawerRegisterBtn = document.getElementById('drawer-register-btn');
+    var drawerAccountBtn = document.getElementById('drawer-account-btn');
     var logoutBtn = document.getElementById('customer-auth-logout-btn');
     var summaryGrid = document.querySelector('.account-summary-grid');
     var accountActions = document.querySelector('.account-view-actions');
@@ -2012,6 +2025,9 @@ function syncCustomerAuthForm() {
     if (loginBtn) loginBtn.hidden = Boolean(session);
     if (registerBtn) registerBtn.hidden = Boolean(session);
     if (accountBtn) accountBtn.hidden = !session;
+    if (drawerLoginBtn) drawerLoginBtn.hidden = Boolean(session);
+    if (drawerRegisterBtn) drawerRegisterBtn.hidden = Boolean(session);
+    if (drawerAccountBtn) drawerAccountBtn.hidden = !session;
     if (logoutBtn) logoutBtn.hidden = !session;
     if (summaryGrid) summaryGrid.hidden = !session;
     if (accountActions) accountActions.hidden = !session;
@@ -2129,6 +2145,89 @@ function switchAuthMode(mode) {
     authUIState.mode = mode === 'login' ? 'login' : 'register';
     syncAuthModeUI();
     ensureGoogleSignInUI();
+}
+
+function isHeaderDrawerOpen() {
+    var drawer = document.getElementById('header-drawer');
+    return Boolean(drawer && !drawer.hidden);
+}
+
+function openHeaderDrawer() {
+    var drawer = document.getElementById('header-drawer');
+    var toggleBtn = document.getElementById('menu-toggle-btn');
+    if (!drawer) return;
+
+    if (!isHeaderDrawerOpen() && document.activeElement && document.activeElement !== document.body) {
+        lastFocusedBeforeHeaderDrawer = document.activeElement;
+    }
+
+    drawer.hidden = false;
+    if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeHeaderDrawer() {
+    var drawer = document.getElementById('header-drawer');
+    var toggleBtn = document.getElementById('menu-toggle-btn');
+    if (!drawer) return;
+
+    drawer.hidden = true;
+    if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+    if (lastFocusedBeforeHeaderDrawer && document.contains(lastFocusedBeforeHeaderDrawer)) {
+        lastFocusedBeforeHeaderDrawer.focus();
+    }
+    lastFocusedBeforeHeaderDrawer = null;
+}
+
+function toggleHeaderDrawer() {
+    if (isHeaderDrawerOpen()) {
+        closeHeaderDrawer();
+        return;
+    }
+    openHeaderDrawer();
+}
+
+function isDemoModalOpen() {
+    var modal = document.getElementById('demo-preview-modal');
+    return Boolean(modal && !modal.hidden);
+}
+
+function openDemoModal() {
+    var modal = document.getElementById('demo-preview-modal');
+    if (!modal) return;
+
+    closeHeaderDrawer();
+    if (!isDemoModalOpen() && document.activeElement && document.activeElement !== document.body) {
+        lastFocusedBeforeDemoModal = document.activeElement;
+    }
+
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    window.requestAnimationFrame(function () {
+        var closeButton = modal.querySelector('.demo-preview-close');
+        if (closeButton) closeButton.focus();
+    });
+}
+
+function closeDemoModal() {
+    var modal = document.getElementById('demo-preview-modal');
+    if (!modal) return;
+
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (lastFocusedBeforeDemoModal && document.contains(lastFocusedBeforeDemoModal)) {
+        lastFocusedBeforeDemoModal.focus();
+    }
+    lastFocusedBeforeDemoModal = null;
+}
+
+function launchDemoExperience() {
+    closeDemoModal();
+    startCheckoutPreview();
 }
 
 function showGoogleUnavailableMessage(context) {
@@ -2484,6 +2583,24 @@ function initAuthModal() {
     });
 
     syncAuthModeUI();
+}
+
+function initHeaderDrawer() {
+    var drawer = document.getElementById('header-drawer');
+    if (!drawer) return;
+
+    drawer.addEventListener('click', function (event) {
+        if (event.target === drawer) closeHeaderDrawer();
+    });
+}
+
+function initDemoModal() {
+    var modal = document.getElementById('demo-preview-modal');
+    if (!modal) return;
+
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) closeDemoModal();
+    });
 }
 
 function clearCustomerOrdersList() {
@@ -3048,6 +3165,18 @@ async function initApp() {
         console.warn('initAuthModal error', e9);
     }
 
+    try {
+        initHeaderDrawer();
+    } catch (e10) {
+        console.warn('initHeaderDrawer error', e10);
+    }
+
+    try {
+        initDemoModal();
+    } catch (e11) {
+        console.warn('initDemoModal error', e11);
+    }
+
     initRevealObserver();
     bindBookingPreviewListeners();
 
@@ -3063,6 +3192,16 @@ async function initApp() {
     }
 
     document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && isDemoModalOpen()) {
+            e.preventDefault();
+            closeDemoModal();
+            return;
+        }
+        if (e.key === 'Escape' && isHeaderDrawerOpen()) {
+            e.preventDefault();
+            closeHeaderDrawer();
+            return;
+        }
         if (!isCartModalActive()) return;
         if (e.key === 'Escape') {
             e.preventDefault();
@@ -3074,10 +3213,16 @@ async function initApp() {
     });
 
     window.addEventListener('hashchange', handleHash);
-    window.addEventListener('resize', updateSiteChromeOffset);
+    window.addEventListener('resize', function () {
+        if (window.innerWidth > 900 && isHeaderDrawerOpen()) {
+            closeHeaderDrawer();
+        }
+        updateSiteChromeOffset();
+    });
 
     updateCartUI();
     updateSiteChromeOffset();
+    updateDrawerLanguageState();
     setBookingStatus('idle');
     syncCustomerAuthForm();
     ensureGoogleSignInUI();
@@ -3095,6 +3240,7 @@ async function initApp() {
 }
 
 function handleHash() {
+    closeHeaderDrawer();
     var hash = window.location.hash.slice(1);
 
     if (hash !== 'checkout') {
@@ -3309,6 +3455,7 @@ function changeLanguage(lang, options) {
 
     document.documentElement.lang = state.language;
     updateSiteChromeOffset();
+    updateDrawerLanguageState();
     if (window.tourDatePicker) {
         window.tourDatePicker.set('locale', state.language === 'es' ? 'es' : 'default');
         window.tourDatePicker.set('dateFormat', getDateFormatByLanguage());
@@ -3364,6 +3511,7 @@ function applyDataTranslations() {
     renderPaymentMethodCopy();
     renderCheckoutPricingSummary();
     syncCustomerAuthForm();
+    updateDrawerLanguageState();
     if (isAuthModalOpen()) syncAuthModeUI();
 }
 
@@ -3635,7 +3783,11 @@ function applyCheckoutPreviewDummyData(previewItem) {
 
 function activateCheckoutPreviewMode() {
     if (!state.checkoutPreviewBackup) {
-        state.checkoutPreviewBackup = captureCheckoutFormSnapshot();
+        state.checkoutPreviewBackup = {
+            form: captureCheckoutFormSnapshot(),
+            cart: parseJson(JSON.stringify(state.cart), []),
+            editingCartIndex: state.editingCartIndex
+        };
     }
     clearCheckoutResult();
     state.checkoutPreviewMode = true;
@@ -3659,16 +3811,23 @@ function resetCheckoutPreviewMode(options) {
     state.checkoutPreviewMode = false;
     state.checkoutPreviewBackup = null;
     if (wasPreviewMode) {
-        state.cart = state.cart.filter(function (item) {
-            return !item || !item.previewDemo;
-        });
+        if (snapshot && Array.isArray(snapshot.cart)) {
+            state.cart = snapshot.cart.map(normalizeStoredCartItem).filter(Boolean);
+        } else {
+            state.cart = state.cart.filter(function (item) {
+                return !item || !item.previewDemo;
+            });
+        }
+        state.editingCartIndex = snapshot && Number.isInteger(snapshot.editingCartIndex)
+            ? snapshot.editingCartIndex
+            : null;
         clearCheckoutResult();
     }
 
-    if (opts.restoreForm && snapshot) {
-        restoreCheckoutFormSnapshot(snapshot);
-    } else if (snapshot && snapshot.selectedPaymentMethod) {
-        state.selectedPaymentMethod = snapshot.selectedPaymentMethod;
+    if (opts.restoreForm && snapshot && snapshot.form) {
+        restoreCheckoutFormSnapshot(snapshot.form);
+    } else if (snapshot && snapshot.form && snapshot.form.selectedPaymentMethod) {
+        state.selectedPaymentMethod = snapshot.form.selectedPaymentMethod;
         updatePaymentMethodUI();
     }
 }
@@ -3677,7 +3836,6 @@ function syncCheckoutActionButtons() {
     var hasItems = state.cart.length > 0;
     var previewMode = isCheckoutPreviewModeActive();
     var canAdvance = hasItems || previewMode;
-    var demoMode = isDemoModeEnabled();
     var nextStep = state.checkoutStep;
     var selected = getSelectedPaymentMethod();
     var available = getConfiguredPaymentMethods();
@@ -3703,7 +3861,7 @@ function syncCheckoutActionButtons() {
         && (selected === 'paypal' || selected === 'bank_transfer');
 
     if (checkoutBtn) checkoutBtn.style.display = hasItems && nextStep === 1 ? 'flex' : 'none';
-    if (previewCheckoutBtn) previewCheckoutBtn.hidden = !demoMode || hasItems;
+    if (previewCheckoutBtn) previewCheckoutBtn.hidden = false;
     if (confirmBtn) confirmBtn.style.display = canAdvance && nextStep === 2 ? 'flex' : 'none';
     if (backToCartBtn) backToCartBtn.style.display = canAdvance && nextStep >= 2 ? 'flex' : 'none';
     if (editDetailsBtn) editDetailsBtn.style.display = canAdvance && nextStep === 3 ? 'flex' : 'none';
@@ -5120,11 +5278,21 @@ function proceedToCheckout() {
 }
 
 function startCheckoutPreview() {
-    if (!isDemoModeEnabled()) return;
+    function openPreviewFlow() {
+        openCartModal();
+        goToCheckoutStep(2, { allowEmptyCart: true });
+    }
+
     clearCheckoutResult();
     activateCheckoutPreviewMode();
-    openCartModal();
-    goToCheckoutStep(2, { allowEmptyCart: true });
+
+    if (state.currentView !== 'checkout') {
+        navigateTo('checkout');
+        window.setTimeout(openPreviewFlow, 40);
+        return;
+    }
+
+    openPreviewFlow();
 }
 
 function proceedToConfirmation() {

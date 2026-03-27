@@ -50,13 +50,13 @@
                 </svg>
                 <span id="account-nav-label" data-i18n="accountNav">Mi cuenta</span>
             </button>
-            <button class="preview-flow-btn" id="preview-checkout-btn" onclick="startCheckoutPreview()" hidden type="button">
+            <button class="preview-flow-btn" id="preview-checkout-btn" onclick="openDemoModal()" type="button">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 12h14" />
                     <path d="M13 6l6 6-6 6" />
                     <path d="M5 6v12" />
                 </svg>
-                <span data-i18n="previewCheckoutButton">Probar checkout demo</span>
+                <span data-es="Ver demo" data-en="View demo">Ver demo</span>
             </button>
             <button class="cart-btn" id="cart-btn" onclick="navigateTo('checkout')" type="button">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -67,8 +67,53 @@
                 <span class="visually-hidden" data-es="Carrito" data-en="Cart">Cart</span>
                 <span class="cart-count empty" id="cart-count">0</span>
             </button>
+            <button class="menu-toggle-btn" id="menu-toggle-btn" onclick="toggleHeaderDrawer()" type="button"
+                aria-expanded="false" aria-controls="header-drawer">
+                <span class="visually-hidden" data-es="Abrir menú" data-en="Open menu">Open menu</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="4" y1="7" x2="20" y2="7" />
+                    <line x1="4" y1="12" x2="20" y2="12" />
+                    <line x1="4" y1="17" x2="20" y2="17" />
+                </svg>
+            </button>
         </div>
     </header>
+    <div class="header-drawer" id="header-drawer" hidden>
+        <div class="header-drawer-panel">
+            <div class="header-drawer-top">
+                <span class="header-drawer-title" data-es="Menú" data-en="Menu">Menú</span>
+                <button type="button" class="header-drawer-close" onclick="closeHeaderDrawer()" aria-label="Close menu">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <nav class="header-drawer-nav" aria-label="Mobile navigation">
+                <button type="button" class="header-drawer-link" onclick="closeHeaderDrawer(); navigateTo('catalog'); scrollToTopTours();">
+                    <span data-es="Tours" data-en="Tours">Tours</span>
+                </button>
+                <button type="button" class="header-drawer-link" onclick="closeHeaderDrawer(); navigateTo('about');">
+                    <span data-es="Nosotros" data-en="About Us">Nosotros</span>
+                </button>
+            </nav>
+            <div class="header-drawer-language" role="group" aria-label="Language switcher">
+                <button type="button" class="drawer-language-btn" id="drawer-language-es" onclick="changeLanguage('es'); closeHeaderDrawer();">ES</button>
+                <button type="button" class="drawer-language-btn" id="drawer-language-en" onclick="changeLanguage('en'); closeHeaderDrawer();">EN</button>
+            </div>
+            <div class="header-drawer-actions">
+                <button type="button" class="header-drawer-action" onclick="closeHeaderDrawer(); openDemoModal();">
+                    <span data-es="Ver demo" data-en="View demo">Ver demo</span>
+                </button>
+                <button type="button" class="header-drawer-action" id="drawer-login-btn" onclick="closeHeaderDrawer(); openAuthModal('login')">
+                    <span data-i18n="loginNav">Iniciar sesión</span>
+                </button>
+                <button type="button" class="header-drawer-action" id="drawer-register-btn" onclick="closeHeaderDrawer(); openAuthModal('register')">
+                    <span data-i18n="registerNav">Regístrate</span>
+                </button>
+                <button type="button" class="header-drawer-action" id="drawer-account-btn" onclick="closeHeaderDrawer(); navigateTo('account')" hidden>
+                    <span data-i18n="accountNav">Mi cuenta</span>
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="demo-mode-banner" id="demo-mode-banner" hidden>
         <span data-es="Modo demo activo: estás usando datos de prueba." data-en="Demo mode active: you are using test data.">Demo mode active: you are using test data.</span>
     </div>
@@ -120,6 +165,37 @@
                 <button type="submit" class="btn btn-primary auth-email-submit" id="auth-submit-btn">Iniciar sesión</button>
             </form>
             <div class="auth-inline-status" id="auth-modal-status" aria-live="polite"></div>
+        </div>
+    </div>
+    <div class="demo-preview-modal" id="demo-preview-modal" aria-hidden="true" hidden>
+        <div class="demo-preview-card" role="dialog" aria-modal="true" aria-labelledby="demo-preview-title">
+            <button type="button" class="demo-preview-close" aria-label="Close demo modal" onclick="closeDemoModal()">&times;</button>
+            <div class="demo-preview-copy">
+                <span class="demo-preview-kicker" data-es="Demo" data-en="Demo">Demo</span>
+                <h2 id="demo-preview-title" data-es="Checkout compacto y simulado" data-en="Compact simulated checkout">Checkout compacto y simulado</h2>
+                <p data-es="Abre una vista de demostración con datos de prueba, pasos compactos y acciones de pago simuladas. No requiere backend ni cobra nada."
+                    data-en="Open a demonstration view with sample data, compact steps, and simulated payment actions. It does not require the backend and does not charge anything.">
+                    Abre una vista de demostración con datos de prueba, pasos compactos y acciones de pago simuladas. No requiere backend ni cobra nada.
+                </p>
+            </div>
+            <div class="demo-preview-highlights">
+                <div class="demo-preview-highlight">
+                    <strong data-es="Header de 60px" data-en="60px header">Header de 60px</strong>
+                    <span data-es="Navegación más limpia y sin bloques redundantes." data-en="Cleaner navigation without redundant blocks.">Navegación más limpia y sin bloques redundantes.</span>
+                </div>
+                <div class="demo-preview-highlight">
+                    <strong data-es="Checkout compacto" data-en="Compact checkout">Checkout compacto</strong>
+                    <span data-es="Imagen menor a 150px y espaciado base de 16px." data-en="Image under 150px and a 16px spacing rhythm.">Imagen menor a 150px y espaciado base de 16px.</span>
+                </div>
+            </div>
+            <div class="demo-preview-actions">
+                <button type="button" class="btn btn-primary" onclick="launchDemoExperience()">
+                    <span data-es="Abrir checkout demo" data-en="Open demo checkout">Abrir checkout demo</span>
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeDemoModal()">
+                    <span data-es="Cerrar" data-en="Close">Cerrar</span>
+                </button>
+            </div>
         </div>
     </div>
     <section class="catalog-hero" id="catalog-hero">
