@@ -53,6 +53,9 @@ const CUSTOMER_PORTAL_TOKEN_TTL_MS = Math.max(5 * 60 * 1000, Number(process.env.
 const CUSTOMER_PROFILE_ID_PREFIX = sanitizeText(process.env.CUSTOMER_PROFILE_ID_PREFIX || 'CUS', 12) || 'CUS';
 const CUSTOMER_SESSION_TTL_MS = Math.max(60 * 60 * 1000, Number(process.env.CUSTOMER_SESSION_TTL_MS || 1000 * 60 * 60 * 24 * 7));
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
+const CHECKOUT_DEMO_TOGGLE_VISIBLE = process.env.CHECKOUT_DEMO_TOGGLE_VISIBLE !== 'false';
+const CHECKOUT_DEMO_DEFAULT_ON = process.env.CHECKOUT_DEMO_DEFAULT_ON !== 'false';
+const DEMO_CONTACT_EMAIL = sanitizeText(process.env.DEMO_CONTACT_EMAIL || 'miarsito@gmail.com', 180) || 'miarsito@gmail.com';
 const GOOGLE_CLIENT_IDS = String(process.env.GOOGLE_CLIENT_IDS || process.env.GOOGLE_CLIENT_ID || '')
     .split(',')
     .map((value) => sanitizeText(value, 240))
@@ -60,7 +63,7 @@ const GOOGLE_CLIENT_IDS = String(process.env.GOOGLE_CLIENT_IDS || process.env.GO
 const GOOGLE_PRIMARY_CLIENT_ID = GOOGLE_CLIENT_IDS[0] || '';
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 const CONTACT_EMAIL = sanitizeText(
-    process.env.CONTACT_EMAIL || (DEMO_MODE ? 'miarsito@gmail.com' : 'lindotours@hotmail.com'),
+    process.env.CONTACT_EMAIL || (DEMO_MODE ? DEMO_CONTACT_EMAIL : 'lindotours@hotmail.com'),
     180
 );
 const WHATSAPP_PHONE = sanitizeText(
@@ -68,6 +71,13 @@ const WHATSAPP_PHONE = sanitizeText(
     32
 );
 const DEMO_PAYPAL_URL = sanitizeText(process.env.DEMO_PAYPAL_URL || 'https://paypal.me/miarsito', 240);
+const PEXELS_API_KEY = sanitizeText(process.env.PEXELS_API_KEY, 240);
+const PEXELS_API_BASE = sanitizeText(process.env.PEXELS_API_BASE || 'https://api.pexels.com/v1', 240) || 'https://api.pexels.com/v1';
+const HERO_IMAGE_CACHE_TTL_MS = Math.max(15 * 60 * 1000, safeInt(process.env.HERO_IMAGE_CACHE_TTL_MS, 1000 * 60 * 60 * 24));
+const HERO_PEXELS_PHOTO_IDS = String(process.env.PEXELS_HERO_PHOTO_IDS || '6840004,4306947,20210504,5345372')
+    .split(',')
+    .map((value) => safeInt(value, 0))
+    .filter((value) => value > 0);
 const BANK_TRANSFER_BANK_NAME = sanitizeText(process.env.BANK_TRANSFER_BANK_NAME, 120);
 const BANK_TRANSFER_BENEFICIARY = sanitizeText(process.env.BANK_TRANSFER_BENEFICIARY, 180);
 const BANK_TRANSFER_CLABE = sanitizeText(process.env.BANK_TRANSFER_CLABE, 64);
@@ -88,6 +98,129 @@ const paypalTokenCache = {
     accessToken: '',
     expiresAt: 0
 };
+const heroSlidesCache = {
+    expiresAt: 0,
+    slides: []
+};
+const HERO_PINNED_SLIDES = parsePinnedHeroSlides(process.env.HERO_SLIDES_JSON);
+const HERO_FALLBACK_SLIDES = [
+    {
+        src: 'https://images.pexels.com/photos/6840004/pexels-photo-6840004.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
+        alt: 'Cancun hotel zone resort next to a turquoise Caribbean beach.',
+        creditLabel: 'Odin Reyna',
+        creditUrl: 'https://www.pexels.com/photo/aerial-shot-of-a-hotel-resort-and-beach-in-cancun-6840004/',
+        sourceLabel: 'Pexels'
+    },
+    {
+        src: 'https://images.pexels.com/photos/4306947/pexels-photo-4306947.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
+        alt: 'Aerial view of Cancun hotel zone with bright turquoise water.',
+        creditLabel: 'Zachary DeBottis',
+        creditUrl: 'https://www.pexels.com/photo/aerial-photography-of-buildings-near-body-of-water-4306947/',
+        sourceLabel: 'Pexels'
+    },
+    {
+        src: 'https://images.pexels.com/photos/20210504/pexels-photo-20210504.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
+        alt: 'Birds eye view of a Cancun beachfront resort and premium pools.',
+        creditLabel: 'Israel Torres',
+        creditUrl: 'https://www.pexels.com/photo/birds-eye-view-of-resort-on-sea-shore-in-cancun-20210504/',
+        sourceLabel: 'Pexels'
+    },
+    {
+        src: 'https://images.pexels.com/photos/5345372/pexels-photo-5345372.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
+        alt: 'Aerial view of a white sand beach and shallow turquoise water in Cancun.',
+        creditLabel: 'Francisco Basto',
+        creditUrl: 'https://www.pexels.com/photo/sea-shore-5345372/',
+        sourceLabel: 'Pexels'
+    }
+];
+heroSlidesCache.slides = HERO_PINNED_SLIDES.length > 0 ? HERO_PINNED_SLIDES : HERO_FALLBACK_SLIDES;
+heroSlidesCache.expiresAt = Date.now() + HERO_IMAGE_CACHE_TTL_MS;
+
+function isSafeHeroSlideSrc(src) {
+    return /^https?:\/\//i.test(src) || src.startsWith('/');
+}
+
+function normalizeHeroSlide(slide) {
+    if (!slide || typeof slide !== 'object') return null;
+    const src = sanitizeText(slide.src || slide.url, 800);
+    if (!src || !isSafeHeroSlideSrc(src)) return null;
+    return {
+        src,
+        alt: sanitizeText(slide.alt || '', 240),
+        creditLabel: sanitizeText(slide.creditLabel || slide.photographer || '', 180),
+        creditUrl: sanitizeText(slide.creditUrl || slide.photoUrl || slide.url || '', 800),
+        sourceLabel: sanitizeText(slide.sourceLabel || 'Pexels', 80) || 'Pexels'
+    };
+}
+
+function parsePinnedHeroSlides(rawValue) {
+    const raw = String(rawValue || '').trim();
+    if (!raw) return [];
+
+    try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .map((slide) => normalizeHeroSlide(slide))
+            .filter(Boolean);
+    } catch (error) {
+        console.warn('Invalid HERO_SLIDES_JSON value', error.message);
+        return [];
+    }
+}
+
+function mapPexelsPhotoToHeroSlide(photo) {
+    if (!photo || typeof photo !== 'object') return null;
+    return normalizeHeroSlide({
+        src: photo.src && (photo.src.landscape || photo.src.large2x || photo.src.large || photo.src.original),
+        alt: photo.alt || photo.photographer || 'Cancun hero photo',
+        creditLabel: photo.photographer,
+        creditUrl: photo.url,
+        sourceLabel: 'Pexels'
+    });
+}
+
+async function fetchPexelsHeroSlides() {
+    if (!PEXELS_API_KEY || HERO_PEXELS_PHOTO_IDS.length === 0) return [];
+
+    const slides = await Promise.all(HERO_PEXELS_PHOTO_IDS.map(async (photoId) => {
+        const response = await fetch(`${PEXELS_API_BASE}/photos/${photoId}`, {
+            headers: {
+                Authorization: PEXELS_API_KEY
+            }
+        });
+        if (!response.ok) {
+            throw new Error(`Pexels hero photo ${photoId} request failed with status ${response.status}`);
+        }
+        const photo = await response.json();
+        return mapPexelsPhotoToHeroSlide(photo);
+    }));
+
+    return slides.filter(Boolean);
+}
+
+async function getHeroSlides() {
+    if (HERO_PINNED_SLIDES.length > 0) return HERO_PINNED_SLIDES;
+
+    if (heroSlidesCache.expiresAt > Date.now() && Array.isArray(heroSlidesCache.slides) && heroSlidesCache.slides.length > 0) {
+        return heroSlidesCache.slides;
+    }
+
+    try {
+        const fetchedSlides = await fetchPexelsHeroSlides();
+        if (fetchedSlides.length > 0) {
+            heroSlidesCache.slides = fetchedSlides;
+            heroSlidesCache.expiresAt = Date.now() + HERO_IMAGE_CACHE_TTL_MS;
+            return fetchedSlides;
+        }
+    } catch (error) {
+        console.warn('Falling back to bundled hero slides', error.message);
+    }
+
+    heroSlidesCache.slides = HERO_FALLBACK_SLIDES;
+    heroSlidesCache.expiresAt = Date.now() + HERO_IMAGE_CACHE_TTL_MS;
+    return HERO_FALLBACK_SLIDES;
+}
 
 function sanitizeSlug(input) {
     const base = String(input || '')
@@ -2983,7 +3116,8 @@ app.post('/api/admin/payments/:id/confirm-transfer', requireAdmin, (req, res) =>
 });
 
 // Config endpoint
-app.get('/api/config', (req, res) => {
+app.get('/api/config', async (req, res) => {
+    const heroSlides = await getHeroSlides();
     res.json({
         whatsapp: {
             phone: WHATSAPP_PHONE,
@@ -2997,7 +3131,15 @@ app.get('/api/config', (req, res) => {
         },
         demoMode: {
             enabled: DEMO_MODE,
-            paypalUrl: DEMO_PAYPAL_URL || null
+            paypalUrl: DEMO_PAYPAL_URL || null,
+            contactEmail: DEMO_CONTACT_EMAIL
+        },
+        ui: {
+            checkoutDemoToggleVisible: CHECKOUT_DEMO_TOGGLE_VISIBLE,
+            checkoutDemoDefaultOn: CHECKOUT_DEMO_DEFAULT_ON
+        },
+        hero: {
+            slides: heroSlides
         },
         auth: {
             customer: {
